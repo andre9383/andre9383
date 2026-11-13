@@ -1,0 +1,4 @@
+build/
+src/com/triplingo/app/BuildKey.java
+*.keystore
+local.key
