@@ -565,15 +565,7 @@ function srsRate(c, g) { // g: 0 otra vez, 1 difícil, 2 bien, 3 fácil
 V.review = function () {
   let cards = shuffle(dueCards()).slice(0, 40);
   const totalCards = Object.keys(S.srs).length;
-  if (!cards.length) {
-    $app.innerHTML = top('Repasar') + `<div class="card center"><div style="font-size:56px">🧠</div><h2>¡Todo al día!</h2><p class="mut">${totalCards ? 'No tienes tarjetas pendientes hoy. Tienes ' + totalCards + ' tarjetas en tu memoria a largo plazo.' : 'Completa el paso "Vocabulario" de una unidad para empezar a construir tu mazo.'}</p></div>
-    <div class="card"><h3>Estadísticas de memoria</h3>${S.langs.map(l => { const c = Object.values(S.srs).filter(x => x.l === l); const m = c.filter(x => x.iv >= 21).length; return `<div class="row" style="margin:6px 0"><span>${COURSE[l].flag}</span><span class="grow">${c.length} tarjetas</span><span class="mut">${m} dominadas</span></div>`; }).join('')}</div>
-    <button class="btn sec full" onclick="App.revMix()">Práctica libre mezclada (intercalado)</button>`;
-    A.revMix = () => { const all = Object.values(S.srs).filter(c => S.langs.includes(c.l)); if (!all.length) return toast('Aún no hay tarjetas'); cards = shuffle(all).slice(0, 20); k = 0; flip = false; draw(); };
-    var k = 0, flip = false;
-    return;
-  }
-  var k = 0, flip = false; let ok = 0;
+  let k = 0, flip = false, ok = 0;
   function draw() {
     if (k >= cards.length) { save(); addXP(0); confetti(); $app.innerHTML = top('Repasar') + `<div class="card center"><div style="font-size:56px">🎉</div><h2>Repaso completado</h2><p>${ok}/${cards.length} recordadas</p><button class="btn full" onclick="tabGo('home')">Volver al inicio</button></div>`; return; }
     const c = cards[k], C = COURSE[c.l];
@@ -586,6 +578,13 @@ V.review = function () {
   }
   A.rFlip = () => { if (!flip) { flip = true; draw(); } };
   A.rRate = (g) => { const c = cards[k]; srsRate(c, g); if (g > 0) { ok++; addXP(5); } else cards.push(c); k++; flip = false; save(); draw(); };
+  if (!cards.length) {
+    $app.innerHTML = top('Repasar') + `<div class="card center"><div style="font-size:56px">🧠</div><h2>¡Todo al día!</h2><p class="mut">${totalCards ? 'No tienes tarjetas pendientes hoy. Tienes ' + totalCards + ' tarjetas en tu memoria a largo plazo.' : 'Completa el paso "Vocabulario" de una unidad para empezar a construir tu mazo.'}</p></div>
+    <div class="card"><h3>Estadísticas de memoria</h3>${S.langs.map(l => { const c = Object.values(S.srs).filter(x => x.l === l); const m = c.filter(x => x.iv >= 21).length; return `<div class="row" style="margin:6px 0"><span>${COURSE[l].flag}</span><span class="grow">${c.length} tarjetas</span><span class="mut">${m} dominadas</span></div>`; }).join('')}</div>
+    <button class="btn sec full" onclick="App.revMix()">Práctica libre mezclada (intercalado)</button>`;
+    A.revMix = () => { const all = Object.values(S.srs).filter(c => S.langs.includes(c.l)); if (!all.length) return toast('Aún no hay tarjetas'); cards = shuffle(all).slice(0, 20); k = 0; flip = false; ok = 0; draw(); };
+    return;
+  }
   draw();
 };
 
@@ -691,7 +690,8 @@ V.kana = function () {
 // registro de aciertos de kana: envolvemos feedback mediante listener de clic
 document.addEventListener('click', (e) => {
   const b = e.target.closest('.opt'); if (!b || !view || view.name !== 'ex' || view.arg.kind !== 'kana') return;
-  setTimeout(() => { const right = b.classList.contains('right'); const q = view.arg.qs.find(x => x.options && x.options.includes(b.textContent) && (x.answer === b.textContent || right === false)); const kn = q && q.kana; if (kn) { const s = S.kana[kn] || (S.kana[kn] = { ok: 0, bad: 0 }); right ? s.ok++ : s.bad++; save(); } }, 0);
+  const q = window.__curQ && window.__curQ();
+  setTimeout(() => { const right = b.classList.contains('right'); const kn = q && q.kana; if (kn) { const s = S.kana[kn] || (S.kana[kn] = { ok: 0, bad: 0 }); right ? s.ok++ : s.bad++; save(); } }, 0);
 });
 
 // ------------- tutor IA, explicación, Feynman, escritura, lectura
