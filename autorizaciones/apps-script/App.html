@@ -1,0 +1,227 @@
+<script>
+/* ================== Estado ================== */
+const S = { token: null, D: null, vista: 'inicio/resumen', filtros: {}, f: {}, sort: {}, page: {}, leidas: new Set(recuperar('leidas', [])), opc: {} };
+const ROL_LBL = { ADMINISTRADOR: 'Administrador', COORDINADOR_GENERAL: 'Coordinador general', COORDINADOR_AREA: 'Coordinador de área', AUTORIZADOR: 'Autorizador', GESTOR_CASOS: 'Gestor de casos especiales', CONSULTA: 'Consulta' };
+const SIT_LBL = { HOSPITALIZADO: 'Hospitalizado', CE: 'Consulta externa', EGRESADO_ABIERTO: 'Egresado sin cerrar', CAMA_NO_LIBERADA: 'Egresado con cama', EN_ATENCION: 'En atención sin cama', FUERA: 'Fuera de abiertos' };
+const SIT_PILL = { HOSPITALIZADO: 'p-info', CE: 'p-vio', EGRESADO_ABIERTO: 'p-warn', CAMA_NO_LIBERADA: 'p-crit', EN_ATENCION: 'p-mut', FUERA: 'p-mut' };
+const SITS = ['HOSPITALIZADO', 'CE', 'EGRESADO_ABIERTO', 'CAMA_NO_LIBERADA', 'EN_ATENCION'];
+const BAN_LBL = { SOAT_DEFINIDO: 'SOAT definido', SOAT_SIN_DOC: 'SOAT sin documentos', SIN_SS: 'Sin seguridad social', EPS: 'EPS / régimen', PARTICULAR: 'Particular' };
+const EC = { NUEVO: 'NUEVO', GESTION: 'EN GESTIÓN', DEFINIDO: 'DEFINIDO - PENDIENTE DE CIERRE', PAGADOR: 'PAGADOR ASIGNADO', SALIO: 'SALIÓ SIN CIERRE', CERRADO: 'CERRADO' };
+const EC_ORDEN = [EC.NUEVO, EC.GESTION, EC.DEFINIDO, EC.PAGADOR, EC.SALIO, EC.CERRADO];
+const EC_LBL = { [EC.NUEVO]: 'Nuevo sin gestión', [EC.GESTION]: 'En gestión', [EC.DEFINIDO]: 'Definido · pendiente de cierre', [EC.PAGADOR]: 'Pasó a pagador asignado', [EC.SALIO]: 'Salió de abiertos · sin cierre', [EC.CERRADO]: 'Cerrado con soporte' };
+const EC_PILL = { [EC.NUEVO]: 'p-mut', [EC.GESTION]: 'p-warn', [EC.DEFINIDO]: 'p-info', [EC.PAGADOR]: 'p-acc', [EC.SALIO]: 'p-crit', [EC.CERRADO]: 'p-ok' };
+const EA_ABIERTA = { SOLICITADO: 1, RADICADO: 1, 'EN TRAMITE': 1 };
+const EA_PASOS = ['SOLICITADO', 'RADICADO', 'EN TRAMITE', 'AUTORIZADO'];
+const EA_PILL = { SOLICITADO: 'p-mut', RADICADO: 'p-info', 'EN TRAMITE': 'p-vio', AUTORIZADO: 'p-ok', NEGADO: 'p-crit', ANULADO: 'p-mut' };
+
+const P = () => S.D.param;
+const nivel = m => (S.D && S.D.yo.perm[m]) || 0;
+const horas = a => ((a.fr || S.D.ahora) - (a.fs || S.D.ahora)) / 36e5;
+const abierta = a => !!EA_ABIERTA[a.est];
+
+/* ================== Módulos: grupos › módulo › secciones › vistas ==================
+   Orden fijo en todo el sistema: primero el trabajo diario, luego el análisis, al final el control. */
+const MODULOS = [
+  { id: 'inicio', t: 'Inicio', perm: 'inicio', secs: [['', [['resumen', 'Resumen y mis alertas', 'Lo que necesita tu atención hoy']]]] },
+  { id: 'aut', n: '01', t: 'Autorizaciones', grp: 'Operación', perm: 'aut', secs: [
+    ['Trabajo diario', [['bandeja', 'Bandeja de pendientes', 'Solicitudes abiertas, con semáforo de tiempo', () => S.D.auts.filter(abierta).length],
+                        ['mias', 'Mis trámites', 'Los que tienes asignados', () => S.D.auts.filter(a => abierta(a) && a.autz === S.D.yo.nombre).length],
+                        ['nueva', 'Nueva solicitud', 'Registrar un trámite para un ingreso', null, 2]]],
+    ['Consulta', [['historico', 'Histórico de respuestas', 'Autorizadas, negadas y anuladas']]]] },
+  { id: 'ing', n: '02', t: 'Ingresos abiertos', grp: 'Operación', perm: 'ing', secs: [
+    ['Listados', [['listado', 'Todos los ingresos', 'Listado completo con filtros', () => S.D.ingresos.length],
+                  ['hosp', 'Hospitalizados', 'Cama asignada sin egreso', () => S.D.ingresos.filter(x => x.sit === 'HOSPITALIZADO').length],
+                  ['ce', 'Consulta externa por cerrar', 'Sin egreso, con plazo de cierre', () => S.D.ingresos.filter(x => x.sit === 'CE' && x.d > P().CE_DIAS_CIERRE).length, null, 'warn']]],
+    ['Análisis', [['conc', 'Concentración', 'ERP › contrato, área › ala, usuario'], ['hall', 'Hallazgos', 'Banderas por ingreso']]],
+    ['Control', [['cambios', 'Cambios entre cargas', 'Nuevos, salidos y cambios de pagador', () => S.D.cambios.length]]]] },
+  { id: 'casos', n: '03', t: 'Casos especiales', grp: 'Operación', perm: 'casos', secs: [
+    ['Bandejas', [['soat', 'SOAT definido', 'Aseguradora identificada', () => S.D.casos.filter(c => c.ban === 'SOAT_DEFINIDO' && c.est !== EC.CERRADO).length],
+                  ['sindoc', 'SOAT sin documentos', 'Accidentes sin póliza o FURIPS', () => S.D.casos.filter(c => c.ban === 'SOAT_SIN_DOC' && c.est !== EC.CERRADO).length],
+                  ['sss', 'Sin seguridad social y neonatos', 'Sin afiliación y recién nacidos', () => S.D.casos.filter(c => c.ban === 'SIN_SS' && c.est !== EC.CERRADO).length]]],
+    ['Control', [['salio', 'Salieron sin cierre', 'Ya no están en abiertos: cargar soporte', () => S.D.casos.filter(c => c.est === EC.SALIO).length, null, 'crit'],
+                 ['cambio', 'Pasaron a pagador asignado', 'Cambiaron de pagador entre cargas', () => S.D.casos.filter(c => c.est === EC.PAGADOR).length],
+                 ['singes', 'Sin gestor asignado', 'Necesitan responsable y compromiso', () => S.D.casos.filter(c => !c.gestor && c.est !== EC.CERRADO && c.est !== EC.SALIO).length, null, 'warn']]]] },
+  { id: 'med', n: '04', t: 'Medición', grp: 'Análisis', perm: 'med', secs: [
+    ['Autorizaciones', [['resumen', 'Resumen y tendencia', 'Tiempos, meta y comparación'], ['erp', 'ERP y EPS', 'Quién demora más y dónde se acumula'], ['areas', 'Áreas y servicios', 'Pendientes por área y servicio'], ['gest', 'Autorizadores y gestores', 'Carga y tiempos por persona'], ['patron', 'Patrones de carga', 'Día de la semana y hora']]],
+    ['Ingresos y casos', [['evol', 'Evolución entre cargas', 'Serie diaria de ingresos abiertos'], ['casosm', 'Casos especiales', 'Embudo y antigüedad por bandeja']]]] },
+  { id: 'inf', n: '05', t: 'Informes', grp: 'Análisis', perm: 'med', secs: [
+    ['Descargas', [['informes', 'Informe gerencial y reportes', 'PDF, Word y Excel con encabezados ordenados']]],
+    ['Asistente', [['ia', 'Asistente IA', 'Preguntas sobre los indicadores', null, 1]]]] },
+  { id: 'carga', n: '06', t: 'Cargue de datos', grp: 'Configuración', perm: 'carga', secs: [
+    ['Ingresos abiertos', [['cargar', 'Cargar Excel', 'Solo administrador', null, 2], ['historial', 'Historial de cargas', 'Fotografías diarias'], ['calidad', 'Calidad del dato', 'Vacíos, variantes y códigos']]]] },
+  { id: 'admin', n: '07', t: 'Administración', grp: 'Configuración', perm: 'admin', secs: [
+    ['Personas', [['usuarios', 'Usuarios y solicitudes', 'Aprobar, rol, área, contraseña', () => (S.adm ? S.adm.usuarios.filter(u => u.estado === 'PENDIENTE').length : 0), null, 'crit'], ['permisos', 'Permisos por rol', 'Acceso por módulo']]],
+    ['Reglas', [['parametros', 'Parámetros', 'Metas, plazos y umbrales'], ['catalogos', 'Catálogos', 'ERP › contrato, áreas, códigos']]]] }
+];
+const vistaDef = id => { const [m, v] = id.split('/'); const mod = MODULOS.find(x => x.id === m); if (!mod) return null; for (const s of mod.secs) for (const it of s[1]) if (it[0] === v) return { mod, it, sec: s[0] }; return null; };
+const puede = id => { const d = vistaDef(id); return d && nivel(d.mod.perm) >= (d.it[4] || 1); };
+
+/* ================== Acceso ================== */
+function pantallaAcceso(modo, msg) {
+  modo = modo || 'login';
+  $('#app').innerHTML = `<div class="auth">
+   <section class="auth-side"><div class="brand"><div class="brand-mark">CA</div>Centro de Autorizaciones</div>
+     <div><h1>Autorizaciones, ingresos abiertos y casos especiales en un solo lugar.</h1></div>
+     <ul><li>Bandeja de autorizaciones con semáforo de tiempo.</li><li>Ingresos abiertos por área, ala, ERP y contrato.</li><li>SOAT, sin seguridad social y neonatos con bitácora y cierre con soporte.</li><li>Medición e informes para decidir.</li></ul></section>
+   <section class="auth-main"><div class="auth-card">
+     <div class="tabs"><button class="tab ${modo === 'login' ? 'on' : ''}" data-auth="login">Ingresar</button><button class="tab ${modo === 'registro' ? 'on' : ''}" data-auth="registro">Crear cuenta</button></div>
+     ${modo === 'login' ? `<h2>Ingresar</h2>
+       <form id="fLogin" class="grid"><div class="field"><label for="lU">Documento o correo</label><input class="inp" id="lU" autocomplete="username" required></div>
+       <div class="field"><label for="lC">Contraseña</label><input class="inp" id="lC" type="password" autocomplete="current-password" required></div>
+       <button class="btn" type="submit">Ingresar</button><div class="err" id="aErr">${esc(msg || '')}</div>
+       <p class="muted" style="font-size:12.5px;margin:0">¿Olvidaste la contraseña? Pide al administrador que la restablezca.</p></form>`
+     : `<h2>Crear cuenta</h2><p class="muted" style="margin:0">Tu cuenta queda pendiente hasta que el administrador la apruebe y te asigne el rol.</p>
+       <form id="fReg" class="grid"><div class="form-grid"><div class="field"><label for="rD">Número de documento</label><input class="inp" id="rD" required inputmode="numeric"></div>
+       <div class="field"><label for="rN">Nombre completo</label><input class="inp" id="rN" required autocomplete="name"></div></div>
+       <div class="field"><label for="rM">Correo</label><input class="inp" id="rM" type="email" required autocomplete="email"></div>
+       <div class="field"><label for="rA">Área</label><select class="inp" id="rA" required><option value="">Cargando áreas…</option></select></div>
+       <div class="form-grid"><div class="field"><label for="rC">Contraseña</label><input class="inp" id="rC" type="password" required autocomplete="new-password"></div>
+       <div class="field"><label for="rC2">Repetir contraseña</label><input class="inp" id="rC2" type="password" required autocomplete="new-password"></div></div>
+       <p class="muted" style="font-size:12px;margin:0">Mínimo 8 caracteres, con letras y números.</p>
+       <label class="check"><input type="checkbox" id="rOk"> Autorizo el tratamiento de mis datos personales para el uso de esta plataforma (Ley 1581 de 2012).</label>
+       <details><summary class="muted" style="cursor:pointer;font-size:12.5px">Soy el administrador inicial</summary><div class="field mt"><label for="rK">Código de administrador inicial</label><input class="inp" id="rK" autocomplete="off"></div></details>
+       <button class="btn" type="submit">Enviar registro</button><div class="err" id="aErr"></div></form>`}
+   </div></section></div>`;
+  if (modo === 'registro') API.pub('areasRegistro').then(a => { $('#rA').innerHTML = '<option value="">Elige tu área</option>' + a.map(x => `<option>${esc(x)}</option>`).join(''); }).catch(fallo);
+  setTimeout(() => { const f = $('#lU') || $('#rD'); f && f.focus(); }, 50);
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-auth]'); if (b) pantallaAcceso(b.dataset.auth); });
+document.addEventListener('submit', async e => {
+  if (e.target.id === 'fLogin') { e.preventDefault(); const err = $('#aErr'); err.textContent = '';
+    try { const r = await API.pub('login', { usuario: $('#lU').value, clave: $('#lC').value }); S.token = r.token; try { sessionStorage.setItem('ca_t', r.token); } catch (x) {} await cargarDatos(true); }
+    catch (x) { err.textContent = x.message; } }
+  if (e.target.id === 'fReg') { e.preventDefault(); const err = $('#aErr'); err.textContent = '';
+    if ($('#rC').value !== $('#rC2').value) { err.textContent = 'Las contraseñas no coinciden.'; return; }
+    try { const r = await API.pub('registro', { documento: $('#rD').value, nombre: $('#rN').value, correo: $('#rM').value, area: $('#rA').value, clave: $('#rC').value, aceptaDatos: $('#rOk').checked, codigoAdmin: $('#rK').value });
+      pantallaAcceso('login'); $('#aErr').className = 'ok-msg'; $('#aErr').textContent = r.mensaje; }
+    catch (x) { err.textContent = x.message; } }
+  if (e.target.id === 'fClave') { e.preventDefault();
+    if ($('#cN').value !== $('#cN2').value) { toast('Las contraseñas nuevas no coinciden.', 'error'); return; }
+    try { await API.call('cambiarClave', { actual: $('#cA').value, nueva: $('#cN').value }); toast('Contraseña actualizada.'); cerrarCapa(); await cargarDatos(); } catch (x) { fallo(x); } }
+});
+function salir(msg) { if (S.token) API.call('cerrarSesion').catch(() => {}); S.token = null; S.D = null; try { sessionStorage.removeItem('ca_t'); } catch (e) {} cerrarCapa(); cerrarPop(); pantallaAcceso('login', msg); }
+function pedirCambioClave(obligatorio) {
+  drawer('Cambiar contraseña', obligatorio ? 'Obligatorio antes de continuar' : 'Mi cuenta', `<form id="fClave" class="grid">
+    <div class="field"><label for="cA">Contraseña actual${obligatorio ? ' (la temporal que te dieron)' : ''}</label><input class="inp" id="cA" type="password" required autocomplete="current-password"></div>
+    <div class="field"><label for="cN">Nueva contraseña</label><input class="inp" id="cN" type="password" required autocomplete="new-password"></div>
+    <div class="field"><label for="cN2">Repetir nueva contraseña</label><input class="inp" id="cN2" type="password" required autocomplete="new-password"></div>
+    <p class="muted" style="margin:0;font-size:12.5px">Mínimo 8 caracteres, con letras y números.</p><button class="btn" type="submit">Guardar contraseña</button></form>`);
+}
+
+/* ================== Carga de datos ================== */
+async function cargarDatos(primera) {
+  try {
+    S.D = await API.call('datos');
+    if (nivel('admin') >= 2 && (primera || S.adm)) API.call('adminDatos').then(a => { S.adm = a; renderNav(); }).catch(() => {});
+    if (primera) { const v = recuperar('vista_' + S.D.yo.documento, 'inicio/resumen'); S.vista = puede(v) ? v : 'inicio/resumen'; usarFiltros(); }
+    if (!$('#main')) armarMarco();
+    render(!!primera);
+    if (S.D.yo.cambiarClave) pedirCambioClave(true);
+  } catch (e) { if (e.message !== 'SESION_EXPIRADA') fallo(e); }
+}
+setInterval(() => { if (S.token && document.visibilityState === 'visible' && !$('#layer').innerHTML) cargarDatos(); }, 5 * 60e3);
+
+function armarMarco() {
+  $('#app').innerHTML = `<div class="loadbar" id="loadbar"></div>
+  <header class="top"><div class="top-in"><div class="brand"><div class="brand-mark">CA</div>Centro de Autorizaciones</div>
+   <div class="top-right"><div class="who" id="who"></div>
+    <button class="tb" id="bAct" title="Actualizar datos">↻ Actualizar</button>
+    <button class="tb" id="bAl" aria-label="Mis alertas">Alertas <span class="dot" id="bellDot" hidden>0</span></button>
+    <button class="tb" id="bCuenta">Mi cuenta ▾</button></div></div>
+   <nav class="nav" id="nav" aria-label="Módulos"></nav></header><main id="main"></main>`;
+  $('#bAct').onclick = () => cargarDatos().then(() => toast('Datos actualizados.'));
+  $('#bAl').onclick = () => ir('inicio/resumen');
+  $('#bCuenta').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); abrirMega(null, r, [['Mi cuenta', [['__clave', 'Cambiar contraseña', 'Actualiza tu contraseña'], ['__salir', 'Cerrar sesión', 'Salir de la plataforma']]]]); };
+}
+
+/* ================== Menú principal agrupado ================== */
+function renderNav() {
+  if (!S.D || !$('#nav')) return;
+  const yo = S.D.yo, al = S.D.alertas.filter(a => !S.leidas.has(a.id));
+  $('#who').innerHTML = `${esc(yo.nombre)}<small>${ROL_LBL[yo.rol] || yo.rol}${yo.areas[0] !== '*' ? ' · ' + esc(yo.areas.join(', ')) : ''}</small>`;
+  const cur = S.vista.split('/')[0];
+  const grupos = [];
+  MODULOS.filter(m => nivel(m.perm) >= 1).forEach(m => { const g = m.grp || ''; let gr = grupos.find(x => x.g === g); if (!gr) grupos.push(gr = { g, mods: [] }); gr.mods.push(m); });
+  $('#nav').innerHTML = grupos.map(gr => `<div class="nav-grp">${gr.g ? `<span class="nav-grp-lbl">${gr.g}</span>` : ''}${gr.mods.map(m => {
+    let c = ''; if (m.id === 'inicio' && al.length) c = `<span class="cnt">${al.length}</span>`;
+    const crit = m.secs.flatMap(s => s[1]).filter(it => it[3] && it[5] === 'crit').reduce((t, it) => t + it[3](), 0);
+    if (m.id !== 'inicio' && crit) c = `<span class="cnt">${crit}</span>`;
+    const multi = m.secs.flatMap(s => s[1]).length > 1;
+    return `<button class="nav-btn ${cur === m.id ? 'on' : ''}" data-mod="${m.id}" aria-haspopup="${multi}" aria-expanded="false">${m.n ? `<span class="n">${m.n}</span>` : ''}${m.t}${c}${multi ? '<span class="chev">▾</span>' : ''}</button>`; }).join('')}</div>`).join('');
+  const dot = $('#bellDot'); dot.hidden = !al.length; dot.textContent = al.length; dot.classList.toggle('pulse', al.some(a => a.sev === 'crit'));
+}
+let megaT = null, megaMod = null;
+function abrirMega(mod, rect, secsCustom) {
+  cerrarMega();
+  const secs = secsCustom || mod.secs.map(s => [s[0], s[1].filter(it => nivel(mod.perm) >= (it[4] || 1))]).filter(s => s[1].length);
+  const el = document.createElement('div'); el.className = 'mega'; el.id = 'mega'; el.setAttribute('role', 'menu');
+  el.innerHTML = secs.map(s => `<div class="mega-sec">${s[0] ? `<h4>${s[0]}</h4>` : ''}${s[1].map(it => {
+    const n = it[3] ? it[3]() : null, id = mod ? mod.id + '/' + it[0] : it[0];
+    return `<button class="mega-it ${S.vista === id ? 'on' : ''}" role="menuitem" data-ir="${id}"><b>${it[1]}</b>${n != null ? `<span class="pill ${it[5] === 'crit' && n ? 'p-crit' : it[5] === 'warn' && n ? 'p-warn' : 'p-mut'}">${fmtN(n)}</span>` : '<span></span>'}<small>${it[2]}</small></button>`; }).join('')}</div>`).join('');
+  document.body.appendChild(el);
+  const w = el.offsetWidth; el.style.top = (rect.bottom + 4) + 'px'; el.style.left = Math.max(8, Math.min(rect.left, innerWidth - w - 8)) + 'px';
+  el.onmouseenter = () => clearTimeout(megaT); el.onmouseleave = () => { megaT = setTimeout(cerrarMega, 220); };
+  megaMod = mod ? mod.id : '__';
+  document.querySelectorAll('.nav-btn').forEach(b => b.setAttribute('aria-expanded', String(mod && b.dataset.mod === mod.id)));
+  el.addEventListener('keydown', e => { const items = [...el.querySelectorAll('.mega-it')], i = items.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') { e.preventDefault(); (items[i + 1] || items[0]).focus(); } if (e.key === 'ArrowUp') { e.preventDefault(); (items[i - 1] || items[items.length - 1]).focus(); } if (e.key === 'Escape') cerrarMega(); });
+}
+function cerrarMega() { const m = $('#mega'); if (m) m.remove(); megaMod = null; document.querySelectorAll('.nav-btn').forEach(b => b.setAttribute('aria-expanded', 'false')); }
+document.addEventListener('mouseover', e => { const b = e.target.closest('.nav-btn'); if (!b || !matchMedia('(hover:hover)').matches) return; clearTimeout(megaT); const m = MODULOS.find(x => x.id === b.dataset.mod); if (megaMod !== m.id && m.secs.flatMap(s => s[1]).length > 1) abrirMega(m, b.getBoundingClientRect()); });
+document.addEventListener('mouseout', e => { if (e.target.closest && e.target.closest('.nav') && !(e.relatedTarget && e.relatedTarget.closest && (e.relatedTarget.closest('.nav') || e.relatedTarget.closest('#mega')))) megaT = setTimeout(cerrarMega, 220); });
+document.addEventListener('click', e => {
+  const b = e.target.closest('.nav-btn');
+  if (b) { const m = MODULOS.find(x => x.id === b.dataset.mod); const items = m.secs.flatMap(s => s[1]).filter(it => nivel(m.perm) >= (it[4] || 1));
+    if (items.length > 1 && megaMod !== m.id) { abrirMega(m, b.getBoundingClientRect()); setTimeout(() => { const f = $('#mega .mega-it'); f && f.focus(); }, 20); return; }
+    cerrarMega(); ir(m.id + '/' + items[0][0]); return; }
+  const it = e.target.closest('[data-ir]');
+  if (it) { e.preventDefault(); const id = it.dataset.ir; cerrarMega();
+    if (id === '__salir') return salir(); if (id === '__clave') return pedirCambioClave(false);
+    if (id === 'aut/nueva') return formNuevaAut();
+    return ir(id); }
+  if ($('#mega') && !e.target.closest('#mega') && !e.target.closest('#bCuenta')) cerrarMega();
+});
+
+/* ================== Navegación y render ================== */
+function usarFiltros() {
+  if (!S.filtros[S.vista]) S.filtros[S.vista] = recuperar('f_' + S.vista, {});
+  S.f = S.filtros[S.vista];
+}
+function ir(id, filtros) {
+  if (!puede(id)) { toast('Tu rol no tiene acceso a esa sección.', 'error'); return; }
+  cerrarCapa(); cerrarPop(); S.vista = id; usarFiltros();
+  if (filtros) { Object.keys(S.f).forEach(k => { S.f[k] = Array.isArray(S.f[k]) ? [] : ''; }); Object.assign(S.f, filtros); }
+  S.page = {}; guardar('vista_' + S.D.yo.documento, id);
+  render(true); scrollTo({ top: 0, behavior: 'smooth' });
+}
+function render(anim) {
+  if (!S.D || !$('#main')) return;
+  renderNav();
+  guardar('f_' + S.vista, S.f);
+  const fn = V[S.vista] || V['inicio/resumen'];
+  const m = $('#main');
+  let html; try { html = fn(); } catch (e) { console.error(e); html = `<div class="card lock"><h2>No se pudo mostrar esta sección</h2><p class="sub">${esc(e.message)}</p></div>`; }
+  m.innerHTML = `<div class="${anim ? 'view' : ''}">${html}</div>`;
+  countUp(m);
+  if (fn.after) try { fn.after(); } catch (e) { console.error(e); }
+}
+function head(titulo, sub, acciones) {
+  const d = vistaDef(S.vista);
+  const crumb = d.mod.id === 'inicio' ? 'Inicio' : `${d.mod.grp} › <b>${d.mod.t}</b>${d.sec ? ' › ' + d.sec : ''}`;
+  return `<div class="head"><div><div class="crumb">${crumb}</div><h1>${titulo}</h1>${sub ? `<p class="sub">${sub}</p>` : ''}</div><div class="head-actions">${acciones || ''}</div></div>`;
+}
+function subtabs() {
+  const d = vistaDef(S.vista); if (d.mod.id === 'inicio') return '';
+  const items = d.mod.secs.flatMap(s => s[1].map(it => [it, s[0]])).filter(z => nivel(d.mod.perm) >= (z[0][4] || 1) && !(d.mod.id === 'aut' && z[0][0] === 'nueva'));
+  if (items.length < 2) return '';
+  return `<div class="tabs" role="tablist">${items.map(z => { const n = z[0][3] ? z[0][3]() : null; return `<button class="tab ${S.vista === d.mod.id + '/' + z[0][0] ? 'on' : ''}" role="tab" data-ir="${d.mod.id}/${z[0][0]}">${z[0][1]}${n != null ? ` <span class="k">${fmtN(n)}</span>` : ''}</button>`; }).join('')}</div>`;
+}
+const sinAcceso = () => `<div class="card lock"><h2>Esta sección no está habilitada para tu rol</h2><p class="sub" style="margin:0 auto">El administrador la habilita en Administración › Permisos por rol.</p></div>`;
+
+/* ================== Inicio de la app ================== */
+(function iniciar() {
+  let t = null; try { t = sessionStorage.getItem('ca_t'); } catch (e) {}
+  if (t) { S.token = t; cargarDatos(true).then(() => { if (!S.D) pantallaAcceso('login'); }); }
+  else pantallaAcceso('login');
+})();
+</script>

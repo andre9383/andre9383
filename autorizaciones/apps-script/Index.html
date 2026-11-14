@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Centro de Autorizaciones</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <?!= include('Estilos'); ?>
+</head>
+<body>
+  <div id="app"><div class="splash"><div class="brand-mark">CA</div><p>Cargando…</p></div></div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div id="layer"></div>
+  <div id="pop"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <?!= include('Componentes'); ?>
+  <?!= include('App'); ?>
+  <?!= include('Vistas'); ?>
+</body>
+</html>

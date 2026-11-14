@@ -1,0 +1,523 @@
+<script>
+/* ================== Formatos compartidos ================== */
+function slaPill(a) {
+  const h = horas(a), p = P();
+  if (!abierta(a)) return `<span class="pill ${a.est === 'AUTORIZADO' ? (h <= p.META_AUT_HORAS ? 'p-ok' : 'p-warn') : 'p-mut'}">${a.fs && (a.fr || !abierta(a)) ? Math.round(h) + ' h' : '—'}</span>`;
+  return h > p.CRITICO_AUT_HORAS ? `<span class="pill p-crit">● ${Math.round(h)} h · crítica</span>` : h > p.META_AUT_HORAS ? `<span class="pill p-warn">● ${Math.round(h)} h · sobre meta</span>` : `<span class="pill p-ok">● ${Math.round(h)} h</span>`;
+}
+const nivelSla = a => { const h = horas(a), p = P(); return h > p.CRITICO_AUT_HORAS ? 'Crítica' : h > p.META_AUT_HORAS ? 'Sobre la meta' : 'En tiempo'; };
+const estPill = e => `<span class="pill ${EA_PILL[e] || 'p-mut'}">${e}</span>`;
+const fuentePill = a => a.fuente === 'CODIGO' ? `<span class="pill p-warn" title="Detectada en la columna RESPONSABLE">Código ${esc(a.cod)}</span>` : '<span class="pill p-acc">Registrada</span>';
+const sitPill = s => `<span class="pill ${SIT_PILL[s] || 'p-mut'}">${SIT_LBL[s] || s}</span>`;
+const ecPill = e => `<span class="pill ${EC_PILL[e] || 'p-mut'}">${EC_LBL[e] || e}</span>`;
+const bucketDias = d => d <= 7 ? '0–7 días' : d <= 15 ? '8–15 días' : d <= 30 ? '16–30 días' : d <= 60 ? '31–60 días' : d <= 90 ? '61–90 días' : 'Más de 90 días';
+const BUCKETS = ['0–7 días', '8–15 días', '16–30 días', '31–60 días', '61–90 días', 'Más de 90 días'];
+const V = {};
+
+/* ================== 00 Inicio ================== */
+V['inicio/resumen'] = () => {
+  const D = S.D, p = P(), I = D.ingresos, pend = D.auts.filter(abierta), cs = D.casos.filter(c => c.est !== EC.CERRADO);
+  const prev = D.hist.length > 1 ? D.hist[D.hist.length - 2] : null;
+  const al = D.alertas;
+  return head('Hola, ' + esc(D.yo.nombre.split(' ')[0]), `${ROL_LBL[D.yo.rol]}${D.yo.areas[0] !== '*' ? ' · ' + esc(D.yo.areas.join(', ')) : ''} · última carga de ingresos: ${fmtDT(D.ultimaCarga)}`) +
+  `<div class="sec-title">Lo más importante</div><div class="grid g-kpi mb">
+   ${nivel('aut') ? kpi('Autorizaciones pendientes', pend.length, pend.filter(a => horas(a) > p.CRITICO_AUT_HORAS).length + ' críticas · ' + pend.filter(a => a.fuente === 'CODIGO' && a.id.startsWith('D-')).length + ' solo por código', '--crit', 'data-ir="aut/bandeja"') : ''}
+   ${nivel('ing') ? kpi('Ingresos abiertos', I.length, 'vs. carga anterior', '--accent', 'data-ir="ing/listado"', null, prev ? { v: I.length - prev.total, good: I.length <= prev.total } : null) : ''}
+   ${nivel('ing') ? kpi('Valor abierto', sum(I, x => x.val), 'suma de VALOR', '--accent-2', 'data-ir="ing/conc"', 'm') : ''}
+   ${nivel('ing') ? kpi('Hospitalizados', I.filter(x => x.sit === 'HOSPITALIZADO').length, 'cama asignada sin egreso', '--info', 'data-ir="ing/hosp"') : ''}
+   ${nivel('ing') ? kpi('Egresados con cama', I.filter(x => x.sit === 'CAMA_NO_LIBERADA').length, 'cama sin liberar', '--crit', `data-ir="ing/listado"`) : ''}
+   ${nivel('casos') ? kpi('Casos especiales abiertos', cs.length, cs.filter(c => c.est === EC.SALIO).length + ' salieron sin cierre', '--warn', 'data-ir="casos/salio"') : ''}
+  </div>
+  <div class="grid g-2"><div class="card"><div class="card-h"><div><h3>Mis alertas</h3><p class="hint">Reglas automáticas según tu rol. “Ver” abre el listado ya filtrado.</p></div>${al.length ? '<button class="btn ghost sm" data-leer="todas">Marcar todas como leídas</button>' : ''}</div>
+    <div class="alerts">${al.length ? al.map((a, i) => `<div class="alert ${a.sev} ${S.leidas.has(a.id) ? 'read' : ''}" style="animation-delay:${i * 50}ms"><span class="sev"></span><div><div class="t">${esc(a.t)}</div><div class="d">${esc(a.d)}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn sm" data-ir="${a.mod}/${a.vista}">Ver</button>${S.leidas.has(a.id) ? '' : `<button class="btn ghost sm" data-leer="${a.id}">Leída</button>`}</div></div>`).join('') : '<div class="empty">Sin alertas. Todo al día.</div>'}</div></div>
+   <div class="card"><h3>Ingresos abiertos por carga</h3><p class="hint">Una fotografía por día. Pasa el cursor sobre la gráfica para ver cada fecha.</p><div class="chart-box"><canvas id="cIni"></canvas></div></div></div>`;
+};
+V['inicio/resumen'].after = () => { const H = S.D.hist.slice(-20); if (!H.length) return;
+  chart('cIni', { type: 'line', data: { labels: H.map(h => fmtD(h.f)), datasets: [
+    { label: 'Total abiertos', data: H.map(h => h.total), borderColor: css('--s1'), backgroundColor: css('--s1') + '22', fill: true, tension: .3 },
+    { label: 'Egresados sin cerrar', data: H.map(h => h.eg), borderColor: css('--s2'), tension: .3 },
+    { label: 'Hospitalizados', data: H.map(h => h.hosp || null), borderColor: css('--s3'), tension: .3 }] }, options: { interaction: { mode: 'index', intersect: false } } }); };
+document.addEventListener('click', e => { const b = e.target.closest('[data-leer]'); if (!b) return; if (b.dataset.leer === 'todas') S.D.alertas.forEach(a => S.leidas.add(a.id)); else S.leidas.add(b.dataset.leer); guardar('leidas', [...S.leidas]); render(false); });
+
+/* ================== 01 Autorizaciones ================== */
+const DEF_AUT = () => [
+  { k: 'sla', t: 'Tiempo', get: nivelSla, orden: ['Crítica', 'Sobre la meta', 'En tiempo'], grp: 'Estado' },
+  { k: 'est', t: 'Estado', get: a => a.est, orden: ['SOLICITADO', 'RADICADO', 'EN TRAMITE', 'AUTORIZADO', 'NEGADO', 'ANULADO'], grp: 'Estado' },
+  { k: 'fuente', t: 'Origen', get: a => a.fuente === 'CODIGO' && a.id.startsWith('D-') ? 'Solo código en RESPONSABLE' : 'Registrada', grp: 'Estado' },
+  { k: 'erp', t: 'ERP', get: a => a.erp, grp: 'Pagador' },
+  { k: 'g', t: 'Área', get: a => a.g, grp: 'Ubicación' },
+  { k: 'autz', t: 'Autorizador', get: a => a.autz, grp: 'Responsable' },
+  { k: 'pri', t: 'Prioridad', get: a => a.pri, orden: ['ALTA', 'MEDIA', 'BAJA'], grp: 'Responsable' }];
+function vAut(scope) {
+  if (!nivel('aut')) return sinAcceso();
+  let base = S.D.auts;
+  if (scope === 'mias') base = base.filter(a => a.autz === S.D.yo.nombre);
+  base = scope === 'historico' ? base.filter(a => !abierta(a)) : base.filter(abierta);
+  const defs = DEF_AUT().filter(d => scope === 'historico' ? d.k !== 'sla' && d.k !== 'fuente' : d.k !== 'est' || true);
+  const rows = aplicarFiltros(base, defs, a => a.pac + a.doc + a.ing + a.id + a.serv + (a.cod || ''));
+  const T = { bandeja: ['Bandeja de pendientes', 'Todas las solicitudes abiertas. Las marcadas “Código” vienen de la columna RESPONSABLE del Excel y aún no tienen trámite: ábrelas y tómalas para registrarlas.'], mias: ['Mis trámites', 'Los trámites abiertos asignados a ti.'], historico: ['Histórico de respuestas', 'Trámites autorizados, negados y anulados, con su tiempo total de obtención.'] }[scope];
+  const cr = base.filter(a => nivelSla(a) === 'Crítica').length, so = base.filter(a => nivelSla(a) === 'Sobre la meta').length;
+  return head(T[0], T[1], nivel('aut') >= 2 ? '<button class="btn" data-ir="aut/nueva">+ Nueva solicitud</button>' : '') + subtabs() +
+  (scope !== 'historico' ? `<div class="grid g-kpi mb">${kpi('Abiertas', base.length, 'en esta bandeja', '--accent')}${kpi('Críticas', cr, 'más de ' + P().CRITICO_AUT_HORAS + ' h', '--crit', `data-qf="sla|Crítica"`, null, null, (S.f.sla || []).includes('Crítica'))}${kpi('Sobre la meta', so, 'más de ' + P().META_AUT_HORAS + ' h', '--warn', `data-qf="sla|Sobre la meta"`, null, null, (S.f.sla || []).includes('Sobre la meta'))}${kpi('Solo por código', base.filter(a => a.id.startsWith('D-')).length, 'sin trámite registrado', '--violet', `data-qf="fuente|Solo código en RESPONSABLE"`)}</div>` : '') +
+  barraFiltros(S.vista, base, defs, 'Buscar paciente, documento, ingreso, trámite o servicio') +
+  table('aut-' + scope, [
+    { h: 'Trámite', v: a => `<span class="mono">${esc(a.id)}</span><br>${fuentePill(a)}`, s: a => a.id },
+    { h: 'Paciente', v: a => `${esc(a.pac)}<br><span class="mono muted">${esc(a.doc)} · ing ${esc(a.ing)}</span>`, s: a => a.pac },
+    { h: 'Servicio', v: a => esc(a.serv || '—'), s: a => a.serv },
+    { h: 'ERP', v: a => esc(a.erp), s: a => a.erp },
+    { h: 'Área', v: a => esc(a.g) + (a.ala ? `<br><small class="muted">${esc(a.ala)}</small>` : ''), s: a => a.g },
+    { h: 'Estado', v: a => estPill(a.est), s: a => a.est },
+    { h: 'Tiempo', v: slaPill, s: horas },
+    { h: 'Autorizador', v: a => esc(a.autz), s: a => a.autz }], rows, abrirAut);
+}
+V['aut/bandeja'] = () => vAut('bandeja'); V['aut/mias'] = () => vAut('mias'); V['aut/historico'] = () => vAut('historico');
+document.addEventListener('click', e => { const b = e.target.closest('[data-qf]'); if (!b) return; const [k, v] = b.dataset.qf.split('|'); const cur = S.f[k] || []; S.f[k] = cur.length === 1 && cur[0] === v ? [] : [v]; S.page = {}; render(false); });
+
+async function abrirAut(a) {
+  const i = EA_PASOS.indexOf(a.est), esAdmin = S.D.yo.rol === 'ADMINISTRADOR';
+  const puedeGestionar = nivel('aut') >= 2 && (esAdmin || a.autz === S.D.yo.nombre || a.autz === 'Sin asignar' || !a.autz);
+  const detectada = a.id.startsWith('D-');
+  const cuerpo = (bit) => `
+   ${detectada ? `<div class="alert warn"><span class="sev"></span><div><div class="t">Pendiente detectada solo por código</div><div class="d">El Excel trae “${esc(a.cod)}” en RESPONSABLE pero no hay trámite. Regístralo con el servicio para que entre a la medición.</div></div><span></span></div>` : ''}
+   <div class="steps">${EA_PASOS.map((s, k) => `<div class="step ${a.est === 'NEGADO' || a.est === 'ANULADO' ? '' : k < i ? 'done' : k === i ? 'cur' : ''}">${s}</div>`).join('')}${a.est === 'NEGADO' || a.est === 'ANULADO' ? `<div class="step neg">${a.est}</div>` : ''}</div>
+   <div class="kv"><div><small>Paciente</small><span>${esc(a.pac)}</span></div><div><small>Documento</small><span class="mono">${esc(a.doc)}</span></div><div><small>Ingreso</small><span class="mono">${esc(a.ing)}</span></div>
+   <div><small>Área</small><span>${esc(a.g)}${a.ala ? ' · ' + esc(a.ala) : ''}</span></div><div><small>ERP</small><span>${esc(a.erp)}</span></div><div><small>Solicitada</small><span>${fmtDT(a.fs)}</span></div>
+   <div><small>Tiempo</small><span>${slaPill(a)}</span></div><div><small>Autorizador</small><span>${esc(a.autz)}</span></div>${a.rad ? `<div><small>Radicado</small><span class="mono">${esc(a.rad)}</span></div>` : ''}${a.num ? `<div><small>N° autorización</small><span class="mono">${esc(a.num)}</span></div>` : ''}${a.cups ? `<div><small>CUPS</small><span class="mono">${esc(a.cups)}</span></div>` : ''}</div>
+   ${a.mot ? `<div class="card" style="background:var(--surface-2)"><small class="crumb">Motivo de negación</small><div>${esc(a.mot)}</div></div>` : ''}
+   ${!detectada ? `<div><h3 style="font-size:14px;margin-bottom:8px">Bitácora</h3>${bit === null ? '<p class="muted">Cargando…</p>' : bit.length ? `<ol class="timeline">${bit.map(h => `<li><div>${esc(h.t)}</div><small>${fmtDT(h.f)} · ${esc(h.u)}</small></li>`).join('')}</ol>` : '<p class="muted">Sin movimientos.</p>'}</div>` : ''}
+   ${puedeGestionar ? (detectada ? `<button class="btn" data-tomar="${esc(a.ing)}|${esc(a.cod)}">Registrar trámite para este ingreso</button>` : formAccionesAut(a, esAdmin)) : `<p class="muted">${abierta(a) ? 'Solo lectura: este trámite lo gestiona ' + esc(a.autz) + '.' : 'Trámite cerrado.'}</p>`}`;
+  drawer(esc(a.serv || 'Autorización pendiente'), esc(a.id) + ' · ' + esc(a.erp), cuerpo(detectada ? [] : null));
+  if (!detectada) try { const bit = await API.call('bitacoraAut', { id: a.id }); if ($('.drawer')) { $('.dr-b').innerHTML = cuerpo(bit); } } catch (e) { fallo(e); }
+}
+function formAccionesAut(a, esAdmin) {
+  const cerrada = !abierta(a);
+  if (cerrada && !esAdmin) return '<p class="muted">Trámite cerrado.</p>';
+  const ops = [['nota', 'Agregar nota']];
+  if (!cerrada || esAdmin) { if (a.est === 'SOLICITADO' || esAdmin) ops.unshift(['radicar', 'Radicar ante la EPS']); ops.unshift(['autorizar', 'Registrar autorización']); ops.push(['tramite', 'Marcar en trámite'], ['negar', 'Registrar negación'], ['anular', 'Anular']); }
+  if (esAdmin) ops.push(['asignar', 'Reasignar autorizador']);
+  return `<form id="fAccAut" class="card grid" data-id="${esc(a.id)}"><h3>${cerrada ? 'Corregir trámite cerrado (administrador)' : 'Registrar gestión'}</h3>
+    <div class="field"><label for="aAcc">Acción</label><select class="inp" id="aAcc">${ops.map(o => `<option value="${o[0]}">${o[1]}</option>`).join('')}</select></div>
+    <div class="form-grid"><div class="field" id="aNumF"><label for="aNum">Número</label><input class="inp" id="aNum" placeholder="Radicado o N° de autorización"></div>
+    <div class="field"><label for="aFec">Fecha (si no es ahora)</label><input class="inp" id="aFec" type="datetime-local"></div></div>
+    <div class="field" id="aAutF" hidden><label for="aAut">Autorizador</label><select class="inp" id="aAut">${S.D.autorizadores.map(n => `<option>${esc(n)}</option>`).join('')}</select></div>
+    <div class="field"><label for="aObs">Observación ${cerrada ? '(motivo obligatorio)' : ''}</label><textarea class="inp" id="aObs" placeholder="Ej.: se llamó a la EPS, responden en 24 h"></textarea></div>
+    <button class="btn" type="submit">Guardar</button></form>`;
+}
+document.addEventListener('change', e => { if (e.target.id === 'aAcc') { const v = e.target.value; $('#aNumF').hidden = !['radicar', 'autorizar'].includes(v); $('#aAutF').hidden = v !== 'asignar'; } });
+document.addEventListener('submit', async e => {
+  if (e.target.id === 'fAccAut') { e.preventDefault(); const id = e.target.dataset.id, acc = $('#aAcc').value;
+    const d = { id, accion: acc, observacion: $('#aObs').value, fecha: $('#aFec').value || null, autorizador: $('#aAut').value };
+    if (acc === 'radicar') d.numRadicado = $('#aNum').value; if (acc === 'autorizar') d.numAutorizacion = $('#aNum').value;
+    try { await API.call('accionAut', d); toast('Gestión registrada en ' + id); cerrarCapa(); await cargarDatos(); } catch (x) { fallo(x); } }
+  if (e.target.id === 'fNueva') { e.preventDefault(); const d = { ingreso: $('#nIng').dataset.v, servicio: $('#nServ').value, cups: $('#nServ').dataset.v || '', tipoServicio: $('#nTipo').value, prioridad: $('#nPri').value, observacion: $('#nObs').value, codigo: e.target.dataset.cod || '', fechaSolicitud: $('#nFec').value || null };
+    if (!d.ingreso) { toast('Elige el ingreso de la lista de sugerencias.', 'error'); return; }
+    try { const r = await API.call('crearAut', d); toast('Solicitud ' + r.id + ' registrada.'); cerrarCapa(); await cargarDatos(); } catch (x) { fallo(x); } }
+});
+document.addEventListener('click', e => { const b = e.target.closest('[data-tomar]'); if (!b) return; const [ing, cod] = b.dataset.tomar.split('|'); formNuevaAut(ing, cod); });
+function formNuevaAut(ing, cod) {
+  if (nivel('aut') < 2) { toast('Tu rol no registra solicitudes.', 'error'); return; }
+  const x = ing ? S.D.ingresos.find(z => z.i === ing) : null;
+  drawer('Nueva solicitud de autorización', 'Operación › Autorizaciones', `<form id="fNueva" class="grid" data-cod="${esc(cod || '')}">
+    <div class="field"><label for="nIng">Ingreso o paciente</label><input class="inp" id="nIng" placeholder="Escribe documento, nombre o número de ingreso" autocomplete="off" ${x ? `value="${esc(x.i + ' · ' + x.pac + ' · ' + x.doc)}" data-v="${esc(x.i)}"` : ''}></div>
+    <div id="nInfo" class="muted" style="font-size:12.5px">${x ? esc(x.g + ' · ' + x.erp + ' · ' + x.con) : ''}</div>
+    <div class="field"><label for="nServ">Servicio (CUPS o descripción)</label><input class="inp" id="nServ" placeholder="Escribe al menos 3 letras o el código CUPS" autocomplete="off"></div>
+    <div class="form-grid"><div class="field"><label for="nTipo">Tipo de servicio</label><select class="inp" id="nTipo">${['Procedimiento', 'Imagen diagnóstica', 'Laboratorio', 'Interconsulta', 'Medicamento', 'Estancia', 'Remisión', 'Insumo', 'Otro'].map(t => `<option>${t}</option>`).join('')}</select></div>
+    <div class="field"><label for="nPri">Prioridad</label><select class="inp" id="nPri"><option>ALTA</option><option selected>MEDIA</option><option>BAJA</option></select></div>
+    <div class="field"><label for="nFec">Fecha de solicitud</label><input class="inp" id="nFec" type="datetime-local"></div></div>
+    <div class="field"><label for="nObs">Observación</label><textarea class="inp" id="nObs"></textarea></div>
+    ${cod ? `<p class="muted" style="margin:0">Se registra a partir del código <b>${esc(cod)}</b> de la columna RESPONSABLE.</p>` : ''}
+    <button class="btn" type="submit">Registrar solicitud</button></form>`);
+  autocompletar('nIng', async v => { const t = v.toUpperCase(); return S.D.ingresos.filter(z => (z.i + ' ' + z.doc + ' ' + z.pac).toUpperCase().includes(t)).slice(0, 15).map(z => ({ v: z.i, l: z.i + ' · ' + z.pac + ' · ' + z.doc, x: z })); },
+    o => { $('#nIng').dataset.v = o.v; $('#nInfo').textContent = o.x.g + ' · ' + o.x.erp + ' · ' + o.x.con; });
+  autocompletar('nServ', v => API.call('buscarCups', { q: v }), o => { $('#nServ').dataset.v = o.v; });
+}
+
+/* ================== 02 Ingresos abiertos ================== */
+const DEF_ING = () => [
+  { k: 'sit', t: 'Situación', get: x => x.sit, lbl: v => SIT_LBL[v] || v, orden: SITS, grp: 'Estado' },
+  { k: 'g', t: 'Área de ingreso', get: x => x.g, grp: 'Ubicación' },
+  { k: 'ala', t: 'Ala / pabellón', get: x => x.ala || '(sin ala)', grp: 'Ubicación' },
+  { k: 'erp', t: 'ERP', get: x => x.erp, grp: 'Pagador' },
+  { k: 'con', t: 'Contrato', get: x => x.erp + ' › ' + x.con, lbl: v => v.split(' › ')[1], grupo: v => v.split(' › ')[0], grp: 'Pagador' },
+  { k: 'ban', t: 'Tipo de pagador', get: x => x.ban, lbl: v => BAN_LBL[v] || v, grp: 'Pagador' },
+  { k: 'por', t: 'Ingreso por', get: x => x.por || '(vacío)', grp: 'Origen' },
+  { k: 'u', t: 'Usuario de ingreso', get: x => x.u || '(vacío)', grp: 'Origen' },
+  { k: 'ap', t: 'Autorización', get: x => x.ap ? 'Con pendientes' : 'Sin pendientes', grp: 'Control' },
+  { k: 'dias', t: 'Días abierto', get: x => bucketDias(x.d), orden: BUCKETS, grp: 'Control' },
+  { k: 'h', t: 'Hallazgo', get: x => x.h || [], grp: 'Control' }];
+const buscaIng = x => x.pac + ' ' + x.doc + ' ' + x.i + ' ' + x.cama + ' ' + x.obs + ' ' + x.resp;
+const colsIng = () => [
+  { h: 'Ingreso', v: x => `<span class="mono">${esc(x.i)}</span><br><small class="muted">${fmtD(x.f)} · ${esc((x.tipo || '').toLowerCase())}</small>`, s: x => x.i },
+  { h: 'Paciente', v: x => `${esc(x.pac)}<br><span class="mono muted">${esc(x.tid)} ${esc(x.doc)} · ${x.edad} a</span>`, s: x => x.pac },
+  { h: 'Área · ala · cama', v: x => `${esc(x.g)}${x.inf ? ' <span class="pill p-mut" title="El Excel trae AREA vacía; se tomó de INGRESO POR">inferida</span>' : ''}${x.ala ? `<br><small>${esc(x.ala)}</small>` : ''}${x.cama ? `<br><span class="mono">${esc(x.cama)}</span>` : ''}`, s: x => x.g },
+  { h: 'Situación', v: x => sitPill(x.sit), s: x => x.sit },
+  { h: 'ERP · contrato', v: x => `${esc(x.erp)}<br><small class="muted">${esc(x.con)}</small>`, s: x => x.erp },
+  { h: 'Días', cl: 'r', v: x => { const l = x.sit === 'CE' ? P().CE_DIAS_CIERRE : P().PROLONGADO_DIAS; return `<span class="pill ${x.d > l ? 'p-crit' : x.d > l / 2 ? 'p-warn' : 'p-mut'} num">${x.d}</span>`; }, s: x => x.d },
+  { h: 'Aut. pend.', cl: 'r', v: x => x.ap ? `<span class="pill p-crit">${x.ap}</span>` : '<span class="pill p-ok">0</span>', s: x => x.ap },
+  { h: 'Valor', cl: 'r', v: x => `<span class="num">${money(x.val)}</span>`, s: x => x.val },
+  { h: 'Responsable · observaciones', cl: 'obs', v: x => (x.resp ? `<span class="mono">${esc(x.resp)}</span>${x.rl ? ' · ' + esc(x.rl) : ''}<br>` : '') + esc(x.obs), s: x => x.obs }];
+function vIng(scope) {
+  if (!nivel('ing')) return sinAcceso();
+  let base = S.D.ingresos;
+  if (scope === 'hosp') base = base.filter(x => x.sit === 'HOSPITALIZADO');
+  if (scope === 'ce') base = base.filter(x => x.sit === 'CE');
+  const defs = DEF_ING().filter(d => scope === 'all' || d.k !== 'sit');
+  const rows = aplicarFiltros(base, defs, buscaIng), p = P();
+  const T = { all: ['Todos los ingresos abiertos', `Carga del ${fmtDT(S.D.ultimaCarga)}. El archivo se carga en Configuración › Cargue de datos.`], hosp: ['Pacientes hospitalizados', 'Ingresos sin egreso y con cama asignada.'], ce: ['Consulta externa por cerrar', `No llevan egreso, pero se controlan con un plazo de cierre de ${p.CE_DIAS_CIERRE} días.`] }[scope];
+  return head(T[0], T[1], nivel('med') ? '<button class="btn ghost" data-dl="excel">Descargar Excel</button>' : '') + subtabs() +
+  `<div class="grid g-kpi mb">${kpi('Ingresos', rows.length, 'en la selección', '--accent')}${kpi('Valor abierto', sum(rows, x => x.val), 'suma de VALOR', '--accent-2', null, 'm')}${kpi('Con autorización pendiente', rows.filter(x => x.ap).length, 'registradas + código', '--crit', 'data-qf="ap|Con pendientes"', null, null, (S.f.ap || []).includes('Con pendientes'))}${scope === 'ce' ? kpi('Fuera de plazo', rows.filter(x => x.d > p.CE_DIAS_CIERRE).length, 'más de ' + p.CE_DIAS_CIERRE + ' días', '--warn') : kpi('Más de ' + p.PROLONGADO_DIAS + ' días', rows.filter(x => x.d >= p.PROLONGADO_DIAS).length, 'cuenta prolongada', '--warn')}</div>` +
+  barraFiltros(S.vista, base, defs, 'Buscar paciente, documento, ingreso, cama, código u observación') +
+  `<div class="grid g-2 mb"><div class="card"><h3>Por área y situación</h3><p class="hint">Clic en una barra para filtrar por esa área.</p><div class="chart-box lg"><canvas id="cIA"></canvas></div></div>
+   <div class="card"><div class="card-h"><div><h3>Por ERP</h3><p class="hint">Variantes del nombre unificadas. Clic para filtrar.</p></div><div class="seg"><button class="${S.opc.medida !== 'v' ? 'on' : ''}" data-opc="medida|n">Cantidad</button><button class="${S.opc.medida === 'v' ? 'on' : ''}" data-opc="medida|v">Valor</button></div></div><div class="chart-box lg"><canvas id="cIE"></canvas></div></div></div>` +
+  table('ing-' + scope, colsIng(), rows, abrirIng);
+}
+V['ing/listado'] = () => vIng('all'); V['ing/hosp'] = () => vIng('hosp'); V['ing/ce'] = () => vIng('ce');
+function ingAfter() {
+  const k = { 'ing/listado': 'ing-all', 'ing/hosp': 'ing-hosp', 'ing/ce': 'ing-ce' }[S.vista], rows = (TBL[k] || {}).rows || [];
+  const gr = [...groupBy(rows, 'g').entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 14).map(e => e[0]), ser = SER();
+  chart('cIA', { type: 'bar', data: { labels: gr, datasets: SITS.map((s, i) => ({ label: SIT_LBL[s], data: gr.map(g => rows.filter(x => x.g === g && x.sit === s).length), backgroundColor: ser[i], borderColor: css('--surface'), borderWidth: { right: 2 }, borderSkipped: false, borderRadius: 0 })) },
+    options: { indexAxis: 'y', interaction: { mode: 'index', intersect: false }, scales: { x: { stacked: true }, y: { stacked: true, ticks: { autoSkip: false } } }, onClick: (e, els) => { if (els[0]) { S.f.g = [gr[els[0].index]]; S.page = {}; render(false); } } } });
+  const v = S.opc.medida === 'v';
+  const by = [...groupBy(rows, 'erp').entries()].map(([k2, l]) => [k2, v ? sum(l, x => x.val) / 1e6 : l.length, l.length, sum(l, x => x.val)]).sort((a, b) => b[1] - a[1]).slice(0, 12);
+  chart('cIE', { type: 'bar', data: { labels: by.map(e => e[0]), datasets: [{ label: v ? 'Valor (millones)' : 'Ingresos', data: by.map(e => Math.round(e[1] * 10) / 10), backgroundColor: css('--s1') }] },
+    options: { indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${fmtN(by[c.dataIndex][2])} ingresos · ${moneyM(by[c.dataIndex][3])}` } } }, scales: { y: { ticks: { autoSkip: false } } }, onClick: (e, els) => { if (els[0]) { S.f.erp = [by[els[0].index][0]]; S.page = {}; render(false); } } } });
+}
+V['ing/listado'].after = V['ing/hosp'].after = V['ing/ce'].after = ingAfter;
+document.addEventListener('click', e => { const b = e.target.closest('[data-opc]'); if (!b) return; const [k, v] = b.dataset.opc.split('|'); S.opc[k] = v; render(false); });
+
+function abrirIng(x) {
+  const auts = S.D.auts.filter(a => a.ing === x.i), c = S.D.casos.find(k => k.ing === x.i);
+  drawer(esc(x.pac), 'Ingreso ' + esc(x.i), `
+  <div class="kv"><div><small>Documento</small><span class="mono">${esc(x.tid)} ${esc(x.doc)}</span></div><div><small>Edad</small><span>${x.edad} años</span></div><div><small>Fecha ingreso</small><span>${fmtDT(x.f)}</span></div><div><small>Días abierto</small><span>${x.d}</span></div>
+  <div><small>Área</small><span>${esc(x.g)}${x.inf ? ' (inferida)' : ''}</span></div><div><small>Ala</small><span>${esc(x.ala || '—')}</span></div><div><small>Cama</small><span class="mono">${esc(x.cama || '—')}</span></div><div><small>Situación</small><span>${sitPill(x.sit)}</span></div>
+  <div><small>Ingreso por · tipo</small><span>${esc(x.por || '—')} · ${esc(x.tipo)}</span></div><div><small>Egreso</small><span>${x.eg ? fmtD(x.fe) + (x.diag ? ' · ' + esc(x.diag) : ' · sin diagnóstico') : 'No'}</span></div>
+  <div><small>ERP · contrato</small><span>${esc(x.erp)} · ${esc(x.con)}</span></div><div><small>Valor</small><span>${money(x.val)}</span></div><div><small>Usuario</small><span>${esc(x.u)}</span></div><div><small>Estado</small><span>${esc(x.est)}</span></div></div>
+  <div class="card" style="background:var(--surface-2)"><small class="crumb">ENTIDAD tal como llega en el Excel</small><div class="mono" style="overflow-wrap:anywhere">${esc(x.ent)}</div></div>
+  <div class="card" style="background:var(--surface-2)"><small class="crumb">RESPONSABLE</small><div>${x.resp ? `<span class="mono">${esc(x.resp)}</span> → ${esc(x.rl)}` : '—'}</div><small class="crumb" style="display:block;margin-top:8px">Observaciones</small><div>${esc(x.obs || '—')}</div></div>
+  <div><small class="crumb">Hallazgos</small><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${(x.h || []).map(h => `<span class="pill p-warn">${esc(h)}</span>`).join('') || '<span class="pill p-ok">Sin hallazgos</span>'}</div></div>
+  <div><h3 style="font-size:14px;margin-bottom:8px">Autorizaciones (${auts.length})</h3>${auts.length ? `<div class="tbl-wrap"><table><thead><tr><th>Trámite</th><th>Servicio</th><th>Estado</th><th>Tiempo</th></tr></thead><tbody>${auts.map(a => `<tr><td class="mono">${esc(a.id)}</td><td>${esc(a.serv || 'Código ' + a.cod)}</td><td>${estPill(a.est)}</td><td>${slaPill(a)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">Sin autorizaciones.</p>'}</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">${nivel('aut') >= 2 && x.sit !== 'CE' ? `<button class="btn" data-tomar="${esc(x.i)}|">Nueva solicitud para este ingreso</button>` : ''}${c ? `<button class="btn ghost" data-caso="${esc(c.id)}">Ver caso especial</button>` : ''}</div>`);
+}
+
+const DIMS = { erp: ['ERP', x => x.erp], contrato: ['ERP › contrato', x => x.erp, x => x.con], area: ['Área', x => x.g], ala: ['Área › ala / pabellón', x => x.g, x => x.ala || '(sin ala)'], areaErp: ['Área › ERP', x => x.g, x => x.erp], usuario: ['Usuario › área', x => x.u || '(vacío)', x => x.g], responsable: ['Código RESPONSABLE', x => x.resp ? x.rl : '(vacío)'], ingresoPor: ['Ingreso por', x => x.por || '(vacío)'], bandeja: ['Tipo de pagador', x => BAN_LBL[x.ban] || x.ban] };
+V['ing/conc'] = () => {
+  if (!nivel('ing')) return sinAcceso();
+  const base = S.D.ingresos, defs = DEF_ING(), rows = aplicarFiltros(base, defs, buscaIng), dim = S.opc.dim || 'erp', d = DIMS[dim], tot = sum(rows, x => x.val);
+  const mk = (k, l, isSub) => ({ _sub: !isSub && !!d[2], k, n: l.length, v: sum(l, x => x.val), prom: sum(l, x => x.d) / l.length, max: Math.max(...l.map(x => x.d)), eg: l.filter(x => x.eg).length, hosp: l.filter(x => x.sit === 'HOSPITALIZADO').length, ce: l.filter(x => x.sit === 'CE').length, aut: l.filter(x => x.ap).length, isSub });
+  const out = []; [...groupBy(rows, d[1]).entries()].sort((a, b) => sum(b[1], x => x.val) - sum(a[1], x => x.val)).forEach(([k, l]) => { out.push(mk(k, l, false)); if (d[2]) [...groupBy(l, d[2]).entries()].sort((a, b) => b[1].length - a[1].length).forEach(([k2, l2]) => out.push(mk('   › ' + k2, l2, true))); });
+  return head('Concentración', 'Las agrupaciones que ya tenías (ERP, contrato, área, pabellón, área × ERP, usuario × área), en una sola tabla con subtotales y los mismos filtros del listado.') + subtabs() +
+  `<div class="chips" role="group" aria-label="Agrupar por">${Object.entries(DIMS).map(([k, v]) => `<button class="chip ${dim === k ? 'on' : ''}" data-opc="dim|${k}">${v[0]}</button>`).join('')}</div>` +
+  barraFiltros(S.vista, base, defs, 'Buscar dentro de los ingresos') +
+  `<div class="card mb"><h3>Top 12 por valor abierto · ${d[0].split(' › ')[0]}</h3><p class="hint">Total de la selección: ${moneyM(tot)}.</p><div class="chart-box"><canvas id="cConc"></canvas></div></div>` +
+  table('conc-' + dim, [{ h: d[0], v: r => esc(r.k), s: r => r.k }, { h: 'Ingresos', cl: 'r', v: r => fmtN(r.n), s: r => r.n }, { h: 'Valor', cl: 'r', v: r => money(r.v), s: r => r.v }, { h: '% valor', cl: 'r', v: r => pct(r.v, tot) + '%', s: r => r.v },
+    { h: 'Días prom.', cl: 'r', v: r => Math.round(r.prom), s: r => r.prom }, { h: 'Días máx.', cl: 'r', v: r => r.max, s: r => r.max }, { h: 'Egresados', cl: 'r', v: r => r.eg, s: r => r.eg }, { h: 'Hospitalizados', cl: 'r', v: r => r.hosp, s: r => r.hosp }, { h: 'C. externa', cl: 'r', v: r => r.ce, s: r => r.ce }, { h: 'Con aut. pend.', cl: 'r', v: r => r.aut, s: r => r.aut }], out, null, { per: 30 });
+};
+V['ing/conc'].after = () => { const dim = S.opc.dim || 'erp', rows = ((TBL['conc-' + dim] || {}).rows || []).filter(r => !r.isSub).sort((a, b) => b.v - a.v).slice(0, 12);
+  chart('cConc', { type: 'bar', data: { labels: rows.map(r => r.k.length > 34 ? r.k.slice(0, 32) + '…' : r.k), datasets: [{ label: 'Valor (millones)', data: rows.map(r => Math.round(r.v / 1e5) / 10), backgroundColor: css('--s1') }] }, options: { indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${moneyM(rows[c.dataIndex].v)} · ${fmtN(rows[c.dataIndex].n)} ingresos` } } }, scales: { y: { ticks: { autoSkip: false } } } } }); };
+
+V['ing/hall'] = () => {
+  if (!nivel('ing')) return sinAcceso();
+  const base = S.D.ingresos, defs = DEF_ING(), cont = new Map();
+  base.forEach(x => (x.h || []).forEach(h => cont.set(h, (cont.get(h) || 0) + 1)));
+  const sel = S.f.h || [];
+  return head('Hallazgos', 'Las banderas que ya calculaba ANALISIS_INGRESOS, más las nuevas (egresado con cama, área inferida, consulta externa fuera de plazo, código sin regla). Clic en una tarjeta para filtrar.') + subtabs() +
+  `<div class="grid g-kpi mb">${[...cont.entries()].sort((a, b) => b[1] - a[1]).map(([h, n]) => kpi(h, n, pct(n, base.length) + '% de los abiertos', /cama|plazo|diagn/i.test(h) ? '--crit' : '--warn', `data-qf="h|${esc(h)}"`, null, null, sel.includes(h))).join('')}</div>` +
+  barraFiltros(S.vista, base, defs, 'Buscar') + table('hall', colsIng(), aplicarFiltros(base, defs, buscaIng), abrirIng);
+};
+
+V['ing/cambios'] = () => {
+  if (!nivel('ing')) return sinAcceso();
+  const C = S.D.cambios, tipo = S.opc.cmb || 'SALIÓ DE ABIERTOS';
+  const n = t => C.filter(c => c.tipo === t).length;
+  const rows = C.filter(c => c.tipo === tipo);
+  return head('Cambios entre cargas', `Comparación de la carga del ${fmtDT(S.D.ultimaCarga)} con la anterior. Un ingreso que deja de aparecer queda como “presunto facturado” hasta que se confirme con soporte.`) + subtabs() +
+  `<div class="flow mb">${[['SALIÓ DE ABIERTOS', 'Salieron (presunto facturado)', '--crit', '−'], ['NUEVO', 'Ingresos nuevos', '--ok', '+'], ['CAMBIO DE PAGADOR', 'Cambiaron de pagador', '--info', '']].map(z => `<div class="node ${tipo === z[0] ? 'on' : ''}" data-opc="cmb|${z[0]}"><b class="num" style="color:var(${z[2]})">${z[3]}${fmtN(n(z[0]))}</b><small>${z[1]}</small></div>`).join('')}</div>` +
+  table('cmb-' + tipo, [{ h: 'Ingreso', v: c => `<span class="mono">${esc(c.i)}</span>`, s: c => c.i }, { h: 'Paciente', v: c => `${esc(c.pac)}<br><span class="mono muted">${esc(c.doc)}</span>`, s: c => c.pac }, { h: 'Área', v: c => esc(c.g), s: c => c.g }, { h: 'Antes', v: c => esc(c.antes || '—'), s: c => c.antes }, { h: 'Ahora', v: c => c.tipo === 'SALIÓ DE ABIERTOS' ? '<span class="pill p-crit">Fuera de abiertos</span>' : esc(c.ahora), s: c => c.ahora }, { h: 'Valor', cl: 'r', v: c => money(c.val), s: c => c.val }], rows, c => { const x = S.D.ingresos.find(z => z.i === c.i); if (x) abrirIng(x); }, { vacio: S.D.hist.length < 2 ? 'Los cambios aparecen desde la segunda carga.' : 'Sin cambios de este tipo.' });
+};
+
+/* ================== 03 Casos especiales ================== */
+const DEF_CASOS = () => [
+  { k: 'est', t: 'Estado', get: c => c.est, lbl: v => EC_LBL[v] || v, orden: EC_ORDEN, grp: 'Estado' },
+  { k: 'sit', t: 'Situación del paciente', get: c => c.sit, lbl: v => SIT_LBL[v] || v, orden: [...SITS, 'FUERA'], grp: 'Estado' },
+  { k: 'g', t: 'Área', get: c => c.g, grp: 'Ubicación' },
+  { k: 'erp', t: 'Pagador actual', get: c => c.erpAct || '(vacío)', grp: 'Pagador' },
+  { k: 'gestor', t: 'Gestor', get: c => c.gestor || 'Sin asignar', grp: 'Responsable' },
+  { k: 'comp', t: 'Compromiso', get: c => !c.fc ? 'Sin fecha' : c.fc < S.D.ahora ? 'Vencido' : 'Al día', orden: ['Vencido', 'Al día', 'Sin fecha'], grp: 'Responsable' },
+  { k: 'neo', t: 'Tipo de paciente', get: c => c.neo ? 'Neonato' : 'Adulto o niño', grp: 'Responsable' },
+  { k: 'dias', t: 'Días', get: c => bucketDias(c.d), orden: BUCKETS, grp: 'Responsable' }];
+function vCasos(scope) {
+  if (!nivel('casos')) return sinAcceso();
+  let base = S.D.casos;
+  const filtro = { soat: c => c.ban === 'SOAT_DEFINIDO', sindoc: c => c.ban === 'SOAT_SIN_DOC', sss: c => c.ban === 'SIN_SS', salio: c => c.est === EC.SALIO, cambio: c => c.est === EC.PAGADOR, singes: c => !c.gestor && c.est !== EC.CERRADO && c.est !== EC.SALIO }[scope];
+  base = base.filter(filtro);
+  const defs = DEF_CASOS().filter(d => (scope === 'sss' || d.k !== 'neo'));
+  const rows = aplicarFiltros(base, defs, c => c.pac + c.doc + c.ing + c.placa + c.erpAct);
+  const T = { soat: ['SOAT definido', 'Aseguradora identificada. Se separa quién sigue hospitalizado, quién ya egresó y quién salió de abiertos, para reunir soportes, facturar y cerrar.'],
+    sindoc: ['SOAT sin documentos', 'Accidentes sin póliza o FURIPS (cobro a ADRES). Los que consiguen aseguradora pasan a “Definido”.'],
+    sss: ['Sin seguridad social y neonatos', 'Pacientes sin afiliación y recién nacidos. Si ya no están en abiertos es porque se facturaron: carga el soporte y cierra.'],
+    salio: ['Salieron de abiertos sin cierre', 'Antes se cerraban solos como “CERRADO EN DINÁMICA”. Ahora quedan aquí hasta que el gestor cargue el soporte y cierre.'],
+    cambio: ['Pasaron a pagador asignado', 'Casos que entre cargas cambiaron de “sin pagador” a una ERP o aseguradora.'],
+    singes: ['Casos sin gestor', 'Asigna responsable y fecha de compromiso.'] }[scope];
+  const docTot = c => (S.D.docsCaso[c.ban === 'SIN_SS' ? 'SIN_SS' : 'SOAT'] || []).length || 5;
+  return head(T[0], T[1]) + subtabs() +
+  `<div class="flow mb">${EC_ORDEN.map(k => { const n = base.filter(c => c.est === k).length; return n ? `<div class="node ${(S.f.est || []).includes(k) ? 'on' : ''}" data-qf="est|${k}"><b class="num">${fmtN(n)}</b><small>${EC_LBL[k]}</small></div>` : ''; }).join('')}</div>` +
+  barraFiltros(S.vista, base, defs, 'Buscar paciente, documento, ingreso o placa') +
+  table('casos-' + scope, [
+    { h: 'Ingreso', v: c => `<span class="mono">${esc(c.ing)}</span><br><small class="muted">${fmtD(c.fi)}</small>`, s: c => c.ing },
+    { h: 'Paciente', v: c => `${esc(c.pac)}${c.neo ? ' <span class="pill p-vio">neonato</span>' : ''}<br><span class="mono muted">${esc(c.tid)} ${esc(c.doc)}</span>`, s: c => c.pac },
+    { h: 'Área · situación', v: c => `${esc(c.g)}<br>${sitPill(c.sit)}`, s: c => c.g },
+    { h: 'Pagador', v: c => esc(c.erpAct) + (c.fcp ? `<br><span class="pill p-acc">cambió ${fmtD(c.fcp)}</span>` : ''), s: c => c.erpAct },
+    { h: 'Documentos', v: c => { const pc = pct(c.docs.length, docTot(c)); return `<div class="bar" style="width:90px"><i style="width:${pc}%"></i></div><small class="num">${pc}%</small>`; }, s: c => c.docs.length },
+    { h: 'Gestor', v: c => c.gestor ? esc(c.gestor) : '<span class="pill p-warn">Sin asignar</span>', s: c => c.gestor },
+    { h: 'Compromiso', v: c => c.fc ? `<span class="pill ${c.fc < S.D.ahora ? 'p-crit' : 'p-mut'}">${fmtD(c.fc)}</span>` : '—', s: c => c.fc || 0 },
+    { h: 'Días', cl: 'r', v: c => c.d, s: c => c.d },
+    { h: 'Estado', v: c => ecPill(c.est), s: c => EC_ORDEN.indexOf(c.est) }], rows, abrirCaso);
+}
+['soat', 'sindoc', 'sss', 'salio', 'cambio', 'singes'].forEach(k => { V['casos/' + k] = () => vCasos(k); });
+document.addEventListener('click', e => { const v = e.target.closest('[data-caso]'); if (v) { const c = S.D.casos.find(z => z.id === v.dataset.caso); if (c) abrirCaso(c); } });
+
+async function abrirCaso(c) {
+  const ed = nivel('casos') >= 2 && c.est !== EC.CERRADO && (S.D.yo.rol === 'ADMINISTRADOR' || !c.gestor || c.gestor === S.D.yo.nombre);
+  const docs = S.D.docsCaso[c.ban === 'SIN_SS' ? 'SIN_SS' : 'SOAT'] || [];
+  const soat = c.ban !== 'SIN_SS';
+  const cuerpo = g => `
+  ${c.est === EC.SALIO ? `<div class="alert crit"><span class="sev"></span><div><div class="t">El ingreso ya no está en abiertos y el caso no tiene cierre</div><div class="d">Carga el soporte (factura, pagador o motivo) y cierra el caso.</div></div><span></span></div>` : ''}
+  <div class="kv"><div><small>Documento</small><span class="mono">${esc(c.tid)} ${esc(c.doc)}</span></div><div><small>Ingreso</small><span class="mono">${esc(c.ing)}</span></div><div><small>Área</small><span>${esc(c.g)}</span></div><div><small>Situación</small><span>${sitPill(c.sit)}</span></div>
+  <div><small>Pagador actual</small><span>${esc(c.erpAct)}</span></div><div><small>Estado</small><span>${ecPill(c.est)}</span></div><div><small>Valor</small><span>${money(c.val)}</span></div><div><small>Días</small><span>${c.d}</span></div>
+  ${c.rcierre ? `<div><small>Resultado cierre</small><span>${esc(c.rcierre)}</span></div>` : ''}${c.sop ? `<div><small>Soporte</small><span>${esc(c.sop)}</span></div>` : ''}</div>
+  ${ed ? `<form id="fCasoDatos" class="card grid" data-id="${esc(c.id)}"><h3>Responsable y datos del caso</h3><div class="form-grid">
+    <div class="field"><label for="kG">Gestor</label><select class="inp" id="kG"><option value="">Sin asignar</option>${S.D.gestores.map(n => `<option ${c.gestor === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
+    <div class="field"><label for="kF">Fecha de compromiso</label><input class="inp" id="kF" type="date" value="${c.fc ? new Date(c.fc).toISOString().slice(0, 10) : ''}"></div></div>
+    <div class="field"><label for="kPA">Próxima acción</label><input class="inp" id="kPA" value="${esc(c.pa)}"></div>
+    ${soat ? `<div class="form-grid"><div class="field"><label for="kFA">Fecha del accidente</label><input class="inp" id="kFA" type="date" value="${c.facc ? new Date(c.facc).toISOString().slice(0, 10) : ''}"></div><div class="field"><label for="kPl">Placa</label><input class="inp" id="kPl" value="${esc(c.placa)}"></div><div class="field"><label for="kAs">Aseguradora</label><input class="inp" id="kAs" value="${esc(c.aseg)}"></div><div class="field"><label for="kPo">Póliza</label><input class="inp" id="kPo" value="${esc(c.poliza)}"></div></div>`
+      : `<div class="form-grid"><div class="field"><label for="kTr">Trámite</label><input class="inp" id="kTr" value="${esc(c.tram)}"></div><div class="field"><label for="kEn">Ente responsable</label><input class="inp" id="kEn" value="${esc(c.ente)}"></div></div>`}
+    <button class="btn ghost" type="submit">Guardar datos</button></form>` : ''}
+  <div><h3 style="font-size:14px;margin-bottom:8px">Lista de chequeo</h3><div class="checks">${docs.map(d => `<label><input type="checkbox" data-doc="${esc(d)}" ${c.docs.includes(d) ? 'checked' : ''} ${ed ? '' : 'disabled'}> ${esc(d)}</label>`).join('')}</div>${ed ? `<button class="btn ghost sm mt" data-docs="${esc(c.id)}">Guardar documentos</button>` : ''}</div>
+  <div><h3 style="font-size:14px;margin-bottom:8px">Bitácora</h3>${g === null ? '<p class="muted">Cargando…</p>' : g.length ? `<ol class="timeline">${g.map(h => `<li><div>${esc(h.t)}</div><small>${fmtDT(h.f)} · ${esc(h.u)} · ${esc(h.tipo)}${h.en && h.en !== h.ea ? ' · ' + esc(h.ea) + ' → ' + esc(h.en) : ''}</small></li>`).join('')}</ol>` : '<p class="muted">Sin gestiones.</p>'}</div>
+  ${ed ? `<form id="fCasoGes" class="card grid" data-id="${esc(c.id)}"><h3>Registrar gestión</h3><div class="field"><label for="kT">Tipo</label><select class="inp" id="kT">${['Llamada telefónica', 'Correo electrónico', 'Revisión de documentos', 'Visita / entrevista', 'Radicación', 'Otra'].map(t => `<option>${t}</option>`).join('')}</select></div>
+    <div class="field"><label for="kD">Descripción</label><textarea class="inp" id="kD" placeholder="Ej.: se recibe póliza N° 12345"></textarea></div>
+    <div class="form-grid"><div class="field"><label for="kR">Resultado</label><select class="inp" id="kR"><option>Exitosa</option><option>Pendiente de respuesta</option><option>Sin respuesta</option></select></div><div class="field"><label for="kF2">Nuevo compromiso</label><input class="inp" id="kF2" type="date"></div></div>
+    <button class="btn" type="submit">Registrar gestión</button></form>
+    <form id="fCasoCierre" class="card grid" data-id="${esc(c.id)}" style="border-color:var(--accent)"><h3>Cerrar caso</h3><div class="field"><label for="kS">Soporte del cierre</label><input class="inp" id="kS" placeholder="N° de factura, pagador asignado o motivo"></div>
+    <div class="field"><label for="kRC">Resultado</label><select class="inp" id="kRC"><option>Facturado</option><option>Pagador asignado y facturado</option><option>Afiliado al régimen</option><option>Particular / pago directo</option><option>Otro</option></select></div><button class="btn" type="submit">Cerrar con soporte</button></form>` : ''}`;
+  drawer(esc(c.pac), (BAN_LBL[c.ban] || c.ban) + ' · ingreso ' + esc(c.ing), cuerpo(null));
+  try { const g = await API.call('gestionesCaso', { id: c.id }); if ($('.drawer')) $('.dr-b').innerHTML = cuerpo(g); } catch (e) { fallo(e); }
+}
+document.addEventListener('submit', async e => {
+  const f = e.target, id = f.dataset && f.dataset.id;
+  try {
+    if (f.id === 'fCasoDatos') { e.preventDefault(); const d = { id, gestor: $('#kG').value, fechaCompromiso: $('#kF').value || '', proximaAccion: $('#kPA').value };
+      if ($('#kPl')) Object.assign(d, { fechaAccidente: $('#kFA').value || '', placa: $('#kPl').value, aseguradora: $('#kAs').value, poliza: $('#kPo').value });
+      if ($('#kTr')) Object.assign(d, { tramite: $('#kTr').value, enteResponsable: $('#kEn').value });
+      await API.call('actualizarCaso', d); toast('Caso actualizado.'); }
+    else if (f.id === 'fCasoGes') { e.preventDefault(); await API.call('gestionCaso', { id, tipo: $('#kT').value, descripcion: $('#kD').value, resultado: $('#kR').value, fechaCompromiso: $('#kF2').value || '' }); toast('Gestión registrada.'); }
+    else if (f.id === 'fCasoCierre') { e.preventDefault(); await API.call('cerrarCaso', { id, soporte: $('#kS').value, resultado: $('#kRC').value }); toast('Caso cerrado.'); cerrarCapa(); }
+    else return;
+    await cargarDatos(); const c = S.D.casos.find(z => z.id === id); if (c && $('.drawer')) abrirCaso(c);
+  } catch (x) { fallo(x); }
+});
+document.addEventListener('click', async e => { const b = e.target.closest('[data-docs]'); if (!b) return;
+  const docs = [...document.querySelectorAll('[data-doc]')].filter(i => i.checked).map(i => i.dataset.doc);
+  try { await API.call('documentosCaso', { id: b.dataset.docs, docs }); toast('Documentos guardados.'); await cargarDatos(); const c = S.D.casos.find(z => z.id === b.dataset.docs); if (c) abrirCaso(c); } catch (x) { fallo(x); } });
+
+/* ================== 04 Medición ================== */
+const DEF_MED = () => [
+  { k: 'per', t: 'Periodo', get: () => '', unico: true, grp: 'Periodo', oculto: true },
+  { k: 'erp', t: 'ERP', get: a => a.erp, grp: 'Filtros' }, { k: 'g', t: 'Área', get: a => a.g, grp: 'Filtros' },
+  { k: 'serv', t: 'Servicio', get: a => a.serv || '(sin detalle)', grp: 'Filtros' }, { k: 'autz', t: 'Autorizador', get: a => a.autz, grp: 'Filtros' }];
+function medBase() {
+  const defs = DEF_MED().filter(d => !d.oculto), per = +(S.opc.per || 90);
+  const r = filtrar(S.D.auts, defs, S.f);
+  return { all: r.filter(a => a.fs && a.fs > S.D.ahora - per * 864e5), prev: r.filter(a => a.fs && a.fs <= S.D.ahora - per * 864e5 && a.fs > S.D.ahora - 2 * per * 864e5), per, defs };
+}
+function stats(l) { const h = l.filter(a => a.est === 'AUTORIZADO' && a.fs && a.fr).map(horas); return { n: l.length, pend: l.filter(abierta).length, neg: l.filter(a => a.est === 'NEGADO').length, avg: h.length ? sum(h, x => x) / h.length : 0, med: q(h, .5), p90: q(h, .9), meta: pct(h.filter(x => x <= P().META_AUT_HORAS).length, h.length) }; }
+function medFiltros() { const { defs } = medBase(); return `<div class="seg mb" role="group" aria-label="Periodo">${[30, 90, 180, 365].map(d => `<button class="${String(S.opc.per || 90) === String(d) ? 'on' : ''}" data-opc="per|${d}">${d === 365 ? 'Último año' : 'Últimos ' + d + ' días'}</button>`).join('')}</div>` + barraFiltros(S.vista, S.D.auts, defs, 'Buscar (no aplica a la medición)').replace(/<label class="search">[\s\S]*?<\/label>/, ''); }
+function rankTable(key, l, fn, label) { const m = [...groupBy(l, fn).entries()].map(([k, x]) => ({ k, ...stats(x) })); return table(key, [{ h: label, v: r => esc(r.k), s: r => r.k }, { h: 'Solicitudes', cl: 'r', v: r => r.n, s: r => r.n }, { h: 'Pendientes', cl: 'r', v: r => r.pend, s: r => r.pend }, { h: 'Promedio', cl: 'r', v: r => Math.round(r.avg) + ' h', s: r => r.avg }, { h: 'Mediana', cl: 'r', v: r => Math.round(r.med) + ' h', s: r => r.med }, { h: 'P90', cl: 'r', v: r => Math.round(r.p90) + ' h', s: r => r.p90 }, { h: '% en meta', cl: 'r', v: r => `<span class="pill ${r.meta >= 80 ? 'p-ok' : r.meta >= 60 ? 'p-warn' : 'p-crit'}">${r.meta}%</span>`, s: r => r.meta }, { h: 'Negadas', cl: 'r', v: r => r.neg, s: r => r.neg }], m.sort((a, b) => b.avg - a.avg), null); }
+V['med/resumen'] = () => { if (!nivel('med')) return sinAcceso(); const { all, prev, per } = medBase(), s = stats(all), p0 = stats(prev), dl = (a, b, inv, u) => ({ v: Math.round(a - b), good: inv ? a <= b : a >= b, u });
+  return head('Resumen y tendencia', `Comparado con los ${per} días anteriores. Tiempo = desde la fecha de solicitud hasta la respuesta de la EPS.`) + subtabs() + medFiltros() +
+  `<div class="grid g-kpi mb">${kpi('Solicitudes', s.n, 'en el periodo', '--accent', null, null, dl(s.n, p0.n, true))}${kpi('Tiempo promedio', s.avg, 'solicitud → autorización', '--accent-2', null, 'h', dl(s.avg, p0.avg, true, ' h'))}${kpi('Mediana', s.med, 'la mitad se resuelve en menos', '--accent-2', null, 'h')}${kpi('Percentil 90', s.p90, 'los casos más lentos', '--warn', null, 'h')}${kpi('Cumplimiento meta', s.meta, 'autorizadas en ≤ ' + P().META_AUT_HORAS + ' h', '--ok', null, 'p', dl(s.meta, p0.meta, false, ' pts'))}${kpi('Negadas', s.neg, pct(s.neg, s.n) + '% de las solicitudes', '--crit')}</div>
+  <div class="grid g-2"><div class="card"><h3>Solicitudes y respuestas por semana</h3><p class="hint">Si las respuestas quedan por debajo, la bandeja crece.</p><div class="chart-box"><canvas id="mT"></canvas></div></div>
+  <div class="card"><h3>Distribución del tiempo de respuesta</h3><p class="hint">Autorizadas por rango de horas. Más oscuro = más lento.</p><div class="chart-box"><canvas id="mD"></canvas></div></div>
+  <div class="card"><h3>Pendientes por estado</h3><p class="hint">Dónde está detenida la bandeja hoy.</p><div class="chart-box sm"><canvas id="mE"></canvas></div></div>
+  <div class="card"><h3>Pendientes más antiguos</h3><p class="hint">Los 8 trámites abiertos con más horas.</p>${table('mOld', [{ h: 'Trámite', v: a => `<span class="mono">${esc(a.id)}</span>` }, { h: 'Documento', v: a => `<span class="mono">${esc(a.doc)}</span>` }, { h: 'ERP', v: a => esc(a.erp) }, { h: 'Tiempo', v: slaPill }], all.filter(abierta).sort((a, b) => horas(b) - horas(a)).slice(0, 8), abrirAut, { per: 8 })}</div></div>`; };
+V['med/resumen'].after = () => { const { all, per } = medBase(), nW = Math.min(12, Math.ceil(per / 7)), wk = [...Array(nW)].map((_, i) => S.D.ahora - (nW - 1 - i) * 7 * 864e5);
+  chart('mT', { type: 'line', data: { labels: wk.map(fmtD), datasets: [{ label: 'Solicitadas', data: wk.map(w => all.filter(a => a.fs <= w && a.fs > w - 7 * 864e5).length), borderColor: css('--s1'), backgroundColor: css('--s1') + '22', fill: true, tension: .3 }, { label: 'Respondidas', data: wk.map(w => all.filter(a => a.fr && a.fr <= w && a.fr > w - 7 * 864e5).length), borderColor: css('--s2'), tension: .3 }] }, options: { interaction: { mode: 'index', intersect: false } } });
+  const b = [['≤12 h', -1, 12], ['12–24', 12, 24], ['24–48', 24, 48], ['48–72', 48, 72], ['72–120', 72, 120], ['>120', 120, 1e9]], h = all.filter(a => a.est === 'AUTORIZADO' && a.fr).map(horas);
+  chart('mD', { type: 'bar', data: { labels: b.map(x => x[0]), datasets: [{ label: 'Autorizadas', data: b.map(x => h.filter(v => v > x[1] && v <= x[2]).length), backgroundColor: RAMP() }] }, options: { plugins: { legend: { display: false } } } });
+  const pe = all.filter(abierta), es = ['SOLICITADO', 'RADICADO', 'EN TRAMITE'];
+  chart('mE', { type: 'bar', data: { labels: es, datasets: [{ label: 'Pendientes', data: es.map(e => pe.filter(a => a.est === e).length), backgroundColor: css('--s1') }] }, options: { indexAxis: 'y', plugins: { legend: { display: false } } } }); };
+V['med/erp'] = () => { if (!nivel('med')) return sinAcceso(); const { all } = medBase();
+  return head('ERP y EPS', 'Quién demora más en autorizar y dónde se acumulan los pendientes.') + subtabs() + medFiltros() +
+  `<div class="grid g-2 mb"><div class="card"><h3>ERP que más demoran</h3><p class="hint">Horas promedio hasta la autorización. Línea gris = meta de ${P().META_AUT_HORAS} h. Clic para filtrar.</p><div class="chart-box"><canvas id="eD"></canvas></div></div>
+  <div class="card"><h3>Pareto de pendientes por ERP</h3><p class="hint">El acumulado aparece en el tooltip.</p><div class="chart-box"><canvas id="eP"></canvas></div></div></div>
+  <div class="card mb"><h3>Mapa de pendientes · área × ERP</h3><p class="hint">Más oscuro = más pendientes. Clic en una celda abre la bandeja filtrada.</p><div id="heat" style="overflow-x:auto"></div></div>` + rankTable('rkErp', all, 'erp', 'ERP'); };
+V['med/erp'].after = () => { const { all } = medBase(), done = all.filter(a => a.est === 'AUTORIZADO' && a.fr);
+  const e = [...groupBy(done, 'erp').entries()].map(([k, l]) => [k, sum(l, horas) / l.length]).sort((a, b) => b[1] - a[1]).slice(0, 14);
+  chart('eD', { type: 'bar', data: { labels: e.map(x => x[0]), datasets: [{ label: 'Horas promedio', data: e.map(x => Math.round(x[1])), backgroundColor: css('--s1') }, { type: 'line', label: 'Meta', data: e.map(() => P().META_AUT_HORAS), borderColor: css('--muted'), pointRadius: 0, borderWidth: 1 }] }, options: { onClick: (ev, els) => { if (els[0]) { S.f.erp = [e[els[0].index][0]]; render(false); } } } });
+  const pe = all.filter(abierta), pr = [...groupBy(pe, 'erp').entries()].map(([k, l]) => [k, l.length]).sort((a, b) => b[1] - a[1]).slice(0, 14); let acc = 0; const cum = pr.map(x => (acc += x[1], pct(acc, pe.length)));
+  chart('eP', { type: 'bar', data: { labels: pr.map(x => x[0]), datasets: [{ label: 'Pendientes', data: pr.map(x => x[1]), backgroundColor: css('--s1') }] }, options: { plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel: c => 'Acumulado: ' + cum[c.dataIndex] + '%' } } } } });
+  const ers = pr.map(x => x[0]).slice(0, 10), ars = uniq(pe.map(a => a.g)), mx = Math.max(1, ...ars.flatMap(a => ers.map(x => pe.filter(z => z.g === a && z.erp === x).length)));
+  $('#heat').innerHTML = ers.length ? `<table style="min-width:640px"><thead><tr><th>Área</th>${ers.map(x => `<th style="text-align:center">${esc(x)}</th>`).join('')}</tr></thead><tbody>${ars.map(a => `<tr><td>${esc(a)}</td>${ers.map(x => { const n = pe.filter(z => z.g === a && z.erp === x).length; return `<td class="num" title="${esc(a)} · ${esc(x)}: ${n}" data-hm="${esc(a)}|${esc(x)}" style="text-align:center;cursor:${n ? 'pointer' : 'default'};background:color-mix(in srgb,var(--q4) ${Math.round(n / mx * 85)}%,transparent);color:${n / mx > .5 ? '#fff' : 'inherit'};font-weight:${n ? 600 : 400}">${n || ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table>` : '<div class="empty">Sin pendientes en el periodo.</div>'; };
+document.addEventListener('click', e => { const h = e.target.closest('[data-hm]'); if (h && h.textContent.trim()) { const [a, x] = h.dataset.hm.split('|'); ir('aut/bandeja', { g: [a], erp: [x] }); } });
+V['med/areas'] = () => { if (!nivel('med')) return sinAcceso(); const { all } = medBase();
+  return head('Áreas y servicios', 'Áreas con más pendientes y servicios que más demoran.') + subtabs() + medFiltros() +
+  `<div class="grid g-2 mb"><div class="card"><h3>Pendientes por área según demora</h3><p class="hint">Verde en tiempo · amarillo sobre la meta · rojo crítico.</p><div class="chart-box lg"><canvas id="aP"></canvas></div>${legend([['En tiempo', css('--st-good')], ['Sobre la meta', css('--st-warn')], ['Crítica', css('--st-crit')]])}</div>
+  <div class="card"><h3>Servicios que más demoran</h3><p class="hint">Horas promedio hasta la autorización.</p><div class="chart-box lg"><canvas id="sD"></canvas></div></div></div>` + rankTable('rkArea', all, 'g', 'Área') + '<div class="mt"></div>' + rankTable('rkSer', all.filter(a => a.serv), 'serv', 'Servicio'); };
+V['med/areas'].after = () => { const { all } = medBase(), pe = all.filter(abierta), ar = [...groupBy(pe, 'g').entries()].sort((a, b) => b[1].length - a[1].length).map(x => x[0]).slice(0, 14);
+  const lv = [['En tiempo', '--st-good'], ['Sobre la meta', '--st-warn'], ['Crítica', '--st-crit']];
+  chart('aP', { type: 'bar', data: { labels: ar, datasets: lv.map(l => ({ label: l[0], data: ar.map(g => pe.filter(a => a.g === g && nivelSla(a) === l[0]).length), backgroundColor: css(l[1]), borderColor: css('--surface'), borderWidth: { right: 2 }, borderSkipped: false, borderRadius: 0 })) }, options: { indexAxis: 'y', plugins: { legend: { display: false } }, interaction: { mode: 'index', intersect: false }, scales: { x: { stacked: true }, y: { stacked: true, ticks: { autoSkip: false } } } } });
+  const sv = [...groupBy(all.filter(a => a.est === 'AUTORIZADO' && a.fr && a.serv), 'serv').entries()].map(([k, l]) => [k, sum(l, horas) / l.length]).sort((a, b) => b[1] - a[1]).slice(0, 12);
+  chart('sD', { type: 'bar', data: { labels: sv.map(x => x[0].slice(0, 40)), datasets: [{ label: 'Horas promedio', data: sv.map(x => Math.round(x[1])), backgroundColor: css('--s1') }] }, options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { y: { ticks: { autoSkip: false } } } } }); };
+V['med/gest'] = () => { if (!nivel('med')) return sinAcceso(); const { all } = medBase(), C = S.D.casos;
+  const gs = uniq([...S.D.gestores, ...C.map(c => c.gestor).filter(Boolean)]);
+  const gc = gs.map(g => { const l = C.filter(c => c.gestor === g); return { k: g, asig: l.length, abiertos: l.filter(c => c.est !== EC.CERRADO).length, salio: l.filter(c => c.est === EC.SALIO).length, venc: l.filter(c => c.fc && c.fc < S.D.ahora && c.est !== EC.CERRADO).length, cerr: l.filter(c => c.est === EC.CERRADO).length }; });
+  gc.push({ k: 'Sin asignar', asig: C.filter(c => !c.gestor).length, abiertos: C.filter(c => !c.gestor && c.est !== EC.CERRADO).length, salio: C.filter(c => !c.gestor && c.est === EC.SALIO).length, venc: 0, cerr: C.filter(c => !c.gestor && c.est === EC.CERRADO).length });
+  return head('Autorizadores y gestores', 'Carga de trabajo y tiempos por persona.') + subtabs() + medFiltros() +
+  `<div class="grid g-2 mb"><div class="card"><h3>Tiempo promedio por autorizador</h3><p class="hint">Horas hasta la autorización.</p><div class="chart-box sm"><canvas id="gT"></canvas></div></div><div class="card"><h3>Trámites por autorizador</h3><p class="hint">Incluye “Sin asignar”: pendientes detectadas por código.</p><div class="chart-box sm"><canvas id="gN"></canvas></div></div></div>` +
+  rankTable('rkGes', all, 'autz', 'Autorizador') + `<div class="card mt"><h3>Gestores de casos especiales</h3><p class="hint">Casos asignados, abiertos, vencidos y cerrados por persona.</p>${table('gc', [{ h: 'Gestor', v: r => esc(r.k) }, { h: 'Asignados', cl: 'r', v: r => r.asig }, { h: 'Abiertos', cl: 'r', v: r => r.abiertos }, { h: 'Salieron sin cierre', cl: 'r', v: r => r.salio ? `<span class="pill p-crit">${r.salio}</span>` : 0 }, { h: 'Compromisos vencidos', cl: 'r', v: r => r.venc ? `<span class="pill p-warn">${r.venc}</span>` : 0 }, { h: 'Cerrados', cl: 'r', v: r => r.cerr }], gc, null)}</div>`; };
+V['med/gest'].after = () => { const { all } = medBase(), g = uniq(all.map(a => a.autz)), done = all.filter(a => a.est === 'AUTORIZADO' && a.fr);
+  chart('gT', { type: 'bar', data: { labels: g, datasets: [{ label: 'Horas promedio', data: g.map(x => { const l = done.filter(a => a.autz === x); return l.length ? Math.round(sum(l, horas) / l.length) : 0; }), backgroundColor: css('--s1') }] }, options: { plugins: { legend: { display: false } } } });
+  chart('gN', { type: 'bar', data: { labels: g, datasets: [{ label: 'Trámites', data: g.map(x => all.filter(a => a.autz === x).length), backgroundColor: css('--s1') }] }, options: { plugins: { legend: { display: false } } } }); };
+V['med/patron'] = () => { if (!nivel('med')) return sinAcceso(); return head('Patrones de carga', 'Cuándo llegan las solicitudes, para planear turnos.') + subtabs() + medFiltros() + `<div class="grid g-2"><div class="card"><h3>Solicitudes por día de la semana</h3><div class="chart-box"><canvas id="pD"></canvas></div></div><div class="card"><h3>Solicitudes por hora del día</h3><div class="chart-box"><canvas id="pH"></canvas></div></div></div>`; };
+V['med/patron'].after = () => { const { all } = medBase(), dn = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  chart('pD', { type: 'bar', data: { labels: dn, datasets: [{ label: 'Solicitudes', data: dn.map((_, i) => all.filter(a => (new Date(a.fs).getDay() + 6) % 7 === i).length), backgroundColor: css('--s1') }] }, options: { plugins: { legend: { display: false } } } });
+  chart('pH', { type: 'bar', data: { labels: [...Array(24)].map((_, i) => i + 'h'), datasets: [{ label: 'Solicitudes', data: [...Array(24)].map((_, i) => all.filter(a => new Date(a.fs).getHours() === i).length), backgroundColor: css('--s1') }] }, options: { plugins: { legend: { display: false } } } }); };
+V['med/evol'] = () => { if (!nivel('med')) return sinAcceso(); const H = S.D.hist;
+  const reglas = uniq(H.map(h => h.regla || 'anterior'));
+  return head('Evolución entre cargas', 'Serie de fotografías diarias de ingresos abiertos.' + (reglas.length > 1 ? ' Atención: hay cargas con reglas de cálculo distintas (' + reglas.join(', ') + '); no compares indicadores entre ellas.' : '')) + subtabs() +
+  `<div class="grid g-2 mb"><div class="card"><h3>Total y egresados sin cerrar</h3><div class="chart-box"><canvas id="vT"></canvas></div></div><div class="card"><h3>Valor abierto (millones)</h3><div class="chart-box"><canvas id="vV"></canvas></div></div></div>` +
+  table('hist', [{ h: 'Fecha', v: h => fmtDT(h.f), s: h => h.f }, { h: 'Total', cl: 'r', v: h => fmtN(h.total) }, { h: 'Valor', cl: 'r', v: h => moneyM(h.valor) }, { h: 'Egresados', cl: 'r', v: h => fmtN(h.eg) }, { h: 'Con cama', cl: 'r', v: h => h.cama || '—' }, { h: 'Hospitalizados', cl: 'r', v: h => h.hosp || '—' }, { h: 'Nuevos', cl: 'r', v: h => h.nuevos || '—' }, { h: 'Salieron', cl: 'r', v: h => h.salieron || '—' }, { h: 'Reglas', v: h => esc(h.regla || 'anterior') }], [...H].reverse(), null, { per: 15 }); };
+V['med/evol'].after = () => { const H = S.D.hist.slice(-40);
+  chart('vT', { type: 'line', data: { labels: H.map(h => fmtD(h.f)), datasets: [{ label: 'Total', data: H.map(h => h.total), borderColor: css('--s1'), tension: .3 }, { label: 'Egresados sin cerrar', data: H.map(h => h.eg), borderColor: css('--s2'), tension: .3 }] }, options: { interaction: { mode: 'index', intersect: false } } });
+  chart('vV', { type: 'line', data: { labels: H.map(h => fmtD(h.f)), datasets: [{ label: 'Valor (millones)', data: H.map(h => Math.round(h.valor / 1e6)), borderColor: css('--s1'), backgroundColor: css('--s1') + '22', fill: true, tension: .3 }] }, options: { plugins: { legend: { display: false } } } }); };
+V['med/casosm'] = () => { if (!nivel('med')) return sinAcceso(); const C = S.D.casos;
+  return head('Casos especiales', 'Cuántos casos hay en cada estado por bandeja y cuánto tiempo llevan.') + subtabs() +
+  `<div class="grid g-2"><div class="card"><h3>Estado por bandeja</h3><div class="chart-box lg"><canvas id="cE"></canvas></div></div><div class="card"><h3>Antigüedad de casos abiertos</h3><p class="hint">Días desde el ingreso. Más oscuro = más antiguo.</p><div class="chart-box lg"><canvas id="cA"></canvas></div></div></div>` +
+  `<div class="card mt"><h3>Resumen por bandeja</h3>${table('cb', [{ h: 'Bandeja', v: r => r.b }, ...EC_ORDEN.map(e => ({ h: EC_LBL[e], cl: 'r', v: r => r.e[e] || 0 })), { h: 'Valor abierto', cl: 'r', v: r => money(r.v) }], Object.keys(BAN_LBL).slice(0, 3).map(b => { const l = C.filter(c => c.ban === b), e = {}; l.forEach(c => { e[c.est] = (e[c.est] || 0) + 1; }); return { b: BAN_LBL[b], e, v: sum(l.filter(c => c.est !== EC.CERRADO), c => c.val) }; }), null)}</div>`; };
+V['med/casosm'].after = () => { const C = S.D.casos, bs = ['SOAT_DEFINIDO', 'SOAT_SIN_DOC', 'SIN_SS'], ser = SER();
+  chart('cE', { type: 'bar', data: { labels: bs.map(b => BAN_LBL[b]), datasets: EC_ORDEN.map((e, i) => ({ label: EC_LBL[e], data: bs.map(b => C.filter(c => c.ban === b && c.est === e).length), backgroundColor: e === EC.SALIO ? css('--st-crit') : e === EC.CERRADO ? css('--st-good') : ser[i % 5], borderColor: css('--surface'), borderWidth: { right: 2 }, borderSkipped: false, borderRadius: 0 })) }, options: { indexAxis: 'y', interaction: { mode: 'index', intersect: false }, scales: { x: { stacked: true }, y: { stacked: true } } } });
+  const ab = C.filter(c => c.est !== EC.CERRADO);
+  chart('cA', { type: 'bar', data: { labels: BUCKETS, datasets: [{ label: 'Casos abiertos', data: BUCKETS.map(b => ab.filter(c => bucketDias(c.d) === b).length), backgroundColor: RAMP() }] }, options: { plugins: { legend: { display: false } } } }); };
+
+/* ================== 05 Informes ================== */
+V['inf/informes'] = () => { if (!nivel('med')) return sinAcceso(); const ia = S.D.iaActiva && ['ADMINISTRADOR', 'COORDINADOR_GENERAL', 'COORDINADOR_AREA'].includes(S.D.yo.rol);
+  return head('Informe gerencial y reportes', 'Los archivos salen con tu alcance de áreas. El informe no incluye nombres ni documentos de pacientes; el Excel sí, para gestión interna.') + subtabs() +
+  `<div class="grid g-2"><div class="card"><h3>Informe gerencial</h3><p class="hint">PDF o Word · se conservan las secciones del informe anterior y se agregan calidad del dato, casos sin cierre y comparación con la carga anterior.</p>
+    <ol style="padding-left:18px;margin:0 0 12px"><li>Resumen ejecutivo y nivel de riesgo</li><li>Indicadores clave vs. carga anterior</li><li>Antigüedad de ingresos</li><li>Concentración por ERP y por área</li><li>Autorizaciones: tiempos y ERP</li><li>Casos especiales y casos sin cierre</li><li>Evolución entre cargas</li><li>Calidad de la información</li><li>Plan de acción y metodología</li></ol>
+    ${ia ? '<label class="check mb"><input type="checkbox" id="infIA"> Incluir lectura redactada por IA</label>' : ''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-dl="pdf">Descargar PDF</button><button class="btn ghost" data-dl="docx">Descargar Word</button></div></div>
+   <div class="card"><h3>Reporte Excel</h3><p class="hint">Una hoja por agrupación, con encabezados fijos, filtros y formato de moneda y fecha.</p>
+    <ol style="padding-left:18px;margin:0 0 12px"><li>RESUMEN</li><li>POR ERP · POR CONTRATO</li><li>ÁREA Y ALA · USUARIO Y ÁREA</li><li>HOSPITALIZADOS · CONSULTA EXTERNA</li><li>HALLAZGOS · CASOS ESPECIALES</li><li>AUT PENDIENTES · AUT POR ERP</li><li>DETALLE INGRESOS (con documento)</li></ol>
+    <button class="btn" data-dl="excel">Descargar Excel</button></div></div>`; };
+document.addEventListener('click', async e => { const b = e.target.closest('[data-dl]'); if (!b) return; const t = b.dataset.dl; b.disabled = true; toast('Generando el archivo… puede tardar hasta un minuto.');
+  try { const r = t === 'excel' ? await API.call('reporteExcel', {}) : await API.call('informe', { formato: t, conIA: !!($('#infIA') && $('#infIA').checked) }); descargar(r); } catch (x) { fallo(x); } finally { b.disabled = false; } });
+V['inf/ia'] = () => { const ok = S.D.iaActiva && ['ADMINISTRADOR', 'COORDINADOR_GENERAL', 'COORDINADOR_AREA'].includes(S.D.yo.rol);
+  const sug = ['Resume la situación para gerencia en 5 puntos', '¿Qué ERP debo priorizar esta semana y por qué?', 'Propón un plan de acción para reducir egresados sin cerrar', '¿Qué áreas concentran más riesgo de glosa o no cobro?'];
+  return head('Asistente IA', 'Responde con base en los indicadores agregados de tu alcance. No recibe nombres, documentos ni números de ingreso.') + subtabs() +
+  (ok ? `<div class="card"><div class="chips">${sug.map(s => `<button class="chip" data-sug="${esc(s)}">${esc(s)}</button>`).join('')}</div><form id="fIA" class="grid"><textarea class="inp" id="iaQ" placeholder="Escribe tu pregunta"></textarea><button class="btn" type="submit">Preguntar</button></form><div id="iaOut" class="mt"></div></div>`
+      : `<div class="card lock"><h2>El asistente no está disponible</h2><p class="sub" style="margin:0 auto">${S.D.iaActiva ? 'Está habilitado para administración y coordinación.' : 'El administrador debe agregar ANTHROPIC_API_KEY en Propiedades del script.'}</p></div>`); };
+document.addEventListener('click', e => { const s = e.target.closest('[data-sug]'); if (s) { $('#iaQ').value = s.dataset.sug; $('#iaQ').focus(); } });
+document.addEventListener('submit', async e => { if (e.target.id !== 'fIA') return; e.preventDefault(); const out = $('#iaOut'); out.innerHTML = '<p class="muted">Analizando…</p>';
+  try { const r = await API.call('preguntarIA', { pregunta: $('#iaQ').value }); out.innerHTML = `<div class="ia-out">${esc(r.texto)}</div><p class="muted" style="font-size:12px">Texto generado por IA a partir de indicadores agregados. Revísalo antes de usarlo.${r.truncado ? ' La respuesta quedó incompleta.' : ''}</p>`; } catch (x) { out.innerHTML = ''; fallo(x); } });
+
+/* ================== 06 Cargue de datos ================== */
+V['carga/cargar'] = () => { if (nivel('carga') < 2) return sinAcceso();
+  return head('Cargar Excel de ingresos abiertos', 'Solo el administrador carga. Cada carga guarda una fotografía, compara con la anterior y actualiza los casos especiales. Ningún caso se cierra solo.') + subtabs() +
+  `<div class="grid g-2"><div class="card"><h3>Nuevo archivo</h3><p class="hint">Excel de Dinámica con sus 23 columnas. Se leen por nombre de encabezado.</p>
+    <div class="drop-zone" id="dz"><b>Arrastra el archivo aquí</b><br>o<br><label class="btn ghost sm" style="margin-top:8px">Elegir archivo<input type="file" id="fileIn" accept=".xlsx,.xls,.csv" hidden></label></div><div id="valid" class="mt">${S.resCarga || ''}</div></div>
+   <div class="card"><h3>Qué hace la carga</h3><ol style="padding-left:18px;margin:0;display:grid;gap:6px"><li>Valida las columnas obligatorias y quita ingresos repetidos.</li><li>Convierte VALOR de texto (“1.234.567,89”) a número.</li><li>Unifica ENTIDAD con el catálogo ERP › contrato y propone los textos nuevos.</li><li>Agrupa AREA en área › ala; si viene vacía, la infiere de INGRESO POR.</li><li>Lee los códigos de RESPONSABLE (pendientes de autorización).</li><li>Compara con la carga anterior: nuevos, salidos, cambio de pagador.</li><li>Casos que salen quedan “Salió sin cierre” y alertan al gestor.</li><li>Una fotografía por día: si ya cargaste hoy, la reemplaza.</li></ol></div></div>`; };
+V['carga/cargar'].after = () => { const dz = $('#dz'), fi = $('#fileIn'); if (!dz) return;
+  ['dragenter', 'dragover'].forEach(v => dz.addEventListener(v, e => { e.preventDefault(); dz.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(v => dz.addEventListener(v, e => { e.preventDefault(); dz.classList.remove('over'); }));
+  dz.addEventListener('drop', e => leerExcel(e.dataTransfer.files[0])); fi.onchange = () => leerExcel(fi.files[0]); };
+async function leerExcel(file) {
+  if (!file) return; S.resCarga = ''; const out = $('#valid');
+  if (!/\.(xlsx|xls|csv)$/i.test(file.name)) { out.innerHTML = '<div class="alert crit"><span class="sev"></span><div><div class="t">Formato no válido</div><div class="d">Sube un .xlsx, .xls o .csv.</div></div><span></span></div>'; return; }
+  if (typeof XLSX === 'undefined') { fallo(new Error('No se pudo cargar el lector de Excel. Revisa la conexión a internet.')); return; }
+  out.innerHTML = '<p class="muted">Leyendo archivo…</p>';
+  try {
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
+    const sh = wb.Sheets[wb.SheetNames[0]], m = XLSX.utils.sheet_to_json(sh, { header: 1, defval: '', raw: true });
+    const norm = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
+    const hi = m.findIndex(r => r.map(norm).includes('INGRESO') && r.map(norm).includes('ENTIDAD'));
+    if (hi < 0) throw new Error('No encontré la fila de encabezados (debe tener INGRESO y ENTIDAD).');
+    const enc = m[hi].map(String);
+    const filas = m.slice(hi + 1).filter(r => r.some(c => c !== '')).map(r => { const o = {}; enc.forEach((h, i) => { if (h) { const v = r[i]; o[h] = v instanceof Date ? v.toISOString() : v; } }); return o; });
+    out.innerHTML = `<div class="alert info"><span class="sev"></span><div><div class="t">${esc(file.name)}: ${fmtN(filas.length)} filas</div><div class="d">Encabezados encontrados en la fila ${hi + 1}. Confirma para reemplazar la carga actual.</div></div><button class="btn sm" id="bConf">Cargar</button></div>`;
+    $('#bConf').onclick = async () => { $('#bConf').disabled = true; out.insertAdjacentHTML('beforeend', '<p class="muted">Procesando en el servidor… puede tardar hasta un minuto.</p>');
+      try { const r = await API.call('cargarIngresos', { nombreArchivo: file.name, filas });
+        S.resCarga = out.innerHTML = `<div class="alert info"><span class="sev"></span><div><div class="t">Carga terminada: ${fmtN(r.filas)} ingresos${r.reemplazoDelDia ? ' (reemplazó la fotografía de hoy)' : ''}</div><div class="d">${r.primeraCarga ? 'Primera carga: los cambios aparecen desde la siguiente.' : `Nuevos ${fmtN(r.nuevos)} · salieron ${fmtN(r.salieron)} · cambio de pagador ${fmtN(r.cambioPagador)}`} · casos creados ${fmtN(r.casosCreados)} · casos que salieron sin cierre ${fmtN(r.casosSalieron)}${r.duplicados ? ' · ' + r.duplicados + ' filas repetidas omitidas' : ''}.</div></div><span></span></div>`;
+        await cargarDatos(); } catch (x) { fallo(x); $('#bConf') && ($('#bConf').disabled = false); } };
+  } catch (x) { out.innerHTML = ''; fallo(x); }
+}
+V['carga/historial'] = () => V['med/evol']();
+V['carga/historial'].after = () => V['med/evol'].after();
+V['carga/calidad'] = () => { if (!nivel('carga')) return sinAcceso(); const I = S.D.ingresos;
+  const codes = [...groupBy(I.filter(x => x.resp), x => x.resp).entries()].map(([k, l]) => ({ k, n: l.length, rc: l[0].rc, rl: l[0].rl })).sort((a, b) => b.n - a.n);
+  const ent = [...groupBy(I, 'erp').entries()].map(([k, l]) => ({ k, var: uniq(l.map(x => x.ent)).length, n: l.length })).sort((a, b) => b.var - a.var);
+  const vac = I.filter(x => x.inf).length, sinRegla = codes.filter(c => c.rc === 'SIN_REGLA').length;
+  return head('Calidad del dato', 'Qué tan confiable es el Excel que se carga y qué corrige la plataforma.') + subtabs() +
+  `<div class="grid g-kpi mb">${kpi('AREA vacía', pct(vac, I.length), fmtN(vac) + ' ingresos · se infiere de INGRESO POR', '--warn', null, 'p')}${kpi('Variantes de ERP unificadas', sum(ent, e => e.var), 'textos de ENTIDAD → ' + ent.length + ' ERP', '--accent', nivel('admin') >= 2 ? 'data-ir="admin/catalogos"' : null)}${kpi('Códigos en RESPONSABLE', codes.length, sinRegla + ' sin regla todavía', '--violet', nivel('admin') >= 2 ? 'data-ir="admin/catalogos"' : null)}${kpi('Pendientes solo por código', S.D.auts.filter(a => a.id.startsWith('D-')).length, 'antes no se medían', '--crit', 'data-ir="aut/bandeja"')}</div>
+  <div class="grid g-2"><div class="card"><h3>Campos vacíos</h3><p class="hint">% de ingresos abiertos con la columna vacía. *Solo egresados.</p><div class="chart-box"><canvas id="qV"></canvas></div></div>
+  <div class="card"><h3>Códigos encontrados en RESPONSABLE</h3><p class="hint">Cada código se traduce con una regla editable en Administración › Catálogos.</p>${table('cod', [{ h: 'Código', v: c => `<span class="mono">${esc(c.k)}</span>` }, { h: 'Ingresos', cl: 'r', v: c => c.n }, { h: 'Se interpreta como', v: c => `<span class="pill ${c.rc === 'SIN_REGLA' ? 'p-warn' : c.rc === 'AUT_PEND' ? 'p-crit' : 'p-acc'}">${esc(c.rl)}</span>` }], codes, null, { per: 8 })}</div></div>
+  <div class="card mt"><h3>ERP con más variantes de nombre</h3><p class="hint">Antes cada variante salía como una ERP distinta y partía los totales.</p>${table('ent', [{ h: 'ERP', v: e => esc(e.k) }, { h: 'Variantes en ENTIDAD', cl: 'r', v: e => e.var }, { h: 'Ingresos', cl: 'r', v: e => fmtN(e.n) }], ent, null, { per: 8 })}</div>`; };
+V['carga/calidad'].after = () => { const I = S.D.ingresos, eg = I.filter(x => x.eg), v = [['AREA', I.filter(x => x.inf).length / Math.max(1, I.length)], ['RESPONSABLE', I.filter(x => !x.resp).length / Math.max(1, I.length)], ['CAMA', I.filter(x => !x.cama).length / Math.max(1, I.length)], ['INGRESO POR', I.filter(x => !x.por).length / Math.max(1, I.length)], ['DIAG EGRESO*', eg.filter(x => !x.diag).length / Math.max(1, eg.length)], ['OBSERVACIONES', I.filter(x => !x.obs).length / Math.max(1, I.length)]];
+  chart('qV', { type: 'bar', data: { labels: v.map(x => x[0]), datasets: [{ label: '% vacío', data: v.map(x => Math.round(x[1] * 100)), backgroundColor: css('--s1') }] }, options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { max: 100 } } } }); };
+
+/* ================== 07 Administración ================== */
+async function asegurarAdm() { if (!S.adm) { S.adm = await API.call('adminDatos'); } return S.adm; }
+function vistaAdmin(fn) { return () => { if (nivel('admin') < 2) return sinAcceso(); if (!S.adm) { asegurarAdm().then(() => render(false)).catch(fallo); return head('Administración', 'Cargando…') + subtabs(); } return fn(S.adm); }; }
+V['admin/usuarios'] = vistaAdmin(A => { const pend = A.usuarios.filter(u => u.estado === 'PENDIENTE');
+  const sel = 'padding:6px;border:1px solid var(--line);border-radius:7px;background:var(--surface);max-width:220px';
+  const fila = u => `<tr><td>${esc(u.nombre)}<br><span class="mono muted">${esc(u.doc)}</span></td><td>${esc(u.correo)}</td>
+    <td><select data-urol="${esc(u.doc)}" style="${sel}" aria-label="Rol de ${esc(u.nombre)}">${A.roles.map(r => `<option value="${r}" ${u.rol === r ? 'selected' : ''}>${ROL_LBL[r]}</option>`).join('')}</select></td>
+    <td><input data-uarea="${esc(u.doc)}" value="${esc(u.area)}" list="dlAreas" class="inp" style="max-width:220px" aria-label="Área de ${esc(u.nombre)}"></td>
+    <td>${u.estado === 'PENDIENTE' ? '<span class="pill p-warn">Pendiente</span>' : u.estado === 'RECHAZADO' ? '<span class="pill p-mut">Rechazado</span>' : u.activo ? '<span class="pill p-ok">Activo</span>' : '<span class="pill p-mut">Inactivo</span>'}${u.claveVieja ? '<br><span class="pill p-warn" title="Contraseña de la versión anterior: restablécela">clave anterior</span>' : ''}</td>
+    <td style="white-space:nowrap">${u.estado === 'PENDIENTE' ? `<button class="btn sm" data-uest="${esc(u.doc)}|APROBADO">Aprobar</button> <button class="btn ghost sm" data-uest="${esc(u.doc)}|RECHAZADO">Rechazar</button>` : `<button class="btn ghost sm" data-uact="${esc(u.doc)}|${u.activo ? 0 : 1}">${u.activo ? 'Desactivar' : 'Activar'}</button> <button class="btn ghost sm" data-ureset="${esc(u.doc)}">Restablecer clave</button>`}</td></tr>`;
+  const tabla = l => `<div class="tbl-wrap"><table><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Área(s)</th><th>Estado</th><th></th></tr></thead><tbody>${l.map(fila).join('') || '<tr><td colspan="6"><div class="empty">Sin usuarios.</div></td></tr>'}</tbody></table></div>`;
+  return head('Usuarios y solicitudes', 'Para varias áreas, sepáralas con punto y coma. El coordinador de área solo ve sus áreas; administrador, coordinador general, autorizador, gestor y consulta ven todas.') + subtabs() +
+  `<datalist id="dlAreas">${A.areasDisponibles.map(a => `<option value="${esc(a)}">`).join('')}</datalist>` +
+  (pend.length ? `<div class="sec-title">Solicitudes por aprobar · ${pend.length}</div>` + tabla(pend) : '') + '<div class="sec-title">Usuarios</div>' + tabla(A.usuarios.filter(u => u.estado !== 'PENDIENTE')); });
+document.addEventListener('change', async e => { const r = e.target.closest('[data-urol]'), a = e.target.closest('[data-uarea]');
+  try { if (r) { await API.call('guardarUsuario', { doc: r.dataset.urol, rol: r.value }); toast('Rol actualizado.'); S.adm = null; }
+    if (a) { await API.call('guardarUsuario', { doc: a.dataset.uarea, area: a.value }); toast('Área actualizada.'); S.adm = null; } } catch (x) { fallo(x); } });
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-uest],[data-uact],[data-ureset]'); if (!b) return;
+  try {
+    if (b.dataset.uest) { const [doc, est] = b.dataset.uest.split('|'); await API.call('guardarUsuario', { doc, estado: est }); toast(est === 'APROBADO' ? 'Usuario aprobado.' : 'Solicitud rechazada.'); }
+    if (b.dataset.uact) { const [doc, v] = b.dataset.uact.split('|'); await API.call('guardarUsuario', { doc, activo: v === '1' }); toast('Usuario actualizado.'); }
+    if (b.dataset.ureset) { const r = await API.call('restablecerClave', { doc: b.dataset.ureset });
+      drawer('Contraseña temporal', 'Administración › Usuarios', `<p>Entrega esta contraseña a la persona por un medio privado. Deberá cambiarla al entrar.</p><div class="card" style="text-align:center"><span class="mono" style="font-size:20px">${esc(r.temporal)}</span></div><button class="btn ghost" data-copiar="${esc(r.temporal)}">Copiar</button>`); }
+    S.adm = await API.call('adminDatos'); render(false);
+  } catch (x) { fallo(x); } });
+document.addEventListener('click', e => { const c = e.target.closest('[data-copiar]'); if (c) navigator.clipboard.writeText(c.dataset.copiar).then(() => toast('Copiada.'), () => toast('Selecciónala y cópiala manualmente.', 'error')); });
+V['admin/permisos'] = vistaAdmin(A => { const MOD_LBL = { inicio: 'Inicio', aut: '01 Autorizaciones', ing: '02 Ingresos abiertos', casos: '03 Casos especiales', med: '04 Medición y 05 Informes', carga: '06 Cargue de datos', admin: '07 Administración' };
+  return head('Permisos por rol', 'Sin acceso · Consulta (ver) · Gestión (registrar y modificar). El cambio aplica en la siguiente acción de cada usuario.') + subtabs() +
+  `<div class="tbl-wrap"><table><thead><tr><th>Módulo</th>${A.roles.map(r => `<th>${ROL_LBL[r]}</th>`).join('')}</tr></thead><tbody>${A.modulos.filter(m => m !== 'inicio').map(m => `<tr><td><b>${MOD_LBL[m]}</b></td>${A.roles.map(r => `<td><select data-perm="${m}|${r}" aria-label="${MOD_LBL[m]} para ${ROL_LBL[r]}" ${m === 'admin' && r === 'ADMINISTRADOR' ? 'disabled' : ''} style="padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--surface)">${['Sin acceso', 'Consulta', 'Gestión'].map((l, i) => `<option value="${i}" ${A.permisos[m][r] === i ? 'selected' : ''}>${l}</option>`).join('')}</select></td>`).join('')}</tr>`).join('')}</tbody></table></div>`; });
+document.addEventListener('change', async e => { const p = e.target.closest('[data-perm]'); if (!p) return; const [modulo, rol] = p.dataset.perm.split('|');
+  try { await API.call('guardarPermiso', { modulo, rol, nivel: +p.value }); toast('Permiso actualizado.'); S.adm.permisos[modulo][rol] = +p.value; } catch (x) { fallo(x); } });
+V['admin/parametros'] = vistaAdmin(A => head('Parámetros', 'Metas, plazos y umbrales de las alertas. Al cambiar una regla numérica se crea una nueva versión de reglas, para no mezclar series históricas.') + subtabs() +
+  `<div class="card"><div class="grid g-3">${A.parametros.map(p => `<label class="field"><span style="font-weight:600">${esc(p.desc)}</span><input class="inp" data-param="${p.clave}" value="${esc(p.valor)}" ${p.clave === 'REGLA_VERSION' ? 'readonly' : ''}></label>`).join('')}</div></div>`);
+document.addEventListener('change', async e => { const p = e.target.closest('[data-param]'); if (!p) return; try { await API.call('guardarParametro', { clave: p.dataset.param, valor: p.value }); toast('Parámetro guardado. Las alertas se recalculan.'); S.adm = null; await cargarDatos(); } catch (x) { fallo(x); } });
+V['admin/catalogos'] = vistaAdmin(A => { const cat = S.opc.cat || 'erp', T = A[cat];
+  const ix = n => T.enc.indexOf(n);
+  let filas = T.filas.map(r => { const o = {}; T.enc.forEach((h, i) => { o[h] = r[i]; }); return o; });
+  if (cat !== 'codigos') filas.sort((a, b) => (String(a.REVISADO) === 'SI') - (String(b.REVISADO) === 'SI') || (+b['INGRESOS ULTIMA CARGA'] || 0) - (+a['INGRESOS ULTIMA CARGA'] || 0));
+  const filtro = (S.f.catq || '').toUpperCase(); if (filtro) filas = filas.filter(o => JSON.stringify(o).toUpperCase().includes(filtro));
+  const editables = { erp: ['ERP', 'CONTRATO', 'BANDEJA'], areas: ['GRUPO', 'ALA'], codigos: ['PATRON', 'CLAVE', 'SIGNIFICADO', 'ACTIVO'] }[cat];
+  const clave = cat === 'codigos' ? 'PATRON' : 'TEXTO ORIGINAL';
+  return head('Catálogos', 'Corrige aquí cómo se agrupan los textos del Excel. Las filas sin revisar aparecen primero; al guardar quedan marcadas como revisadas y la siguiente carga respeta tu corrección.') + subtabs() +
+  `<div class="chips">${[['erp', 'ERP › contrato'], ['areas', 'Áreas › ala'], ['codigos', 'Códigos de RESPONSABLE']].map(z => `<button class="chip ${cat === z[0] ? 'on' : ''}" data-opc="cat|${z[0]}">${z[1]}</button>`).join('')}</div>
+  <div class="fbar"><label class="search"><input type="search" data-fs="catq" value="${esc(S.f.catq || '')}" placeholder="Buscar en el catálogo" aria-label="Buscar en el catálogo"></label>${cat === 'codigos' ? '<button class="btn ghost sm" id="bNuevoCod">+ Nuevo código</button>' : ''}</div>
+  <form id="fCat" data-cat="${cat}"><div class="tbl-wrap"><table><thead><tr>${T.enc.filter(Boolean).map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>
+  ${filas.slice(0, 300).map(o => `<tr data-k="${esc(o[clave])}">${T.enc.filter(Boolean).map(h => editables.includes(h) ? `<td>${h === 'BANDEJA' ? `<select class="inp" data-cf="${h}" style="min-width:150px">${Object.keys(BAN_LBL).map(b => `<option value="${b}" ${o[h] === b ? 'selected' : ''}>${BAN_LBL[b]}</option>`).join('')}</select>` : `<input class="inp" data-cf="${h}" value="${esc(o[h])}" style="min-width:${h === 'PATRON' ? 260 : 140}px">`}</td>` : `<td class="${h === 'TEXTO ORIGINAL' ? 'mono' : ''}" style="font-size:12px;max-width:340px">${h === 'REVISADO' ? (o[h] === 'SI' ? '<span class="pill p-ok">Sí</span>' : '<span class="pill p-warn">No</span>') : esc(o[h])}</td>`).join('')}</tr>`).join('')}
+  </tbody></table></div><div class="mt" style="display:flex;gap:8px;align-items:center"><button class="btn" type="submit">Guardar cambios</button><span class="muted" id="catN">Solo se guardan las filas que modificaste.</span></div></form>`; });
+document.addEventListener('input', e => { const i = e.target.closest('[data-cf]'); if (i) i.closest('tr').dataset.mod = '1'; });
+document.addEventListener('change', e => { const i = e.target.closest('[data-cf]'); if (i) i.closest('tr').dataset.mod = '1'; });
+document.addEventListener('click', e => { if (e.target.id !== 'bNuevoCod') return; const tb = $('#fCat tbody'); const enc = S.adm.codigos.enc.filter(Boolean);
+  tb.insertAdjacentHTML('afterbegin', `<tr data-k="" data-mod="1">${enc.map(h => `<td><input class="inp" data-cf="${h}" value="${h === 'ACTIVO' ? 'SI' : ''}" style="min-width:${h === 'PATRON' ? 260 : 140}px"></td>`).join('')}</tr>`); });
+document.addEventListener('submit', async e => { if (e.target.id !== 'fCat') return; e.preventDefault(); const cat = e.target.dataset.cat;
+  const cambios = [...e.target.querySelectorAll('tr[data-mod="1"]')].map(tr => { const o = { _clave: tr.dataset.k }; tr.querySelectorAll('[data-cf]').forEach(i => { o[i.dataset.cf] = i.value; }); if (cat !== 'codigos') o['TEXTO ORIGINAL'] = tr.dataset.k; return o; });
+  if (!cambios.length) { toast('No modificaste ninguna fila.'); return; }
+  try { await API.call('guardarCatalogo', { catalogo: cat, cambios }); toast(cambios.length + ' filas guardadas. Se aplican desde ya.'); S.adm = await API.call('adminDatos'); await cargarDatos(); } catch (x) { fallo(x); } });
+</script>
