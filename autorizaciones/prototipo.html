@@ -4,14 +4,18 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-/* Layout: barra superior con módulos en cascada + lienzo de trabajo; panel lateral deslizable para el detalle de cada caso. */
+/* Layout: barra superior con módulos en cascada + lienzo de trabajo + panel lateral de detalle.
+   Color de interfaz (teal) separado de la paleta de gráficos (categórica validada) y de los colores de estado. */
 :root{
   --bg:#f3f5f8; --surface:#ffffff; --surface-2:#eef1f6; --line:#dde3ec;
   --fg:#16202e; --muted:#5d6a7e; --ink:#0d2b45; --ink-fg:#e8f0f8;
   --accent:#0b7a75; --accent-2:#2563eb; --accent-soft:#d8f0ee;
-  --ok:#15803d; --ok-soft:#dcf3e3; --warn:#b45309; --warn-soft:#fdeccf;
+  --ok:#15803d; --ok-soft:#dcf3e3; --warn:#a15c07; --warn-soft:#fdeccf;
   --crit:#c2261d; --crit-soft:#fbe0de; --info:#2563eb; --info-soft:#dfe9fd;
-  --violet:#7c3aed; --violet-soft:#ece3fd;
+  --violet:#6250d6; --violet-soft:#ece3fd;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4;
+  --st-good:#0ca30c; --st-warn:#fab219; --st-serious:#ec835a; --st-crit:#d03b3b;
+  --q1:#86b6ef; --q2:#5598e7; --q3:#2a78d6; --q4:#1c5cab; --q5:#104281; --q6:#0d366b;
   --shadow:0 1px 2px rgba(13,43,69,.06),0 6px 18px rgba(13,43,69,.06);
   --f-display:"Manrope",ui-sans-serif,system-ui,sans-serif;
   --f-body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
@@ -24,7 +28,9 @@
   --accent:#2bb5ad; --accent-2:#6b9bff; --accent-soft:#123b3c;
   --ok:#4ade80; --ok-soft:#123222; --warn:#f5b041; --warn-soft:#3a2a10;
   --crit:#ff6b60; --crit-soft:#3d1715; --info:#7aa7ff; --info-soft:#14264a;
-  --violet:#b18cff; --violet-soft:#291b48;
+  --violet:#9085e9; --violet-soft:#291b48;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
+  --q1:#184f95; --q2:#1c5cab; --q3:#256abf; --q4:#3987e5; --q5:#6da7ec; --q6:#9ec5f4;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0c1420; --surface:#121d2c; --surface-2:#182638; --line:#24354b;
@@ -32,7 +38,9 @@
   --accent:#2bb5ad; --accent-2:#6b9bff; --accent-soft:#123b3c;
   --ok:#4ade80; --ok-soft:#123222; --warn:#f5b041; --warn-soft:#3a2a10;
   --crit:#ff6b60; --crit-soft:#3d1715; --info:#7aa7ff; --info-soft:#14264a;
-  --violet:#b18cff; --violet-soft:#291b48;
+  --violet:#9085e9; --violet-soft:#291b48;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
+  --q1:#184f95; --q2:#1c5cab; --q3:#256abf; --q4:#3987e5; --q5:#6da7ec; --q6:#9ec5f4;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25); color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5}
@@ -42,15 +50,13 @@ h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:
 .num{font-variant-numeric:tabular-nums}
 button,select,input,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
-
-/* ---------- Barra superior ---------- */
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:var(--ink);color:var(--ink-fg)}
 .top-in{display:flex;align-items:center;gap:14px;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-weight:800;font-size:16px;white-space:nowrap}
 .brand-mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#19b3a9,#2563eb);display:grid;place-items:center;font-size:13px;color:#fff}
 .top-right{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .who{display:flex;align-items:center;gap:8px;font-size:12.5px}
-.who select{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:var(--ink-fg);border-radius:8px;padding:5px 8px;max-width:220px}
+.who select{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:var(--ink-fg);border-radius:8px;padding:5px 8px;max-width:230px}
 .who select option{color:#16202e;background:#fff}
 .bell{position:relative;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:var(--ink-fg);border-radius:8px;padding:5px 10px;cursor:pointer}
 .bell .dot{position:absolute;top:-6px;right:-6px;min-width:19px;height:19px;border-radius:10px;background:#ef4444;color:#fff;font-size:11px;font-weight:600;display:grid;place-items:center;padding:0 5px}
@@ -58,26 +64,22 @@ button,select,input,textarea{font:inherit;color:inherit}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(239,68,68,.6)}70%{box-shadow:0 0 0 9px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
 .nav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-top:1px solid rgba(255,255,255,.08)}
 .nav::-webkit-scrollbar{display:none}
-.nav-item{position:relative}
 .nav-btn{background:none;border:0;color:#a9bdd2;padding:11px 13px;cursor:pointer;white-space:nowrap;font-weight:500;border-bottom:2px solid transparent;display:flex;gap:7px;align-items:center}
 .nav-btn:hover{color:#fff}
 .nav-btn.on{color:#fff;border-bottom-color:#19b3a9}
 .nav-btn .n{font-family:var(--f-mono);font-size:11px;opacity:.6}
 .nav-btn .cnt{background:#ef4444;color:#fff;border-radius:9px;font-size:10.5px;padding:0 6px;font-weight:600}
-.drop{position:fixed;min-width:230px;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:6px;z-index:70;animation:dd .16s ease-out}
+.drop{position:fixed;min-width:240px;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:6px;z-index:70;animation:dd .16s ease-out}
 @keyframes dd{from{transform:translateY(-4px);opacity:.3}to{transform:none;opacity:1}}
 .drop button{display:block;width:100%;text-align:left;background:none;border:0;padding:8px 10px;border-radius:7px;cursor:pointer}
 .drop button:hover{background:var(--surface-2)}
-.drop small{display:block;color:var(--muted);font-size:11.5px}
-
-/* ---------- Lienzo ---------- */
 main{padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1440px;margin:0 auto}
 .view{animation:vin .28s ease-out}
 @keyframes vin{from{transform:translateY(6px);opacity:.35}to{transform:none;opacity:1}}
 .head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
 .head h1{font-size:24px}
 .crumb{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
-.sub{color:var(--muted);max-width:70ch;margin:4px 0 0}
+.sub{color:var(--muted);max-width:78ch;margin:4px 0 0}
 .sample{display:inline-flex;gap:6px;align-items:center;font-size:11.5px;color:var(--warn);background:var(--warn-soft);border-radius:20px;padding:3px 10px;font-weight:500}
 .tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px;background:var(--surface-2);padding:4px;border-radius:10px;width:fit-content;max-width:100%}
 .tab{background:none;border:0;padding:7px 13px;border-radius:7px;cursor:pointer;color:var(--muted);font-weight:500}
@@ -86,6 +88,7 @@ main{padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px)
 .g-kpi{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
 .g-2{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
 .g-3{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.mt{margin-top:14px}.mb{margin-bottom:14px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
 .card h3{font-size:15px;margin-bottom:2px}
 .card .hint{color:var(--muted);font-size:12.5px;margin:0 0 10px}
@@ -94,26 +97,33 @@ main{padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px)
 .kpi .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
 .kpi .val{font-family:var(--f-display);font-size:28px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums}
 .kpi .foot{font-size:12px;color:var(--muted)}
+.kpi .delta{font-size:12px;font-weight:600}
 .kpi::after{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--k,var(--accent))}
 .chart-box{position:relative;height:260px}
-.chart-box.sm{height:210px}
-
-/* ---------- Filtros y tablas ---------- */
+.chart-box.sm{height:210px}.chart-box.lg{height:320px}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:8px;padding:3px;gap:2px}
+.seg button{border:0;background:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12.5px;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--fg);box-shadow:var(--shadow)}
+.card-h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .filters select,.filters input{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0;max-width:100%}
-.filters input[type=search]{flex:1 1 200px}
+.filters input[type=search]{flex:1 1 220px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:12.5px;display:flex;gap:6px;align-items:center;transition:background .15s}
 .chip b{font-family:var(--f-mono);font-weight:500;font-size:11.5px;color:var(--muted)}
 .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .chip.on b{color:#9fd9d4}
+.active-f{display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 12px}
+.active-f button{border:0;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:3px 10px;font-size:12px;cursor:pointer;font-weight:600}
 .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;padding:9px 10px;border-bottom:1px solid var(--line);background:var(--surface-2);white-space:nowrap;position:sticky;top:0;cursor:pointer;user-select:none}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;padding:9px 10px;border-bottom:1px solid var(--line);background:var(--surface-2);white-space:nowrap;cursor:pointer;user-select:none}
 td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+td.r,th.r{text-align:right}
 tr.row{cursor:pointer;transition:background .12s}
 tr.row:hover td{background:var(--surface-2)}
-td.obs{max-width:300px;color:var(--muted);font-size:12.5px}
+tr.sub td{background:var(--surface-2);font-weight:600}
+td.obs{max-width:280px;color:var(--muted);font-size:12.5px}
 .pill{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:2px 9px;font-size:11.5px;font-weight:600;white-space:nowrap}
 .p-ok{background:var(--ok-soft);color:var(--ok)}.p-warn{background:var(--warn-soft);color:var(--warn)}
 .p-crit{background:var(--crit-soft);color:var(--crit)}.p-info{background:var(--info-soft);color:var(--info)}
@@ -126,8 +136,7 @@ td.obs{max-width:300px;color:var(--muted);font-size:12.5px}
 .btn.sm{padding:5px 10px;font-size:12.5px}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .empty{padding:28px;text-align:center;color:var(--muted)}
-
-/* ---------- Alertas ---------- */
+.dotl{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px}
 .alerts{display:grid;gap:8px}
 .alert{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:11px 13px;border-radius:9px;border:1px solid var(--line);background:var(--surface);animation:vin .3s ease-out both}
 .alert .sev{width:9px;height:9px;border-radius:50%;margin-top:6px}
@@ -137,11 +146,9 @@ td.obs{max-width:300px;color:var(--muted);font-size:12.5px}
 .alert .t{font-weight:600}
 .alert .d{color:var(--muted);font-size:12.5px}
 .alert.read{opacity:.55}
-
-/* ---------- Panel lateral ---------- */
 .scrim{position:fixed;inset:0;background:rgba(5,12,22,.45);z-index:80;animation:fade .2s}
 @keyframes fade{from{opacity:0}to{opacity:1}}
-.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--surface);z-index:90;box-shadow:-10px 0 30px rgba(0,0,0,.2);display:flex;flex-direction:column;animation:slide .25s ease-out;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px)}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(580px,100%);background:var(--surface);z-index:90;box-shadow:-10px 0 30px rgba(0,0,0,.2);display:flex;flex-direction:column;animation:slide .25s ease-out;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px)}
 @keyframes slide{from{transform:translateX(40px);opacity:.3}to{transform:none;opacity:1}}
 .dr-h{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start}
 .dr-h h2{font-size:18px}
@@ -151,7 +158,7 @@ td.obs{max-width:300px;color:var(--muted);font-size:12.5px}
 .kv div{background:var(--surface-2);border-radius:8px;padding:8px 10px;min-width:0}
 .kv small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
 .kv span{overflow-wrap:anywhere}
-.timeline{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.timeline{list-style:none;margin:0;padding:0}
 .timeline li{position:relative;padding:0 0 14px 22px;border-left:2px solid var(--line);margin-left:6px}
 .timeline li:last-child{border-left-color:transparent}
 .timeline li::before{content:"";position:absolute;left:-7px;top:3px;width:12px;height:12px;border-radius:50%;background:var(--surface);border:3px solid var(--accent)}
@@ -163,27 +170,24 @@ td.obs{max-width:300px;color:var(--muted);font-size:12.5px}
 .checks{display:grid;gap:6px}
 .checks label{display:flex;gap:8px;align-items:center;padding:7px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer}
 .bar{height:8px;background:var(--surface-2);border-radius:5px;overflow:hidden}
-.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:5px;transition:width .5s}
-textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface);resize:vertical}
-
-/* ---------- Varios ---------- */
+.bar i{display:block;height:100%;background:var(--s1);border-radius:5px;transition:width .5s}
+textarea,.inp{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface)}
+textarea{min-height:70px;resize:vertical}
 .toasts{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:100;display:grid;gap:8px;max-width:min(380px,calc(100% - 32px))}
 .toast{background:var(--ink);color:#fff;padding:11px 14px;border-radius:9px;box-shadow:var(--shadow);animation:slide .25s ease-out;font-size:13px}
-.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;align-items:stretch}
-.flow .node{border:1px solid var(--line);border-radius:9px;padding:10px;background:var(--surface-2);text-align:center}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.flow .node{border:1px solid var(--line);border-radius:9px;padding:10px;background:var(--surface);text-align:center;cursor:pointer;transition:transform .15s}
+.flow .node:hover{transform:translateY(-2px)}
 .flow .node b{display:block;font-family:var(--f-display);font-size:22px}
 .flow .node small{color:var(--muted);font-size:11.5px}
 .drop-zone{border:2px dashed var(--line);border-radius:12px;padding:26px;text-align:center;color:var(--muted);transition:border-color .2s,background .2s}
 .drop-zone.over{border-color:var(--accent);background:var(--accent-soft)}
-.matrix td,.matrix th{text-align:center}
-.matrix td:first-child,.matrix th:first-child{text-align:left}
 .find{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
 .find:last-child{border-bottom:0}
 .find p{margin:3px 0 0;color:var(--muted)}
-.prose{max-width:75ch}
-.prose li{margin-bottom:6px}
 .lock{padding:40px;text-align:center}
 .lock h2{font-size:20px;margin-bottom:6px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 @media (max-width:640px){.head h1{font-size:20px}.kpi .val{font-size:24px}.who span{display:none}}
 </style>
@@ -192,9 +196,7 @@ textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:8
   <div class="top-in">
     <div class="brand"><div class="brand-mark">CA</div>Centro de Autorizaciones</div>
     <div class="top-right">
-      <label class="who"><span>Ver como</span>
-        <select id="userSel" aria-label="Usuario simulado"></select>
-      </label>
+      <label class="who"><span>Ver como</span><select id="userSel" aria-label="Usuario simulado"></select></label>
       <button class="bell" id="bellBtn" aria-label="Mis alertas">Alertas <span class="dot" id="bellDot" hidden>0</span></button>
     </div>
   </div>
@@ -205,913 +207,661 @@ textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:8
 <div id="layer"></div>
 
 <script>
-/* =========================================================
-   DATOS DE EJEMPLO (generados, ficticios). Fecha de corte fija.
-   ========================================================= */
-const HOY = new Date('2026-11-14T10:00:00');
-const DAY = 864e5, HOUR = 36e5;
-let seed = 20261114;
+/* =====================================================================
+   DATOS DE EJEMPLO con la MISMA ESTRUCTURA de la hoja real
+   (INGRESOS_ABIERTOS, CASOS_ESPECIALES, GESTIONES_CASOS, ERP_CONTRATOS,
+   REGISTROS_AUTORIZACIONES, HISTORICO_ABIERTOS). Pacientes y cifras inventados.
+   ===================================================================== */
+const HOY=new Date('2026-11-14T10:00:00'), DAY=864e5, HOUR=36e5;
+let seed=1114;
 function rnd(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}
-const pick = a => a[Math.floor(rnd()*a.length)];
-const int = (a,b) => a + Math.floor(rnd()*(b-a+1));
-const wpick = (pairs) => {let s=pairs.reduce((a,p)=>a+p[1],0),r=rnd()*s;for(const p of pairs){if((r-=p[1])<=0)return p[0]}return pairs[0][0]};
-const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const fmtD = d => d ? d.toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '—';
-const fmtDT = d => d ? d.toLocaleDateString('es-CO',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}) : '—';
-const money = v => '$'+Math.round(v).toLocaleString('es-CO');
-const moneyM = v => '$'+(v/1e6).toLocaleString('es-CO',{maximumFractionDigits:1})+' M';
-
-const NOMBRES=['ANA','LUIS','MARIA','JOSE','CARMEN','JUAN','ROSA','PEDRO','LUZ','JESUS','SANDRA','CARLOS','YURANI','EDWIN','DIANA','OSCAR','NELLY','WILSON','LEIDY','HECTOR'];
-const APELLIDOS=['PEREZ','GOMEZ','RODRIGUEZ','MARTINEZ','LOPEZ','DIAZ','TORRES','RAMIREZ','VARGAS','CASTRO','ROJAS','SUAREZ','MORENO','PARRA','CHAPARRO','BARRERA','FONSECA','CAMARGO'];
+const pick=a=>a[Math.floor(rnd()*a.length)], int=(a,b)=>a+Math.floor(rnd()*(b-a+1));
+const wpick=p=>{let s=p.reduce((a,x)=>a+x[1],0),r=rnd()*s;for(const x of p){if((r-=x[1])<=0)return x[0]}return p[0][0]};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtD=d=>d?d.toLocaleDateString('es-CO',{day:'2-digit',month:'short'}):'—';
+const fmtDT=d=>d?fmtD(d)+' '+d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}):'—';
+const money=v=>'$'+Math.round(v).toLocaleString('es-CO');
+const moneyM=v=>'$'+(v/1e6).toLocaleString('es-CO',{maximumFractionDigits:1})+' M';
+const pct=(a,b)=>b?Math.round(100*a/b):0;
+const uniq=a=>[...new Set(a)].filter(Boolean).sort();
+const NOM=['ANA','LUIS','MARIA','JOSE','CARMEN','JUAN','ROSA','PEDRO','LUZ','JESUS','SANDRA','CARLOS','YURANI','EDWIN','DIANA','OSCAR','NELLY','WILSON','LEIDY','HECTOR'];
+const APE=['PEREZ','GOMEZ','RODRIGUEZ','MARTINEZ','LOPEZ','DIAZ','TORRES','RAMIREZ','VARGAS','CASTRO','ROJAS','SUAREZ','MORENO','PARRA','CHAPARRO','BARRERA','FONSECA','CAMARGO'];
 
 const AREAS=[
-  {n:'URGENCIAS',cama:false,w:16},
-  {n:'HOSPITALIZACION 4 PISO',cama:true,pab:['PABELLON A','PABELLON B','PABELLON C'],pre:'H4',w:20},
-  {n:'HOSPITALIZACION 3 PISO',cama:true,pre:'H3',w:12},
-  {n:'UCI ADULTOS',cama:true,pre:'UCI',w:6},
-  {n:'PEDIATRIA',cama:true,pre:'PED',w:7},
-  {n:'GINECOBSTETRICIA',cama:true,pre:'GO',w:7},
-  {n:'CONSULTA EXTERNA',cama:false,w:18},
-  {n:'CIRUGIA AMBULATORIA',cama:false,w:6},
+ {n:'URGENCIAS OBSERVACION ADULTO',g:'URGENCIAS',ala:'OBSERVACION ADULTO',cama:'OBS',w:9},
+ {n:'URGENCIAS OBSERVACION PEDIATRICA',g:'URGENCIAS',ala:'OBSERVACION PEDIATRICA',cama:'OBP',w:2},
+ {n:'HOSPITALIZACION ESTANCIA GRAL 4 PISO ALA 1 - QUIRURGICOS',g:'HOSPITALIZACION 4 PISO',ala:'ALA 1 - QUIRURGICOS',cama:'41',w:4},
+ {n:'HOSPITALIZACION ESTANCIA GRAL 4 PISO ALA 2 - MATERNO',g:'HOSPITALIZACION 4 PISO',ala:'ALA 2 - MATERNO',cama:'42M',w:3},
+ {n:'HOSPITALIZACION EST. GRAL 4 PISO ALA 2 - PEDIATRIA',g:'HOSPITALIZACION 4 PISO',ala:'ALA 2 - PEDIATRIA',cama:'42P',w:2},
+ {n:'HOSPITALIZACION EST. GRAL 5 PISO ALA 1 - MEDICINA INTERNA',g:'HOSPITALIZACION 5 PISO',ala:'ALA 1 - MEDICINA INTERNA',cama:'51',w:4},
+ {n:'HOSPITALIZACION EST. GRAL 5 PISO ALA 2 - ORTOPEDIA',g:'HOSPITALIZACION 5 PISO',ala:'ALA 2 - ORTOPEDIA',cama:'52',w:5},
+ {n:'UNIDAD CUIDADOS INTENSIVOS ADULTOS',g:'UCI ADULTOS',ala:'UCI',cama:'UCI',w:1},
+ {n:'HOSP. RECIEN NACIDOS NEONATAL',g:'NEONATOS',ala:'NEONATAL',cama:'RN',w:2},
+ {n:'QUIROFANOS SALAS - CIRUGIA GENERAL',g:'CIRUGIA',ala:'QUIROFANOS',cama:'',w:3},
 ];
-const EPS=[
-  {erp:'CAPRESOCA',contratos:['101','102','SIN CONTRATO'],w:30},
-  {erp:'NUEVA EPS',contratos:['201','SIN CONTRATO'],w:22},
-  {erp:'SANITAS',contratos:['301'],w:12},
-  {erp:'COOSALUD',contratos:['401','SIN CONTRATO'],w:10},
-  {erp:'FAMISANAR',contratos:['501'],w:7},
+const ENTIDADES=[
+ ['CAPRESOCA EPS - URGENCIAS SIN - CUPS-SUBSIDIADO','CAPRESOCA','SUBSIDIADO URGENCIAS','EPS',9],
+ ['CAPRESOCA EPS - CTO-283-2025 *PGP *','CAPRESOCA','CTO-283-2025 PGP','EPS',8],
+ ['CAPRESOCA EPS- .2026','CAPRESOCA','SIN CONTRATO','EPS',4],
+ ['CAPRESOCA EPS - CONTRIBUTIVO','CAPRESOCA','CONTRIBUTIVO','EPS',3],
+ ['NUEVA EMPRESA PROMOTORA DE SALUD S.A. - EN INTERVENCION BAJO LA MEDIDA DE TOMA DE POSESION','NUEVA EPS','SIN CONTRATO','EPS',7],
+ ['NUEVA EMP PROMOTORA DE SALUD S.A.-EN INTERVENCION BAJO LA MEDIDA DE TOMA DE POSESION-101_EVN_891855029','NUEVA EPS','101','EPS',6],
+ ['NUEVA EMPRESA PROMOTORA DE SALUD S.A. - EN INTERVENCION BAJO LA MEDIDA DE TOMA DE POSESION-2026','NUEVA EPS','CONTRIBUTIVO 2026','EPS',4],
+ ['ENTIDAD PROMOTORA DE SALUD SANITAS S.A.S','SANITAS','CONTRIBUTIVO','EPS',5],
+ ['ENTIDAD PROMOTORA DE SALUD SANITAS S.A.S.-SUBSIDIADO','SANITAS','SUBSIDIADO','EPS',3],
+ ['FIDEICOMISOS PATRIMONIOS AUTONOMOS FIDUCIARIA LA PREVISORA S.A.-FOMAG','FOMAG','MAGISTERIO','EPS',2],
+ ['PARTICULARES-CUPS','PARTICULARES','PARTICULAR','EPS',2],
+ ['LA PREVISORA S.A. COMPAÑIA DE SEGUROS SOAT- 2025','LA PREVISORA SOAT','SOAT','SOAT',3],
+ ['EQUIDAD SEGUROS SOAT (DECRETO 2644 DEL 2022)-CUPS','EQUIDAD SOAT','SOAT','SOAT',2],
+ ['SEGUROS GENERALES SURAMERICANA S.A.-CUPS','SURA SOAT','SOAT','SOAT',2],
+ ['SEGUROS DEL ESTADO S.A. SOAT','SEGUROS DEL ESTADO','SOAT','SOAT',2],
+ ['ADMINISTRADORA DE LOS RECURSOS DEL SISTEMA GENERAL DE SEGURIDAD SOCIAL EN SALUD - ADRES','ADRES','ACCIDENTE SIN SOAT','SOAT_SIN_DOC',2],
+ ['SIN SEGURIDAD SOCIAL - SECRETARIA DE SALUD DEPARTAMENTAL','SIN SEGURIDAD SOCIAL','DEPARTAMENTAL','SIN_SS',4],
+ ['RECIEN NACIDO- SIN SEGURIDAD SOCIAL-CUPS','SIN SEGURIDAD SOCIAL','RECIEN NACIDO','SIN_SS',2],
 ];
-const SOAT_ASEG=['SEGUROS DEL ESTADO','LA PREVISORA','SURA SOAT','MUNDIAL SEGUROS'];
-const SERVICIOS=['TAC DE CRANEO','RESONANCIA MAGNETICA','ECOCARDIOGRAMA','CIRUGIA ORTOPEDICA','INTERCONSULTA NEUROCIRUGIA','REMISION NIVEL III','MEDICAMENTO NO PBS','HEMODIALISIS','ESTANCIA ADICIONAL','ENDOSCOPIA'];
-const CAT_LBL={REGULAR:'Régimen con pagador',SOAT:'SOAT definido',SOAT_SIN_DOC:'SOAT sin documentos',SIN_SS:'Sin seguridad social',NEONATO:'Neonato sin seguridad social'};
-
-const USERS=[
-  {id:'u1',nombre:'Laura Méndez',rol:'ADMIN',area:'*'},
-  {id:'u2',nombre:'Carlos Pérez',rol:'COORD_GENERAL',area:'*'},
-  {id:'u3',nombre:'Diana Rojas',rol:'COORD_AREA',area:'HOSPITALIZACION 4 PISO'},
-  {id:'u4',nombre:'Jorge Silva',rol:'AUTORIZADOR',area:'*'},
-  {id:'u5',nombre:'Paola Gómez',rol:'AUTORIZADOR',area:'*'},
-  {id:'u6',nombre:'Mario Torres',rol:'GESTOR_CASOS',area:'*'},
-  {id:'u7',nombre:'Sofía Ávila',rol:'PENDIENTE',area:'URGENCIAS'},
+const COD_RESP=[
+ {re:/^(AUTO\.?PEND|AUT\.?PEMD|PEND\.?AUTO|AUTO\.?PEN)\b/,pat:'AUTO.PEND · AUT.PEMD · PEND.AUTO · AUTO.PEN',sig:'AUT_PEND',lbl:'Autorización pendiente'},
+ {re:/^SOAT\.?XFACT/,pat:'SOAT.XFACT',sig:'SOAT_XFACT',lbl:'SOAT por facturar'},
+ {re:/^PEND\.?LINEA/,pat:'PEND.LINEA',sig:'PEND_LINEA',lbl:'Pendiente en línea'},
+ {re:/^AUTOK\./,pat:'AUTOK.',sig:'AUT_OK',lbl:'Autorizado (por confirmar)'},
 ];
-const ROL_LBL={ADMIN:'Administrador',COORD_GENERAL:'Coordinador general',COORD_AREA:'Coordinador de área',AUTORIZADOR:'Autorizador',GESTOR_CASOS:'Gestor de casos especiales',PENDIENTE:'Pendiente de aprobación'};
-const AUTORIZADORES=['Jorge Silva','Paola Gómez'];
-const CARGADORES=['ADMISIONES URG 1','ADMISIONES URG 2','ADMISIONES CE','FACTURACION PISO 4','FACTURACION PISO 3'];
+const CODES_EJ={AUT_PEND:['AUTO.PEND.KANB','AUT.PEMD.YJSU','PEND.AUTO.LMR','AUTO.PEN.DCR'],SOAT_XFACT:['SOAT.XFACT.KYCC',' SOAT.XFACT.JG'],PEND_LINEA:['PEND.LINEA.MRT'],AUT_OK:['AUTOK.4P.NOV.03','AUTOK.2P.NOV.01'],OTRO:['HX.4PISO.NOV.04','HX.ULTSI.NOV.04','BRIG.DIB.SONRIS']};
+function leerResp(c){if(!c)return null;const s=c.trim().toUpperCase();for(const k of COD_RESP)if(k.re.test(s))return k;return {sig:'SIN_REGLA',lbl:'Código sin regla'}}
 
-const PARAM={slaHoras:48,critHoras:72,diasCE:3,diasSoatDoc:5,diasProlongado:30};
-
-/* ---- Ingresos (carga actual + carga anterior) ---- */
-function persona(cat){
-  const edad = cat==='NEONATO'?0:int(1,88);
-  const nom = cat==='NEONATO' ? 'RN HIJO DE '+pick(NOMBRES)+' '+pick(APELLIDOS) : pick(NOMBRES)+' '+pick(APELLIDOS)+' '+pick(APELLIDOS);
-  const tipo = cat==='NEONATO' ? 'MS' : edad<18 ? 'TI' : 'CC';
-  const doc = cat==='NEONATO' ? 'MS'+int(100000,999999) : String(int(1000000,1199999999));
-  return {paciente:nom,edad,tipoId:tipo,documento:doc};
-}
+const USUARIOS_ADM=['ADM.URG.01','ADM.URG.02','ADM.CE.01','ADM.CE.02','FACT.4P','FACT.5P'];
 const INGRESOS=[];
-for(let i=0;i<170;i++){
-  const cat = wpick([['REGULAR',68],['SOAT',8],['SOAT_SIN_DOC',8],['SIN_SS',10],['NEONATO',6]]);
-  let areaObj = cat==='NEONATO' ? pick([AREAS[4],AREAS[5]]) : wpick(AREAS.map(a=>[a,a.w]));
-  if((cat==='SOAT'||cat==='SOAT_SIN_DOC') && areaObj.n==='CONSULTA EXTERNA') areaObj = AREAS[0];
-  const area = areaObj.n;
-  const ce = area==='CONSULTA EXTERNA';
-  const dias = ce ? wpick([[int(0,2),5],[int(3,12),5],[int(13,40),2]]) : wpick([[int(0,6),6],[int(7,29),5],[int(30,95),3]]);
-  const fIng = new Date(HOY - dias*DAY - int(0,20)*HOUR);
-  const egreso = !ce && rnd()<0.17;
-  const pab = areaObj.pab ? pick(areaObj.pab) : '';
+for(let i=0;i<900;i++){
+  const ent=wpick(ENTIDADES.map(e=>[e,e[4]])), band=ent[3];
+  const ingresoPor = ent[2]==='RECIEN NACIDO' ? 'NACIDO_HOSPITAL' : (band==='SOAT'||band==='SOAT_SIN_DOC') ? wpick([['URGENCIAS',8],['REMITIDO',2]]) : wpick([['URGENCIAS',46],['CONSULTA EXTERNA',42],['REMITIDO',7],['',3]]);
+  const ce = ingresoPor==='CONSULTA EXTERNA';
+  let areaObj=null;
+  if(ent[2]==='RECIEN NACIDO') areaObj=AREAS[8];
+  else if(!ce && rnd()<0.62) areaObj=wpick(AREAS.map(a=>[a,a.w]));
+  const tipoIng = areaObj&&areaObj.cama ? 'HOSPITALARIO' : 'AMBULATORIO';
+  const d = ce ? wpick([[int(0,3),5],[int(4,20),4],[int(21,60),2]]) : wpick([[int(0,6),5],[int(7,29),4],[int(30,120),3]]);
+  const fIng=new Date(HOY-d*DAY-int(0,20)*HOUR);
+  const egreso = !ce && rnd()<(tipoIng==='HOSPITALARIO'?0.55:0.35);
   let cama='';
-  if(areaObj.cama && (!egreso || rnd()<0.35)) cama = areaObj.pre + (pab?pab.slice(-1):'') + '-' + String(int(1,30)).padStart(2,'0');
-  if(area==='URGENCIAS' && !egreso && rnd()<0.25) cama = 'OBS-'+String(int(1,12)).padStart(2,'0');
-  let erp,contrato;
-  if(cat==='REGULAR'){const e=wpick(EPS.map(x=>[x,x.w]));erp=e.erp;contrato=pick(e.contratos)}
-  else if(cat==='SOAT'){erp=pick(SOAT_ASEG);contrato='SOAT'}
-  else if(cat==='SOAT_SIN_DOC'){erp='ACCIDENTE SIN DOCUMENTOS';contrato='POR DEFINIR'}
-  else {erp='SIN SEGURIDAD SOCIAL';contrato='DEPARTAMENTAL'}
-  const p = persona(cat);
+  if(areaObj&&areaObj.cama&&(!egreso||rnd()<0.62)) cama=areaObj.cama+'-'+String(int(1,30)).padStart(2,'0');
+  const per = ent[2]==='RECIEN NACIDO' ? {paciente:'RN HIJO DE '+pick(NOM)+' '+pick(APE),edad:0,tipoId:'MS',documento:'MS'+int(100000,999999)}
+    : (()=>{const e=int(1,88);return {paciente:pick(NOM)+' '+pick(APE)+' '+pick(APE),edad:e,tipoId:e<18?'TI':'CC',documento:String(int(1000000,1199999999))}})();
+  const respSig = band==='SOAT'&&rnd()<0.4?'SOAT_XFACT' : !ce&&rnd()<0.2?'AUT_PEND' : rnd()<0.05?'AUT_OK' : rnd()<0.03?'OTRO' : rnd()<0.02?'PEND_LINEA':null;
+  const valor = ce?int(40,600)*1000:int(200,45000)*1000;
   INGRESOS.push({
-    ingreso: String(880000+i*37+int(0,30)),
-    fechaIng:fIng, area, pabellon:pab, cama, egreso,
-    fechaEgr: egreso ? new Date(Math.min(+HOY-HOUR, +fIng + int(1,Math.max(1,dias))*DAY)) : null,
-    erp, contrato, cat, catOrigen:cat, ...p,
-    valor: ce ? int(40,600)*1000 : int(300,48000)*1000,
-    usuario: ce ? 'ADMISIONES CE' : pick(CARGADORES),
-    diagEgreso: egreso && rnd()<0.8 ? pick(['S062','K359','J189','O800','I219','N390']) : '',
-    enCargaActual:true, enCargaAnterior: dias>=1,
-    obs:''
+    ingreso:String(2050000+i*91+int(0,80)), fechaIng:fIng, usuario:ce?pick(['ADM.CE.01','ADM.CE.02']):pick(USUARIOS_ADM),
+    estado:rnd()<0.26?'BLOQUEADO':'REGISTRADO', ingresoPor, tipoIng,
+    egreso:egreso?String(int(500000,850000)):'', fechaEgr:egreso?new Date(Math.min(+HOY-HOUR,+fIng+int(1,Math.max(1,d))*DAY)):null,
+    areaRaw:areaObj?areaObj.n:'', grupo:areaObj?areaObj.g:(ce?'CONSULTA EXTERNA':ingresoPor==='URGENCIAS'?'URGENCIAS':'SIN ÁREA'),
+    ala:areaObj?areaObj.ala:'', areaInferida:!areaObj, cama, ...per,
+    entidadRaw:ent[0], erp:ent[1], contrato:ent[2], bandeja:band, responsable:respSig?pick(CODES_EJ[respSig]):'',
+    valor, diag:egreso&&rnd()<0.85?pick(['S062','K359','J189','O800','I219','N390','S720']):'',
+    enActual:true, enAnterior:d>=1, obs:''
   });
 }
-/* Simular cambios entre cargas: casos que salieron (presunto facturado) y que cambiaron de pagador */
-INGRESOS.filter(x=>x.cat!=='REGULAR').forEach((x,k)=>{
-  if(x.cat==='SOAT_SIN_DOC' && k%3===0){x.cat='SOAT';x.erp=pick(SOAT_ASEG);x.contrato='SOAT';x.cambioFecha=new Date(HOY-int(1,6)*DAY)}
-  if((x.cat==='SIN_SS'||x.cat==='NEONATO') && k%3===1){const e=wpick(EPS.map(z=>[z,z.w]));x.cat='REGULAR';x.erp=e.erp;x.contrato=e.contratos[0];x.cambioFecha=new Date(HOY-int(1,6)*DAY)}
-  if(k%4===2 && x.enCargaAnterior){x.enCargaActual=false}
-});
-INGRESOS.filter(x=>x.catOrigen==='REGULAR' && x.enCargaAnterior).forEach((x,k)=>{if(k%14===0)x.enCargaActual=false});
+INGRESOS.forEach((x,k)=>{if(x.enAnterior&&k%13===0)x.enActual=false});
+INGRESOS.forEach((x,k)=>{x.bandejaOrigen=x.bandeja;
+  if(x.bandeja==='SIN_SS'&&k%4===0){x.erp='CAPRESOCA';x.contrato='SUBSIDIADO URGENCIAS';x.bandeja='EPS';x.cambio=new Date(HOY-int(1,8)*DAY)}
+  if(x.bandeja==='SOAT_SIN_DOC'&&k%3===0){x.erp='LA PREVISORA SOAT';x.contrato='SOAT';x.bandeja='SOAT';x.cambio=new Date(HOY-int(1,8)*DAY)}});
 
-/* ---- Autorizaciones ---- */
+const SERVICIOS=['TAC DE CRANEO','RESONANCIA MAGNETICA','ECOCARDIOGRAMA','OSTEOSINTESIS FEMUR','INTERCONSULTA NEUROCIRUGIA','REMISION NIVEL III','MEDICAMENTO NO PBS','ESTANCIA ADICIONAL','ENDOSCOPIA DIGESTIVA','HEMODIALISIS'];
+const AUTORIZADORES=['Jorge Silva','Paola Gómez','Karen Camargo'];
 const ESTADOS_AUT=['SOLICITADA','RADICADA','EN TRAMITE','AUTORIZADA'];
 const AUTS=[];
-const candidatos = INGRESOS.filter(x=>x.area!=='CONSULTA EXTERNA' && x.enCargaActual);
-for(let i=0;i<120;i++){
-  const ing = pick(candidatos);
-  const est = wpick([['SOLICITADA',14],['RADICADA',16],['EN TRAMITE',16],['AUTORIZADA',46],['NEGADA',8]]);
-  const fSol = new Date(Math.max(+ing.fechaIng, HOY - int(2,60)*DAY) + int(1,10)*HOUR);
-  const ger = pick(AUTORIZADORES);
-  const durBase = {CAPRESOCA:30,'NUEVA EPS':62,SANITAS:22,COOSALUD:54,FAMISANAR:36}[ing.erp] || 44;
-  const dur = Math.max(2, durBase*(0.4+rnd()*1.4));
-  const hist=[{f:fSol,u:ger,t:'Solicitud registrada · '+'servicio enviado por '+ing.area}];
-  let fRad=null,fResp=null;
-  if(est!=='SOLICITADA'){fRad=new Date(+fSol+int(1,8)*HOUR);hist.push({f:fRad,u:ger,t:'Radicada ante '+ing.erp+' · radicado '+int(10000,99999)})}
-  if(est==='EN TRAMITE'){hist.push({f:new Date(+fRad+int(4,20)*HOUR),u:ger,t:'EPS solicita soportes adicionales (historia clínica)'})}
-  if(est==='AUTORIZADA'||est==='NEGADA'){fResp=new Date(+fSol+dur*HOUR);if(fResp>HOY)fResp=new Date(HOY-HOUR);hist.push({f:fResp,u:ger,t:est==='AUTORIZADA'?'Autorizada · N° '+int(1e6,9e6):'Negada por '+ing.erp+' · no pertinencia'})}
-  AUTS.push({id:'A-'+(5200+i),ingreso:ing.ingreso,documento:ing.documento,paciente:ing.paciente,erp:ing.erp,area:ing.area,
-    servicio:pick(SERVICIOS),estado:est,fSol,fRad,fResp,gestor:ger,prioridad:wpick([['ALTA',3],['MEDIA',5],['BAJA',2]]),hist});
+const baseAut=INGRESOS.filter(x=>x.enActual&&x.grupo!=='CONSULTA EXTERNA');
+for(let i=0;i<140;i++){
+  const ing=pick(baseAut), est=wpick([['SOLICITADA',12],['RADICADA',14],['EN TRAMITE',14],['AUTORIZADA',50],['NEGADA',10]]);
+  const fSol=new Date(Math.max(+ing.fechaIng,HOY-int(2,75)*DAY)+int(1,10)*HOUR);
+  const dur={CAPRESOCA:30,'NUEVA EPS':66,SANITAS:22,FOMAG:40}[ing.erp]||46, g=pick(AUTORIZADORES);
+  const hist=[{f:fSol,u:g,t:'Solicitud registrada desde '+ing.grupo}];let fRad=null,fResp=null;
+  if(est!=='SOLICITADA'){fRad=new Date(+fSol+int(1,8)*HOUR);hist.push({f:fRad,u:g,t:'Radicada ante '+ing.erp+' · N° '+int(10000,99999)})}
+  if(est==='EN TRAMITE')hist.push({f:new Date(+fRad+int(4,20)*HOUR),u:g,t:'EPS solicita soportes adicionales'});
+  if(est==='AUTORIZADA'||est==='NEGADA'){fResp=new Date(+fSol+Math.max(2,dur*(0.4+rnd()*1.4))*HOUR);if(fResp>HOY)fResp=new Date(HOY-HOUR);hist.push({f:fResp,u:g,t:est==='AUTORIZADA'?'Autorizada · N° '+int(1e6,9e6):'Negada · no pertinencia'})}
+  AUTS.push({id:'A-'+(5200+i),fuente:'APP',ingreso:ing.ingreso,documento:ing.documento,paciente:ing.paciente,erp:ing.erp,grupo:ing.grupo,ala:ing.ala,servicio:pick(SERVICIOS),estado:est,fSol,fRad,fResp,gestor:g,hist});
 }
-const abiertaAut = a => !['AUTORIZADA','NEGADA'].includes(a.estado);
-const horasAut = a => ((a.fResp||HOY)-a.fSol)/HOUR;
-
-/* Observaciones del ingreso (refiere si hay autorizaciones pendientes) */
+INGRESOS.filter(x=>x.enActual&&leerResp(x.responsable)?.sig==='AUT_PEND'&&!AUTS.some(a=>a.ingreso===x.ingreso)).forEach((x,i)=>{
+  AUTS.push({id:'D-'+(900+i),fuente:'CODIGO',codigo:x.responsable.trim(),ingreso:x.ingreso,documento:x.documento,paciente:x.paciente,erp:x.erp,grupo:x.grupo,ala:x.ala,servicio:'(sin detalle: solo código en RESPONSABLE)',estado:'SOLICITADA',fSol:new Date(+x.fechaIng+int(2,30)*HOUR),gestor:'Sin asignar',hist:[{f:new Date(HOY-HOUR*2),u:'Sistema (carga)',t:'Detectada por el código '+x.responsable.trim()+' en la columna RESPONSABLE'}]});
+});
+const abierta=a=>!['AUTORIZADA','NEGADA'].includes(a.estado);
+const horas=a=>((a.fResp||HOY)-a.fSol)/HOUR;
 INGRESOS.forEach(x=>{
-  const pend = AUTS.filter(a=>a.ingreso===x.ingreso && abiertaAut(a));
-  x.autPend = pend.length;
-  const parts=[];
-  if(pend.length) parts.push('PENDIENTE AUT. '+pend.map(a=>a.servicio).join(', ')+' - '+x.erp);
-  else parts.push('SIN AUTORIZACIONES PENDIENTES');
-  if(x.cat==='SOAT_SIN_DOC') parts.push('FALTA FURIPS / POLIZA');
-  if(x.catOrigen==='SIN_SS'||x.catOrigen==='NEONATO') parts.push(x.cat==='REGULAR'?'AFILIADO A '+x.erp:'EN TRAMITE AFILIACION');
-  if(x.area==='CONSULTA EXTERNA') parts.push('PENDIENTE CIERRE DE ATENCION');
-  x.obs = parts.join(' · ');
+  x.autPend=AUTS.filter(a=>a.ingreso===x.ingreso&&abierta(a)).length;
+  const r=leerResp(x.responsable),parts=[];
+  parts.push(x.autPend?'AUTORIZACIÓN PENDIENTE ('+x.autPend+')':'Sin autorizaciones pendientes');
+  if(r&&r.sig!=='AUT_PEND')parts.push(r.lbl+': '+x.responsable.trim());
+  if(rnd()<0.12)parts.push(pick(['PENDIENTE CARTA DE COBERTURA','FALTA SOPORTE PARA FACTURAR','EN REVISION CONTROL INTERNO','PENDIENTE CORRECCION DE CUPS']));
+  x.obs=parts.join(' · ');
 });
-
-/* Situación derivada de cada ingreso */
-function situacion(x){
-  if(x.area==='CONSULTA EXTERNA') return 'CE';
-  if(x.egreso && x.cama) return 'CAMA_NO_LIBERADA';
-  if(x.egreso) return 'EGRESADO_ABIERTO';
-  if(x.cama) return 'HOSPITALIZADO';
-  return 'EN_ATENCION';
-}
-const SIT_LBL={HOSPITALIZADO:'Hospitalizado',CE:'Consulta externa',EGRESADO_ABIERTO:'Egresado sin cerrar',CAMA_NO_LIBERADA:'Egresado con cama',EN_ATENCION:'En atención'};
+function situacion(x){if(x.grupo==='CONSULTA EXTERNA')return 'CE';if(x.egreso&&x.cama)return 'CAMA_NO_LIBERADA';if(x.egreso)return 'EGRESADO_ABIERTO';if(x.cama)return 'HOSPITALIZADO';return 'EN_ATENCION'}
+const SIT=['HOSPITALIZADO','CE','EGRESADO_ABIERTO','CAMA_NO_LIBERADA','EN_ATENCION'];
+const SIT_LBL={HOSPITALIZADO:'Hospitalizado',CE:'Consulta externa',EGRESADO_ABIERTO:'Egresado sin cerrar',CAMA_NO_LIBERADA:'Egresado con cama',EN_ATENCION:'En atención sin cama'};
 const SIT_PILL={HOSPITALIZADO:'p-info',CE:'p-vio',EGRESADO_ABIERTO:'p-warn',CAMA_NO_LIBERADA:'p-crit',EN_ATENCION:'p-mut'};
-const diasAbierto = x => Math.floor((HOY-x.fechaIng)/DAY);
+const dias=x=>Math.floor((HOY-x.fechaIng)/DAY);
+function hallazgos(x){const h=[];
+  if(x.egreso)h.push('Egresado con ingreso abierto');if(x.egreso&&!x.diag)h.push('Egresado sin diagnóstico');
+  if(!x.egreso&&dias(x)>=30&&situacion(x)!=='CE')h.push('30 días o más sin egreso');
+  if(situacion(x)==='CE'&&dias(x)>P.diasCE)h.push('Consulta externa fuera de plazo');
+  if(x.valor===0)h.push('Valor en cero');if(x.areaInferida)h.push('Área inferida');return h}
 
-/* ---- Casos especiales (SOAT / sin seguridad social / neonatos) ---- */
-const DOCS_SOAT=['FURIPS diligenciado','Póliza SOAT vigente','Documento de identidad','Informe de tránsito o declaración','Epicrisis / resumen de atención'];
-const DOCS_SSS=['Consulta ADRES / BDUA','Encuesta SISBEN','Solicitud de afiliación','Registro civil (neonatos)','Notificación a ente territorial'];
-const CASOS=INGRESOS.filter(x=>x.catOrigen!=='REGULAR').map((x,i)=>{
-  const soat = x.catOrigen.startsWith('SOAT');
-  const docs = (soat?DOCS_SOAT:DOCS_SSS).map((d,j)=>({d,ok: x.cat!==x.catOrigen || x.catOrigen==='SOAT' ? rnd()<0.85 : rnd()<0.4}));
-  const fCaso = new Date(+x.fechaIng + int(1,6)*HOUR);
-  const bit=[{f:fCaso,u:'Mario Torres',t:'Caso abierto como '+CAT_LBL[x.catOrigen]}];
-  if(soat) bit.push({f:new Date(+fCaso+int(5,30)*HOUR),u:'Mario Torres',t:'Solicitud de documentos al acompañante'});
-  if(x.cat!==x.catOrigen) bit.push({f:x.cambioFecha,u:'Sistema (carga)',t:'Cambio de pagador detectado: '+CAT_LBL[x.catOrigen]+' → '+x.erp});
-  if(!x.enCargaActual) bit.push({f:new Date(HOY-int(0,2)*DAY),u:'Sistema (carga)',t:'El ingreso ya no aparece en ingresos abiertos (presunto facturado)'});
-  return {id:'C-'+(300+i),ref:x,grupo:soat?'SOAT':'SSS',docs,bit,cerrado: !x.enCargaActual && i%3===0,
-    fAccidente: soat ? new Date(+x.fechaIng - int(0,1)*DAY) : null, gestor:'Mario Torres'};
+const BANDEJAS={SOAT_DEFINIDO:'SOAT definido',SOAT_SIN_DOC:'SOAT sin documentos',SIN_SS:'Sin seguridad social'};
+const GESTORES=['Jhonatan Gutiérrez','Karen Camargo'];
+const DOCS={SOAT:['FURIPS diligenciado','Póliza SOAT vigente','Documento de identidad','Informe de tránsito o declaración','Epicrisis'],SIN_SS:['Consulta ADRES / BDUA','Encuesta SISBEN','Solicitud de afiliación','Registro civil (neonatos)','Notificación al ente territorial']};
+const CASOS=INGRESOS.filter(x=>x.bandejaOrigen!=='EPS').map((x,i)=>{
+  const bandeja=x.bandejaOrigen==='SOAT'?'SOAT_DEFINIDO':x.bandejaOrigen, asig=rnd()<0.25, fAp=new Date(+x.fechaIng+int(1,10)*HOUR);
+  const gest=[{f:fAp,u:'Sistema',tipo:'Automática del sistema',t:'Caso detectado en la carga de ingresos abiertos ('+x.entidadRaw.slice(0,60)+'…)'}];
+  if(asig)gest.push({f:new Date(+fAp+int(5,60)*HOUR),u:pick(GESTORES),tipo:pick(['Llamada telefónica','Correo electrónico','Revisión de documentos']),t:pick(['Se solicita póliza al familiar','Se revisan soportes, faltan correcciones','Se envía FURIPS a la aseguradora','Se consulta BDUA: sin afiliación'])});
+  if(x.cambio)gest.push({f:x.cambio,u:'Sistema',tipo:'Automática del sistema',t:'Cambio de pagador detectado: '+BANDEJAS[bandeja]+' → '+x.erp});
+  if(!x.enActual)gest.push({f:new Date(HOY-int(0,3)*DAY),u:'Sistema',tipo:'Automática del sistema',t:'El ingreso ya no aparece en ingresos abiertos'});
+  return {id:'C-'+(300+i),ref:x,bandeja,gestor:asig?pick(GESTORES):'',fCompromiso:asig?new Date(+HOY+int(-6,6)*DAY):null,
+    docs:DOCS[bandeja==='SIN_SS'?'SIN_SS':'SOAT'].map(d=>({d,ok:bandeja==='SOAT_DEFINIDO'?rnd()<0.8:rnd()<0.35})),
+    gest,cerrado:!x.enActual&&i%4===0,fAccidente:bandeja!=='SIN_SS'?new Date(+x.fechaIng-int(0,1)*DAY):null,placa:bandeja!=='SIN_SS'?pick(['KLM','BXT','FRQ','CVA'])+int(10,99)+pick(['E','F','G']):''};
 });
-function estadoCaso(c){
-  if(c.cerrado) return 'CERRADO';
-  if(!c.ref.enCargaActual) return 'FACTURADO_SIN_CIERRE';
-  if(c.ref.cat!==c.ref.catOrigen) return 'PAGADOR_ASIGNADO';
-  return 'EN_GESTION';
-}
-const EC_LBL={EN_GESTION:'En gestión',PAGADOR_ASIGNADO:'Pagador asignado',FACTURADO_SIN_CIERRE:'Salió de abiertos · sin cierre',CERRADO:'Cerrado'};
-const EC_PILL={EN_GESTION:'p-warn',PAGADOR_ASIGNADO:'p-info',FACTURADO_SIN_CIERRE:'p-crit',CERRADO:'p-ok'};
+function estadoCaso(c){if(c.cerrado)return 'CERRADO';if(!c.ref.enActual)return 'SALIO_SIN_CIERRE';if(c.ref.bandeja!==c.ref.bandejaOrigen)return 'PAGADOR_ASIGNADO';if(c.bandeja==='SOAT_DEFINIDO')return 'DEFINIDO';return c.gestor?'EN_GESTION':'NUEVO'}
+const EC=['NUEVO','EN_GESTION','DEFINIDO','PAGADOR_ASIGNADO','SALIO_SIN_CIERRE','CERRADO'];
+const EC_LBL={NUEVO:'Nuevo sin gestión',EN_GESTION:'En gestión',DEFINIDO:'Definido · pendiente de cierre',PAGADOR_ASIGNADO:'Pasó a pagador asignado',SALIO_SIN_CIERRE:'Salió de abiertos · sin cierre',CERRADO:'Cerrado con soporte'};
+const EC_PILL={NUEVO:'p-mut',EN_GESTION:'p-warn',DEFINIDO:'p-info',PAGADOR_ASIGNADO:'p-acc',SALIO_SIN_CIERRE:'p-crit',CERRADO:'p-ok'};
 
-/* ---- Cargas ---- */
-const CARGAS=[
-  {f:new Date('2026-11-14T07:12:00'),u:'Laura Méndez',arch:'INGRESOS_ABIERTOS_14NOV.xlsx',filas:INGRESOS.filter(x=>x.enCargaActual).length,nuevos:INGRESOS.filter(x=>x.enCargaActual&&!x.enCargaAnterior).length,salieron:INGRESOS.filter(x=>!x.enCargaActual).length},
-  {f:new Date('2026-11-13T07:05:00'),u:'Laura Méndez',arch:'INGRESOS_ABIERTOS_13NOV.xlsx',filas:INGRESOS.filter(x=>x.enCargaAnterior).length,nuevos:9,salieron:11},
-  {f:new Date('2026-11-12T07:20:00'),u:'Laura Méndez',arch:'INGRESOS_ABIERTOS_12NOV.xlsx',filas:162,nuevos:12,salieron:8},
-];
+const HIST=[];
+{let tot=905,val=2.55e9;for(let d=26;d>=0;d-=2){tot+=int(-22,20);val+=int(-90,80)*1e6;const f=new Date(HOY-d*DAY);if(f.getDay()===0)continue;HIST.push({f,total:tot,valor:val,egresados:Math.round(tot*.4+int(-10,10)),mas30:Math.round(tot*.13+int(-6,6)),autPend:Math.round(tot*.08+int(-5,5))})}
+ HIST[HIST.length-1].total=INGRESOS.filter(x=>x.enActual).length;}
 
-/* ---- Permisos por módulo (editable en Administración) ---- */
-const MODULOS=[
-  {id:'inicio',n:'00',t:'Inicio',sub:[['inicio','Mis alertas y resumen']]},
-  {id:'aut',n:'01',t:'Autorizaciones',sub:[['aut','Bandeja de pendientes'],['aut-mias','Mis trámites'],['aut-hist','Histórico']]},
-  {id:'ing',n:'02',t:'Ingresos abiertos',sub:[['ing','Listado y filtros'],['ing-hosp','Hospitalizados'],['ing-ce','Consulta externa por cerrar'],['ing-cambios','Cambios entre cargas']]},
-  {id:'soat',n:'03',t:'SOAT',sub:[['soat','Todos los casos'],['soat-sindoc','Sin documentos'],['soat-cambio','Pasaron a pagador asignado']]},
-  {id:'sss',n:'04',t:'Sin seguridad social',sub:[['sss','Todos los casos'],['sss-neo','Neonatos'],['sss-cambio','Pasaron a pagador asignado'],['sss-fact','Salieron de abiertos']]},
-  {id:'med',n:'05',t:'Medición',sub:[['med','Tablero gerencial']]},
-  {id:'carga',n:'06',t:'Cargue e informes',sub:[['carga','Cargar ingresos abiertos'],['carga-inf','Informes']]},
-  {id:'admin',n:'07',t:'Administración',sub:[['admin','Usuarios'],['admin-perm','Permisos por rol'],['admin-param','Parámetros y catálogos']]},
-  {id:'rev',n:'—',t:'Revisión del proyecto',sub:[['rev','Diagnóstico y modelo']]},
+const USERS=[
+ {id:'u1',nombre:'Laura Méndez',rol:'ADMIN',area:'*'},
+ {id:'u2',nombre:'Carlos Pérez',rol:'COORD_GENERAL',area:'*'},
+ {id:'u3',nombre:'Diana Rojas',rol:'COORD_AREA',area:'HOSPITALIZACION 4 PISO'},
+ {id:'u4',nombre:'Jorge Silva',rol:'AUTORIZADOR',area:'*'},
+ {id:'u5',nombre:'Karen Camargo',rol:'GESTOR_CASOS',area:'*'},
+ {id:'u6',nombre:'Jhonatan Gutiérrez',rol:'GESTOR_CASOS',area:'*'},
+ {id:'u7',nombre:'Sofía Ávila',rol:'PENDIENTE',area:'URGENCIAS'},
 ];
+const ROL_LBL={ADMIN:'Administrador',COORD_GENERAL:'Coordinador general',COORD_AREA:'Coordinador de área',AUTORIZADOR:'Autorizador',GESTOR_CASOS:'Gestor de casos especiales',PENDIENTE:'Pendiente de aprobación'};
 const ROLES=['ADMIN','COORD_GENERAL','COORD_AREA','AUTORIZADOR','GESTOR_CASOS'];
+const P={slaHoras:48,critHoras:72,diasCE:3,diasSoatDoc:5,diasProlongado:30};
+const MODULOS=[
+ {id:'inicio',n:'00',t:'Inicio',sub:[['inicio','Mis alertas y resumen']]},
+ {id:'aut',n:'01',t:'Autorizaciones',sub:[['aut','Bandeja de pendientes'],['aut-mias','Mis trámites'],['aut-hist','Histórico']]},
+ {id:'ing',n:'02',t:'Ingresos abiertos',sub:[['ing','Listado y filtros'],['ing-hosp','Hospitalizados'],['ing-ce','Consulta externa por cerrar'],['ing-conc','Concentración'],['ing-hall','Hallazgos'],['ing-cambios','Cambios entre cargas']]},
+ {id:'casos',n:'03',t:'Casos especiales',sub:[['casos','SOAT definido'],['casos-sindoc','SOAT sin documentos'],['casos-sss','Sin seguridad social y neonatos'],['casos-salio','Salieron sin cierre']]},
+ {id:'med',n:'04',t:'Medición',sub:[['med','Resumen y tendencia'],['med-erp','ERP y EPS'],['med-areas','Áreas y servicios'],['med-gest','Autorizadores y gestores'],['med-patron','Patrones de carga']]},
+ {id:'carga',n:'05',t:'Cargue e informes',sub:[['carga','Cargar ingresos abiertos'],['carga-cal','Calidad del dato'],['carga-inf','Informes y asistente IA']]},
+ {id:'admin',n:'06',t:'Administración',sub:[['admin','Usuarios'],['admin-perm','Permisos por rol'],['admin-param','Reglas y catálogos']]},
+ {id:'rev',n:'—',t:'Revisión',sub:[['rev','Lo que pediste'],['rev-an','Análisis que se conservan'],['rev-hall','Hallazgos en la hoja']]},
+];
 const PERM={
-  inicio:{ADMIN:2,COORD_GENERAL:2,COORD_AREA:2,AUTORIZADOR:2,GESTOR_CASOS:2},
-  aut:{ADMIN:2,COORD_GENERAL:1,COORD_AREA:1,AUTORIZADOR:2,GESTOR_CASOS:1},
-  ing:{ADMIN:2,COORD_GENERAL:1,COORD_AREA:1,AUTORIZADOR:1,GESTOR_CASOS:1},
-  soat:{ADMIN:2,COORD_GENERAL:1,COORD_AREA:0,AUTORIZADOR:1,GESTOR_CASOS:2},
-  sss:{ADMIN:2,COORD_GENERAL:1,COORD_AREA:0,AUTORIZADOR:0,GESTOR_CASOS:2},
-  med:{ADMIN:2,COORD_GENERAL:1,COORD_AREA:0,AUTORIZADOR:0,GESTOR_CASOS:0},
-  carga:{ADMIN:2,COORD_GENERAL:1,COORD_AREA:0,AUTORIZADOR:0,GESTOR_CASOS:0},
-  admin:{ADMIN:2,COORD_GENERAL:0,COORD_AREA:0,AUTORIZADOR:0,GESTOR_CASOS:0},
-  rev:{ADMIN:2,COORD_GENERAL:1,COORD_AREA:1,AUTORIZADOR:1,GESTOR_CASOS:1},
+ inicio:{ADMIN:2,COORD_GENERAL:2,COORD_AREA:2,AUTORIZADOR:2,GESTOR_CASOS:2},
+ aut:{ADMIN:2,COORD_GENERAL:1,COORD_AREA:1,AUTORIZADOR:2,GESTOR_CASOS:1},
+ ing:{ADMIN:2,COORD_GENERAL:1,COORD_AREA:1,AUTORIZADOR:1,GESTOR_CASOS:1},
+ casos:{ADMIN:2,COORD_GENERAL:1,COORD_AREA:1,AUTORIZADOR:0,GESTOR_CASOS:2},
+ med:{ADMIN:2,COORD_GENERAL:1,COORD_AREA:1,AUTORIZADOR:0,GESTOR_CASOS:0},
+ carga:{ADMIN:2,COORD_GENERAL:1,COORD_AREA:0,AUTORIZADOR:0,GESTOR_CASOS:0},
+ admin:{ADMIN:2,COORD_GENERAL:0,COORD_AREA:0,AUTORIZADOR:0,GESTOR_CASOS:0},
+ rev:{ADMIN:2,COORD_GENERAL:1,COORD_AREA:1,AUTORIZADOR:1,GESTOR_CASOS:1},
 };
 const PERM_LBL=['Sin acceso','Consulta','Gestión'];
 
-/* =========================================================
-   ESTADO DE LA INTERFAZ
-   ========================================================= */
-const S={user:USERS[0],view:'inicio',f:{},sort:{},page:{},read:new Set()};
-const can = (mod,lvl=1) => (PERM[mod]?.[S.user.rol]||0) >= lvl;
-const enMiArea = area => S.user.area==='*' || S.user.area===area;
-const ingVisibles = () => INGRESOS.filter(x=>enMiArea(x.area));
-const autVisibles = () => AUTS.filter(a=>enMiArea(a.area));
-
-/* Alertas por usuario (motor de reglas) */
-function alertasDe(u){
-  const out=[];
-  const misAut = AUTS.filter(a=>a.gestor===u.nombre && abiertaAut(a));
-  if(u.rol==='AUTORIZADOR'){
-    const venc = misAut.filter(a=>horasAut(a)>PARAM.critHoras);
-    const riesgo = misAut.filter(a=>horasAut(a)>PARAM.slaHoras && horasAut(a)<=PARAM.critHoras);
-    if(venc.length) out.push({id:'a-venc',sev:'crit',t:`Tienes ${venc.length} trámites con más de ${PARAM.critHoras} h sin respuesta`,d:'Más antiguo: '+venc.sort((a,b)=>horasAut(b)-horasAut(a))[0].id+' · '+venc[0].erp,go:'aut-mias'});
-    if(riesgo.length) out.push({id:'a-riesgo',sev:'warn',t:`${riesgo.length} trámites superan la meta de ${PARAM.slaHoras} h`,d:'Haz seguimiento con la EPS antes de que pasen a crítico.',go:'aut-mias'});
-    const sinRad = misAut.filter(a=>a.estado==='SOLICITADA');
-    if(sinRad.length) out.push({id:'a-sinrad',sev:'info',t:`${sinRad.length} solicitudes aún sin radicar`,d:'Regístralas ante la EPS y anota el número de radicado.',go:'aut-mias'});
-  }
+/* ===================== ESTADO, PERMISOS Y ALERTAS ===================== */
+const S={user:USERS[0],view:'inicio',f:{},sort:{},page:{},read:new Set(),medida:'n',dim:'erp'};
+const can=(m,l=1)=>(PERM[m]?.[S.user.rol]||0)>=l;
+const enArea=g=>S.user.area==='*'||S.user.area===g;
+const ingV=()=>INGRESOS.filter(x=>enArea(x.grupo));
+const autV=()=>AUTS.filter(a=>enArea(a.grupo));
+const casosV=()=>CASOS.filter(c=>enArea(c.ref.grupo));
+function alertasDe(u){const out=[];
+  if(u.rol==='AUTORIZADOR'||u.rol==='ADMIN'){
+    const mine=AUTS.filter(a=>abierta(a)&&(u.rol==='ADMIN'||a.gestor===u.nombre)),v=mine.filter(a=>horas(a)>P.critHoras);
+    if(v.length)out.push({id:'a1',sev:'crit',t:`${v.length} trámites con más de ${P.critHoras} h sin respuesta`,d:u.rol==='ADMIN'?'En toda la institución.':'Asignados a ti.',go:u.rol==='ADMIN'?'aut':'aut-mias'});
+    const det=AUTS.filter(a=>a.fuente==='CODIGO');
+    if(det.length)out.push({id:'a2',sev:'warn',t:`${det.length} autorizaciones pendientes solo existen como código en RESPONSABLE`,d:'No tienen trámite en la app y no se miden. Tómalas para registrarlas.',go:'aut'});}
   if(u.rol==='GESTOR_CASOS'||u.rol==='ADMIN'||u.rol==='COORD_GENERAL'){
-    const fs = CASOS.filter(c=>estadoCaso(c)==='FACTURADO_SIN_CIERRE');
-    if(fs.length) out.push({id:'c-fs',sev:'crit',t:`${fs.length} casos especiales salieron de ingresos abiertos sin cierre`,d:'Carga el soporte (factura o pagador) y cierra cada caso para que no quede la trazabilidad incompleta.',go: fs.some(c=>c.grupo==='SOAT')?'soat':'sss-fact'});
-    const sd = CASOS.filter(c=>c.grupo==='SOAT' && c.ref.cat==='SOAT_SIN_DOC' && c.ref.enCargaActual && diasAbierto(c.ref)>PARAM.diasSoatDoc);
-    if(sd.length) out.push({id:'c-sd',sev:'warn',t:`${sd.length} accidentes de tránsito llevan más de ${PARAM.diasSoatDoc} días sin documentos`,d:'Sin FURIPS ni póliza no se puede facturar al SOAT ni a ADRES.',go:'soat-sindoc'});
-    const pa = CASOS.filter(c=>estadoCaso(c)==='PAGADOR_ASIGNADO');
-    if(pa.length) out.push({id:'c-pa',sev:'info',t:`${pa.length} casos cambiaron a pagador asignado desde la última carga`,d:'Revisa que el contrato quedó bien asignado.',go:'soat-cambio'});
-  }
+    const mine=CASOS.filter(c=>u.rol!=='GESTOR_CASOS'||c.gestor===u.nombre||!c.gestor);
+    const s=mine.filter(c=>estadoCaso(c)==='SALIO_SIN_CIERRE');
+    if(s.length)out.push({id:'c1',sev:'crit',t:`${s.length} casos salieron de ingresos abiertos sin cierre`,d:'Carga el soporte (factura o pagador) y cierra cada caso.',go:'casos-salio'});
+    const sinG=CASOS.filter(c=>!c.gestor&&!['CERRADO','SALIO_SIN_CIERRE'].includes(estadoCaso(c)));
+    if(sinG.length)out.push({id:'c2',sev:'warn',t:`${sinG.length} casos especiales sin gestor asignado`,d:'Sin gestor no hay responsable ni fecha de compromiso.',go:'casos'});
+    const venc=mine.filter(c=>c.fCompromiso&&c.fCompromiso<HOY&&estadoCaso(c)!=='CERRADO');
+    if(venc.length)out.push({id:'c3',sev:'warn',t:`${venc.length} compromisos vencidos`,d:'La próxima acción pasó su fecha.',go:'casos'});
+    const sd=CASOS.filter(c=>c.bandeja==='SOAT_SIN_DOC'&&c.ref.enActual&&dias(c.ref)>P.diasSoatDoc);
+    if(sd.length)out.push({id:'c4',sev:'info',t:`${sd.length} accidentes llevan más de ${P.diasSoatDoc} días sin documentos`,d:'Sin FURIPS ni póliza no se puede cobrar.',go:'casos-sindoc'});}
   if(u.rol==='COORD_AREA'||u.rol==='ADMIN'||u.rol==='COORD_GENERAL'){
-    const scope = INGRESOS.filter(x=>x.enCargaActual && (u.area==='*'||x.area===u.area));
-    const ce = scope.filter(x=>situacion(x)==='CE' && diasAbierto(x)>PARAM.diasCE);
-    if(ce.length) out.push({id:'i-ce',sev:'warn',t:`${ce.length} atenciones de consulta externa superan ${PARAM.diasCE} días sin cerrar`,d:'No llevan egreso, pero deben cerrarse para poder facturar.',go:'ing-ce'});
-    const cnl = scope.filter(x=>situacion(x)==='CAMA_NO_LIBERADA');
-    if(cnl.length) out.push({id:'i-cnl',sev:'crit',t:`${cnl.length} pacientes egresados siguen con cama asignada`,d:'La cama no se liberó o el ingreso no se cerró.',go:'ing'});
-    const hp = scope.filter(x=>situacion(x)==='HOSPITALIZADO' && x.autPend>0);
-    if(hp.length) out.push({id:'i-hp',sev:'info',t:`${hp.length} hospitalizados tienen autorizaciones pendientes`,d:u.area==='*'?'Todas las áreas':u.area,go:'ing-hosp'});
-  }
-  if(u.rol==='ADMIN'){
-    const p = USERS.filter(x=>x.rol==='PENDIENTE');
-    if(p.length) out.push({id:'u-pend',sev:'info',t:`${p.length} solicitud de registro esperando aprobación`,d:p.map(x=>x.nombre).join(', '),go:'admin'});
-  }
-  return out;
-}
+    const sc=INGRESOS.filter(x=>x.enActual&&(u.area==='*'||x.grupo===u.area));
+    const ce=sc.filter(x=>situacion(x)==='CE'&&dias(x)>P.diasCE);
+    if(ce.length)out.push({id:'i1',sev:'warn',t:`${ce.length} atenciones de consulta externa superan ${P.diasCE} días sin cerrar`,d:'No llevan egreso, pero deben cerrarse para facturar.',go:'ing-ce'});
+    const cn=sc.filter(x=>situacion(x)==='CAMA_NO_LIBERADA');
+    if(cn.length)out.push({id:'i2',sev:'crit',t:`${cn.length} pacientes egresados siguen con cama asignada`,d:'Liberar la cama o cerrar el ingreso.',go:'ing'});}
+  if(u.rol==='ADMIN'){const p=USERS.filter(x=>x.rol==='PENDIENTE');if(p.length)out.push({id:'u1',sev:'info',t:`${p.length} solicitud de registro por aprobar`,d:p.map(x=>x.nombre).join(', '),go:'admin'})}
+  return out}
 
-/* =========================================================
-   NAVEGACIÓN
-   ========================================================= */
-const $ = s => document.querySelector(s);
-function modOf(view){return MODULOS.find(m=>m.sub.some(s=>s[0]===view))||MODULOS[0]}
-function renderUserSel(){
-  $('#userSel').innerHTML = USERS.filter(u=>u.rol!=='PENDIENTE').map(u=>`<option value="${u.id}" ${u===S.user?'selected':''}>${esc(u.nombre)} · ${ROL_LBL[u.rol]}</option>`).join('');
-}
-function renderNav(){
-  const al = alertasDe(S.user).filter(a=>!S.read.has(a.id));
-  const cur = modOf(S.view).id;
-  $('#nav').innerHTML = MODULOS.filter(m=>can(m.id)).map(m=>{
-    let cnt='';
-    if(m.id==='inicio' && al.length) cnt=`<span class="cnt">${al.length}</span>`;
-    if(m.id==='admin'){const p=USERS.filter(u=>u.rol==='PENDIENTE').length;if(p)cnt=`<span class="cnt">${p}</span>`}
-    return `<div class="nav-item"><button class="nav-btn ${cur===m.id?'on':''}" data-mod="${m.id}" aria-haspopup="${m.sub.length>1}"><span class="n">${m.n}</span>${m.t}${cnt}</button></div>`}).join('');
-  const dot=$('#bellDot'); dot.hidden=!al.length; dot.textContent=al.length; dot.classList.toggle('pulse',al.some(a=>a.sev==='crit'));
-}
-let dropEl=null, dropTimer=null;
-function closeDrop(){if(dropEl){dropEl.remove();dropEl=null}}
-function openDrop(btn){
-  const m = MODULOS.find(x=>x.id===btn.dataset.mod);
-  closeDrop();
-  if(m.sub.length<2) return;
-  const r = btn.getBoundingClientRect();
-  dropEl = document.createElement('div'); dropEl.className='drop';
-  dropEl.style.top=(r.bottom+4)+'px'; dropEl.style.left=Math.max(8,Math.min(r.left, innerWidth-250))+'px';
-  dropEl.innerHTML = m.sub.map(s=>`<button data-go="${s[0]}">${s[1]}</button>`).join('');
-  dropEl.addEventListener('mouseenter',()=>clearTimeout(dropTimer));
-  dropEl.addEventListener('mouseleave',()=>{dropTimer=setTimeout(closeDrop,200)});
-  document.body.appendChild(dropEl);
-}
-$('#nav').addEventListener('mouseover',e=>{const b=e.target.closest('.nav-btn');if(b&&matchMedia('(hover:hover)').matches){clearTimeout(dropTimer);openDrop(b)}});
-$('#nav').addEventListener('mouseleave',()=>{dropTimer=setTimeout(closeDrop,250)});
+/* ===================== NAVEGACIÓN ===================== */
+const $=s=>document.querySelector(s);
+const modOf=v=>MODULOS.find(m=>m.sub.some(s=>s[0]===v))||MODULOS[0];
+function renderUserSel(){$('#userSel').innerHTML=USERS.filter(u=>u.rol!=='PENDIENTE').map(u=>`<option value="${u.id}" ${u===S.user?'selected':''}>${esc(u.nombre)} · ${ROL_LBL[u.rol]}</option>`).join('')}
+function renderNav(){const al=alertasDe(S.user).filter(a=>!S.read.has(a.id)),cur=modOf(S.view).id;
+  $('#nav').innerHTML=MODULOS.filter(m=>can(m.id)).map(m=>{let c='';
+    if(m.id==='inicio'&&al.length)c=`<span class="cnt">${al.length}</span>`;
+    if(m.id==='casos'){const n=casosV().filter(x=>estadoCaso(x)==='SALIO_SIN_CIERRE').length;if(n)c=`<span class="cnt">${n}</span>`}
+    return `<button class="nav-btn ${cur===m.id?'on':''}" data-mod="${m.id}"><span class="n">${m.n}</span>${m.t}${c}</button>`}).join('');
+  const d=$('#bellDot');d.hidden=!al.length;d.textContent=al.length;d.classList.toggle('pulse',al.some(a=>a.sev==='crit'))}
+let dropEl=null,dropT=null;
+const closeDrop=()=>{if(dropEl){dropEl.remove();dropEl=null}};
+function openDrop(b){const m=MODULOS.find(x=>x.id===b.dataset.mod);closeDrop();if(m.sub.length<2)return;const r=b.getBoundingClientRect();
+  dropEl=document.createElement('div');dropEl.className='drop';dropEl.style.top=(r.bottom+4)+'px';dropEl.style.left=Math.max(8,Math.min(r.left,innerWidth-260))+'px';
+  dropEl.innerHTML=m.sub.map(s=>`<button data-go="${s[0]}">${s[1]}</button>`).join('');
+  dropEl.onmouseenter=()=>clearTimeout(dropT);dropEl.onmouseleave=()=>{dropT=setTimeout(closeDrop,200)};document.body.appendChild(dropEl)}
+$('#nav').addEventListener('mouseover',e=>{const b=e.target.closest('.nav-btn');if(b&&matchMedia('(hover:hover)').matches){clearTimeout(dropT);openDrop(b)}});
+$('#nav').addEventListener('mouseleave',()=>{dropT=setTimeout(closeDrop,250)});
 $('#nav').addEventListener('click',e=>{const b=e.target.closest('.nav-btn');if(!b)return;const m=MODULOS.find(x=>x.id===b.dataset.mod);
-  if(m.sub.length>1 && !matchMedia('(hover:hover)').matches && !dropEl){openDrop(b);return}
-  closeDrop();go(m.sub[0][0])});
+  if(m.sub.length>1&&!matchMedia('(hover:hover)').matches&&!dropEl){openDrop(b);return}closeDrop();go(m.sub[0][0])});
 document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g){e.preventDefault();closeDrop();go(g.dataset.go);return}
-  if(dropEl && !e.target.closest('.drop') && !e.target.closest('.nav-btn'))closeDrop()});
-$('#bellBtn').addEventListener('click',()=>go('inicio'));
-$('#userSel').addEventListener('change',e=>{S.user=USERS.find(u=>u.id===e.target.value);S.f={};toast('Ahora ves la plataforma como '+S.user.nombre+' ('+ROL_LBL[S.user.rol]+')');
-  if(!can(modOf(S.view).id)) S.view='inicio'; render()});
-function go(v){$('#layer').innerHTML='';S.view=v; try{history.replaceState(null,'','#'+v)}catch(e){location.hash=v} render(); scrollTo({top:0,behavior:'smooth'})}
-addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(v&&v!==S.view&&MODULOS.some(m=>m.sub.some(s=>s[0]===v))){S.view=v;render()}});
+  if(dropEl&&!e.target.closest('.drop')&&!e.target.closest('.nav-btn'))closeDrop()});
+$('#bellBtn').onclick=()=>go('inicio');
+$('#userSel').onchange=e=>{S.user=USERS.find(u=>u.id===e.target.value);S.f={};toast('Ahora ves la plataforma como '+S.user.nombre+' ('+ROL_LBL[S.user.rol]+')');if(!can(modOf(S.view).id))S.view='inicio';$('#layer').innerHTML='';render()};
+function go(v){$('#layer').innerHTML='';S.view=v;try{history.replaceState(null,'','#'+v)}catch(e){}render();scrollTo({top:0,behavior:'smooth'})}
+addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(V[v]&&v!==S.view){S.view=v;render()}});
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;$('#toasts').appendChild(t);setTimeout(()=>t.remove(),4200)}
 
-function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;$('#toasts').appendChild(t);setTimeout(()=>t.remove(),4200)}
-
-/* =========================================================
-   UTILIDADES DE INTERFAZ
-   ========================================================= */
+/* ===================== UTILIDADES ===================== */
 const charts={};
-function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
-function chart(id,cfg){
-  if(typeof Chart==='undefined'){const el=document.getElementById(id);if(el)el.parentElement.innerHTML='<div class="empty">Los gráficos necesitan conexión a internet.</div>';return}
-  if(charts[id]) charts[id].destroy();
-  const el=document.getElementById(id); if(!el) return;
-  const fg=css('--muted'), grid=css('--line');
-  Chart.defaults.font.family='IBM Plex Sans, system-ui, sans-serif'; Chart.defaults.color=fg;
-  cfg.options = Object.assign({responsive:true,maintainAspectRatio:false,animation:{duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:700},
-    plugins:{legend:{labels:{boxWidth:10,boxHeight:10,usePointStyle:true}},tooltip:{backgroundColor:css('--ink'),padding:10,cornerRadius:8}}},cfg.options||{});
-  if(cfg.type!=='doughnut'){
-    cfg.options.scales = cfg.options.scales || {};
-    for(const ax of ['x','y']){cfg.options.scales[ax]=Object.assign({grid:{color:grid,drawTicks:false},border:{display:false},ticks:{padding:6}},cfg.options.scales[ax]||{})}
-  }
-  charts[id]=new Chart(el,cfg);
-}
-const PAL=()=>[css('--accent'),css('--accent-2'),css('--warn'),css('--violet'),css('--crit'),css('--ok'),'#64748b','#0ea5e9'];
-function countUp(root){
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  root.querySelectorAll('[data-count]').forEach(el=>{
-    const end=+el.dataset.count, fmt=el.dataset.fmt;
-    const f = v => fmt==='m'?moneyM(v):fmt==='h'?Math.round(v)+' h':fmt==='p'?Math.round(v)+'%':Math.round(v).toLocaleString('es-CO');
-    if(reduce){el.textContent=f(end);return}
-    const t0=performance.now();
-    const step=t=>{const k=Math.min(1,(t-t0)/700);el.textContent=f(end*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(step)};
-    el.textContent=f(0); requestAnimationFrame(step);
-  });
-}
-function kpi(lbl,val,foot,color,goView,fmt){
-  return `<button class="kpi" style="--k:var(${color})" ${goView?`data-go="${goView}"`:''}><div class="lbl">${lbl}</div><div class="val" data-count="${val}" data-fmt="${fmt||''}">${val}</div><div class="foot">${foot}</div></button>`;
-}
-function groupCount(arr,key,valFn){const m=new Map();arr.forEach(x=>{const k=typeof key==='function'?key(x):x[key];m.set(k,(m.get(k)||0)+(valFn?valFn(x):1))});return [...m.entries()].sort((a,b)=>b[1]-a[1])}
-function opts(arr,sel,todos='Todos'){return `<option value="">${todos}</option>`+arr.map(v=>`<option ${v===sel?'selected':''}>${esc(v)}</option>`).join('')}
-const uniq = a => [...new Set(a)].filter(Boolean).sort();
-
-/* Tabla genérica con orden y paginación */
-function table(key,cols,rows,onRow){
-  const st=S.sort[key]||{}; const pg=S.page[key]||0; const per=15;
-  if(st.c!=null){const c=cols[st.c];rows=[...rows].sort((a,b)=>{const va=c.s?c.s(a):'',vb=c.s?c.s(b):'';return (va>vb?1:va<vb?-1:0)*(st.d||1)})}
-  const total=rows.length, pages=Math.max(1,Math.ceil(total/per)), p=Math.min(pg,pages-1);
-  const slice=rows.slice(p*per,p*per+per);
-  const head=cols.map((c,i)=>`<th data-sort="${key}:${i}">${c.h}${st.c===i?(st.d>0?' ▲':' ▼'):''}</th>`).join('');
-  const body=slice.length?slice.map((r,i)=>`<tr class="row" data-row="${key}:${p*per+i}">${cols.map(c=>`<td class="${c.cl||''}">${c.v(r)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${cols.length}"><div class="empty">No hay registros con estos filtros.</div></td></tr>`;
-  TBL[key]={rows,onRow};
-  return `<div class="tbl-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
-  <div class="pager"><span class="num">${total} registros</span><span>
-  <button class="btn ghost sm" data-pg="${key}:${p-1}" ${p===0?'disabled':''}>Anterior</button>
-  <span class="num">&nbsp;${p+1} / ${pages}&nbsp;</span>
-  <button class="btn ghost sm" data-pg="${key}:${p+1}" ${p>=pages-1?'disabled':''}>Siguiente</button></span></div></div>`;
-}
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const SER=()=>['--s1','--s2','--s3','--s4','--s5'].map(css);
+const RAMP=()=>['--q1','--q2','--q3','--q4','--q5','--q6'].map(css);
+function chart(id,cfg){const el=document.getElementById(id);if(!el)return;
+  if(typeof Chart==='undefined'){el.parentElement.innerHTML='<div class="empty">Los gráficos necesitan conexión a internet.</div>';return}
+  if(charts[id])charts[id].destroy();
+  Chart.defaults.font.family='IBM Plex Sans, system-ui, sans-serif';Chart.defaults.color=css('--muted');
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  cfg.options=Object.assign({responsive:true,maintainAspectRatio:false,animation:{duration:reduce?0:650},interaction:{mode:'nearest',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{boxWidth:10,boxHeight:10,usePointStyle:true}},tooltip:{backgroundColor:css('--ink'),padding:10,cornerRadius:8}}},cfg.options||{});
+  if(cfg.options.plugins&&!cfg.options.plugins.tooltip)cfg.options.plugins.tooltip={backgroundColor:css('--ink'),padding:10,cornerRadius:8};
+  if(cfg.type!=='doughnut'){cfg.options.scales=cfg.options.scales||{};for(const ax of['x','y'])cfg.options.scales[ax]=Object.assign({grid:{color:css('--line'),drawTicks:false},border:{display:false},ticks:{padding:6}},cfg.options.scales[ax]||{})}
+  (cfg.data.datasets||[]).forEach(d=>{const t=d.type||cfg.type;if(t==='bar'){d.borderRadius=d.borderRadius??4;d.borderSkipped=d.borderSkipped??'start';d.borderWidth=d.borderWidth??0}
+    if(t==='line'){d.borderWidth=d.borderWidth??2;d.pointRadius=d.pointRadius??3;d.pointHoverRadius=5}});
+  charts[id]=new Chart(el,cfg)}
+function countUp(root){const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  root.querySelectorAll('[data-count]').forEach(el=>{const end=+el.dataset.count,f0=el.dataset.fmt;
+    const f=v=>f0==='m'?moneyM(v):f0==='h'?Math.round(v)+' h':f0==='p'?Math.round(v)+'%':Math.round(v).toLocaleString('es-CO');
+    if(reduce){el.textContent=f(end);return}const t0=performance.now();
+    const st=t=>{const k=Math.min(1,(t-t0)/700);el.textContent=f(end*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(st)};el.textContent=f(0);requestAnimationFrame(st)})}
+function kpi(lbl,val,foot,color,goV,fmt,delta){
+  const d=delta==null?'':`<span class="delta" style="color:var(${delta.good?'--ok':'--crit'})">${delta.v>0?'▲':delta.v<0?'▼':'='} ${Math.abs(delta.v)}${delta.u||''}</span> `;
+  return `<button class="kpi" style="--k:var(${color})" ${goV?`data-go="${goV}"`:''}><div class="lbl">${lbl}</div><div class="val" data-count="${val}" data-fmt="${fmt||''}">${val}</div><div class="foot">${d}${foot}</div></button>`}
+function groupBy(arr,key){const m=new Map();arr.forEach(x=>{const k=typeof key==='function'?key(x):x[key];if(!m.has(k))m.set(k,[]);m.get(k).push(x)});return m}
+function opts(arr,s,label){return `<option value="">${label}</option>`+arr.map(v=>`<option ${v===s?'selected':''}>${esc(v)}</option>`).join('')}
+const sel=(f,arr,label)=>`<select data-f="${f}" aria-label="${label}">${opts(arr,S.f[f],label)}</select>`;
+function activeFilters(keys){const on=keys.filter(k=>S.f[k[0]]);if(!on.length)return'';
+  return `<div class="active-f">${on.map(k=>`<button data-clr="${k[0]}">${k[1]}: ${esc(S.f[k[0]])} ✕</button>`).join('')}<button data-clr="*${keys.map(k=>k[0]).join(',')}">Quitar todos</button></div>`}
 const TBL={};
+function table(key,cols,rows,onRow,opt={}){const st=S.sort[key]||{},per=opt.per||15;
+  if(st.c!=null){const c=cols[st.c];rows=[...rows].sort((a,b)=>{const va=c.s?c.s(a):'',vb=c.s?c.s(b):'';return(va>vb?1:va<vb?-1:0)*(st.d||1)})}
+  const tot=rows.length,pages=Math.max(1,Math.ceil(tot/per)),p=Math.min(S.page[key]||0,pages-1),sl=rows.slice(p*per,p*per+per);TBL[key]={rows,onRow};
+  return `<div class="tbl-wrap"><table><thead><tr>${cols.map((c,i)=>`<th class="${c.cl||''}" data-sort="${key}:${i}">${c.h}${st.c===i?(st.d>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>
+  ${sl.length?sl.map((r,i)=>`<tr class="${onRow?'row':''} ${r._sub?'sub':''}" ${onRow?`data-row="${key}:${p*per+i}"`:''}>${cols.map(c=>`<td class="${c.cl||''}">${c.v(r)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${cols.length}"><div class="empty">No hay registros con estos filtros.</div></td></tr>`}
+  </tbody></table><div class="pager"><span class="num">${tot} registros</span>${tot>per?`<span><button class="btn ghost sm" data-pg="${key}:${p-1}" ${p===0?'disabled':''}>Anterior</button><span class="num">&nbsp;${p+1} / ${pages}&nbsp;</span><button class="btn ghost sm" data-pg="${key}:${p+1}" ${p>=pages-1?'disabled':''}>Siguiente</button></span>`:''}</div></div>`}
 document.addEventListener('click',e=>{
-  const th=e.target.closest('[data-sort]'); if(th){const [k,i]=th.dataset.sort.split(':');const st=S.sort[k]||{};S.sort[k]={c:+i,d:st.c===+i?-(st.d||1):1};render(false);return}
-  const pg=e.target.closest('[data-pg]'); if(pg){const [k,p]=pg.dataset.pg.split(':');S.page[k]=+p;render(false);return}
-  const tr=e.target.closest('[data-row]'); if(tr){const [k,i]=tr.dataset.row.split(':');const t=TBL[k];if(t&&t.onRow)t.onRow(t.rows[+i]);return}
-  const ch=e.target.closest('[data-chip]'); if(ch){const [k,v]=ch.dataset.chip.split('=');S.f[k]=S.f[k]===v?'':v;resetPages();render(false);return}
-});
-document.addEventListener('change',e=>{const f=e.target.closest('[data-f]');if(f){S.f[f.dataset.f]=f.value;resetPages();render(false)}});
-let searchT; document.addEventListener('input',e=>{const f=e.target.closest('[data-fs]');if(f){clearTimeout(searchT);searchT=setTimeout(()=>{S.f[f.dataset.fs]=f.value;resetPages();render(false);const el=document.querySelector(`[data-fs="${f.dataset.fs}"]`);if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}},250)}});
-function resetPages(){S.page={}}
-
-function slaPill(a){
-  if(!abiertaAut(a)) return a.estado==='AUTORIZADA'?`<span class="pill p-ok">${Math.round(horasAut(a))} h</span>`:`<span class="pill p-mut">${Math.round(horasAut(a))} h</span>`;
-  const h=horasAut(a);
-  return h>PARAM.critHoras?`<span class="pill p-crit">● ${Math.round(h)} h</span>`:h>PARAM.slaHoras?`<span class="pill p-warn">● ${Math.round(h)} h</span>`:`<span class="pill p-ok">● ${Math.round(h)} h</span>`;
-}
-function estPill(e){return `<span class="pill ${({SOLICITADA:'p-mut',RADICADA:'p-info','EN TRAMITE':'p-vio',AUTORIZADA:'p-ok',NEGADA:'p-crit'})[e]}">${e}</span>`}
-function head(crumb,title,sub,extra=''){return `<div class="head"><div><div class="crumb">${crumb}</div><h1>${title}</h1>${sub?`<p class="sub">${sub}</p>`:''}</div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${extra}<span class="sample">Datos de ejemplo</span></div></div>`}
+  const th=e.target.closest('[data-sort]');if(th){const[k,i]=th.dataset.sort.split(':');const st=S.sort[k]||{};S.sort[k]={c:+i,d:st.c===+i?-(st.d||1):-1};render(false);return}
+  const pg=e.target.closest('[data-pg]');if(pg){const[k,p]=pg.dataset.pg.split(':');S.page[k]=+p;render(false);return}
+  const tr=e.target.closest('[data-row]');if(tr){const[k,i]=tr.dataset.row.split(':');const t=TBL[k];if(t?.onRow)t.onRow(t.rows[+i]);return}
+  const ch=e.target.closest('[data-chip]');if(ch){const[k,v]=ch.dataset.chip.split('=');S.f[k]=S.f[k]===v?'':v;S.page={};render(false);return}
+  const cl=e.target.closest('[data-clr]');if(cl){const k=cl.dataset.clr;if(k[0]==='*')k.slice(1).split(',').forEach(x=>S.f[x]='');else S.f[k]='';S.page={};render(false);return}
+  const sg=e.target.closest('[data-set]');if(sg){const[k,v]=sg.dataset.set.split('=');S[k]=v;render(false);return}
+  const rd=e.target.closest('[data-read]');if(rd){S.read.add(rd.dataset.read);render(false)}});
+document.addEventListener('change',e=>{const f=e.target.closest('[data-f]');if(f){S.f[f.dataset.f]=f.value;S.page={};render(false)}});
+let sT;document.addEventListener('input',e=>{const f=e.target.closest('[data-fs]');if(!f)return;clearTimeout(sT);sT=setTimeout(()=>{S.f[f.dataset.fs]=f.value;S.page={};render(false);const el=document.querySelector(`[data-fs="${f.dataset.fs}"]`);if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}},250)});
+function slaPill(a){const h=horas(a);
+  if(!abierta(a))return `<span class="pill ${a.estado==='AUTORIZADA'?(h<=P.slaHoras?'p-ok':'p-warn'):'p-mut'}">${Math.round(h)} h</span>`;
+  return h>P.critHoras?`<span class="pill p-crit">● ${Math.round(h)} h · crítica</span>`:h>P.slaHoras?`<span class="pill p-warn">● ${Math.round(h)} h · sobre meta</span>`:`<span class="pill p-ok">● ${Math.round(h)} h</span>`}
+const estPill=e=>`<span class="pill ${({SOLICITADA:'p-mut',RADICADA:'p-info','EN TRAMITE':'p-vio',AUTORIZADA:'p-ok',NEGADA:'p-crit'})[e]}">${e}</span>`;
+const fuentePill=a=>a.fuente==='CODIGO'?`<span class="pill p-warn" title="Detectada en la columna RESPONSABLE">Código ${esc(a.codigo)}</span>`:`<span class="pill p-acc">Registrada</span>`;
+function head(crumb,title,sub,extra=''){return `<div class="head"><div><div class="crumb">${crumb}</div><h1>${title}</h1>${sub?`<p class="sub">${sub}</p>`:''}</div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${extra}<span class="sample">Datos de ejemplo · estructura de tu hoja</span></div></div>`}
 function subtabs(){const m=modOf(S.view);if(m.sub.length<2)return'';return `<div class="tabs">${m.sub.map(s=>`<button class="tab ${S.view===s[0]?'on':''}" data-go="${s[0]}">${s[1]}</button>`).join('')}</div>`}
-function locked(){return `<div class="card lock"><h2>Este módulo no está habilitado para tu rol</h2><p class="sub" style="margin:0 auto">${ROL_LBL[S.user.rol]} no tiene permiso aquí. El administrador lo cambia en Administración › Permisos por rol.</p></div>`}
-
-/* =========================================================
-   VISTAS
-   ========================================================= */
-const V={};
-
-V.inicio=()=>{
-  const al=alertasDe(S.user);
-  const ings=ingVisibles().filter(x=>x.enCargaActual);
-  const auts=autVisibles();
-  const pend=auts.filter(abiertaAut);
-  const hosp=ings.filter(x=>situacion(x)==='HOSPITALIZADO');
-  const ce=ings.filter(x=>situacion(x)==='CE'&&diasAbierto(x)>PARAM.diasCE);
-  const casos=CASOS.filter(c=>enMiArea(c.ref.area)&&estadoCaso(c)!=='CERRADO');
-  return head('Inicio','Hola, '+esc(S.user.nombre.split(' ')[0]),`${ROL_LBL[S.user.rol]}${S.user.area!=='*'?' · '+S.user.area:''} · corte ${fmtDT(HOY)}`)+
-  `<div class="grid g-kpi" style="margin-bottom:14px">
-    ${can('aut')?kpi('Autorizaciones pendientes',pend.length,pend.filter(a=>horasAut(a)>PARAM.critHoras).length+' críticas (+'+PARAM.critHoras+' h)','--crit','aut'):''}
-    ${can('ing')?kpi('Ingresos abiertos',ings.length,'Valor '+moneyM(ings.reduce((s,x)=>s+x.valor,0)),'--accent','ing'):''}
-    ${can('ing')?kpi('Hospitalizados',hosp.length,hosp.filter(x=>x.autPend).length+' con autorización pendiente','--info','ing-hosp'):''}
-    ${can('ing')?kpi('Consulta externa por cerrar',ce.length,'más de '+PARAM.diasCE+' días abiertas','--violet','ing-ce'):''}
-    ${can('soat')||can('sss')?kpi('Casos especiales abiertos',casos.length,casos.filter(c=>estadoCaso(c)==='FACTURADO_SIN_CIERRE').length+' salieron sin cierre','--warn',can('soat')?'soat':'sss'):''}
-  </div>
-  <div class="grid g-2">
-    <div class="card"><h3>Mis alertas</h3><p class="hint">Se generan con las reglas del sistema para tu rol. Haz clic para ir al caso.</p>
-      <div class="alerts">${al.length?al.map((a,i)=>`<div class="alert ${a.sev} ${S.read.has(a.id)?'read':''}" style="animation-delay:${i*60}ms">
-        <span class="sev"></span><div><div class="t">${esc(a.t)}</div><div class="d">${esc(a.d)}</div></div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn sm" data-go="${a.go}">Ver</button>${S.read.has(a.id)?'':`<button class="btn ghost sm" data-read="${a.id}">Leída</button>`}</div></div>`).join(''):'<div class="empty">Sin alertas. Todo al día.</div>'}</div>
-    </div>
-    <div class="card"><h3>Solicitudes vs. autorizadas · últimas 8 semanas</h3><p class="hint">Si la línea de autorizadas queda por debajo, la bandeja está creciendo.</p><div class="chart-box"><canvas id="cInicio"></canvas></div></div>
-  </div>`;
-};
-V.inicio.after=()=>{
-  const weeks=[...Array(8)].map((_,i)=>new Date(HOY-(7-i)*7*DAY));
-  const lbl=weeks.map(d=>'Sem '+fmtD(d));
-  const auts=autVisibles();
-  const sol=weeks.map(w=>auts.filter(a=>a.fSol<=w&&a.fSol>w-7*DAY).length);
-  const aut=weeks.map(w=>auts.filter(a=>a.estado==='AUTORIZADA'&&a.fResp<=w&&a.fResp>w-7*DAY).length);
-  chart('cInicio',{type:'line',data:{labels:lbl,datasets:[
-    {label:'Solicitadas',data:sol,borderColor:css('--accent-2'),backgroundColor:css('--accent-2')+'22',fill:true,tension:.35,pointRadius:3},
-    {label:'Autorizadas',data:aut,borderColor:css('--accent'),backgroundColor:'transparent',tension:.35,pointRadius:3,borderDash:[5,4]}]}});
-};
-document.addEventListener('click',e=>{const r=e.target.closest('[data-read]');if(r){S.read.add(r.dataset.read);render(false)}});
-
-/* ---------- 01 Autorizaciones ---------- */
-function vAut(scope){
-  if(!can('aut')) return locked();
-  let rows=autVisibles();
-  if(scope==='mias') rows=rows.filter(a=>a.gestor===S.user.nombre);
-  rows = scope==='hist' ? rows.filter(a=>!abiertaAut(a)) : rows.filter(abiertaAut);
-  const f=S.f;
-  const base=rows;
-  if(f.aEst) rows=rows.filter(a=>a.estado===f.aEst);
-  if(f.aErp) rows=rows.filter(a=>a.erp===f.aErp);
-  if(f.aArea) rows=rows.filter(a=>a.area===f.aArea);
-  if(f.aSla) rows=rows.filter(a=>f.aSla==='crit'?horasAut(a)>PARAM.critHoras:f.aSla==='riesgo'?horasAut(a)>PARAM.slaHoras&&horasAut(a)<=PARAM.critHoras:horasAut(a)<=PARAM.slaHoras);
-  if(f.aQ){const q=f.aQ.toUpperCase();rows=rows.filter(a=>(a.paciente+a.documento+a.ingreso+a.id+a.servicio).toUpperCase().includes(q))}
-  const crit=base.filter(a=>horasAut(a)>PARAM.critHoras).length, ries=base.filter(a=>horasAut(a)>PARAM.slaHoras&&horasAut(a)<=PARAM.critHoras).length;
-  const t={pend:'Bandeja de pendientes',mias:'Mis trámites',hist:'Histórico de respuestas'}[scope];
-  return head('01 · Autorizaciones',t, scope==='hist'?'Autorizaciones ya respondidas, con el tiempo total de obtención.':'El autorizador gestiona y consulta como lo venía haciendo: abre una fila para ver la bitácora y avanzar el estado.',
-    can('aut',2)&&scope!=='hist'?`<button class="btn" id="nuevaAut">+ Nueva solicitud</button>`:'')+subtabs()+
-  (scope!=='hist'?`<div class="chips">
-    <button class="chip ${f.aSla==='crit'?'on':''}" data-chip="aSla=crit">Críticas <b>${crit}</b></button>
-    <button class="chip ${f.aSla==='riesgo'?'on':''}" data-chip="aSla=riesgo">Sobre la meta <b>${ries}</b></button>
-    <button class="chip ${f.aSla==='ok'?'on':''}" data-chip="aSla=ok">En tiempo <b>${base.length-crit-ries}</b></button></div>`:'')+
-  `<div class="filters">
-    <input type="search" placeholder="Buscar paciente, documento, ingreso o servicio" data-fs="aQ" value="${esc(f.aQ||'')}" aria-label="Buscar">
-    <select data-f="aEst" aria-label="Estado">${opts(uniq(base.map(a=>a.estado)),f.aEst,'Estado')}</select>
-    <select data-f="aErp" aria-label="EPS">${opts(uniq(base.map(a=>a.erp)),f.aErp,'EPS / ERP')}</select>
-    <select data-f="aArea" aria-label="Área">${opts(uniq(base.map(a=>a.area)),f.aArea,'Área')}</select>
-  </div>`+
-  table('aut-'+scope,[
-    {h:'Trámite',v:a=>`<span class="mono">${a.id}</span>`,s:a=>a.id},
-    {h:'Paciente',v:a=>`${esc(a.paciente)}<br><span class="mono" style="color:var(--muted)">${a.documento} · ing ${a.ingreso}</span>`,s:a=>a.paciente},
-    {h:'Servicio',v:a=>esc(a.servicio),s:a=>a.servicio},
-    {h:'EPS',v:a=>esc(a.erp),s:a=>a.erp},
-    {h:'Área',v:a=>esc(a.area),s:a=>a.area},
-    {h:'Estado',v:a=>estPill(a.estado),s:a=>a.estado},
-    {h:'Tiempo',v:slaPill,s:a=>horasAut(a)},
-    {h:'Autorizador',v:a=>esc(a.gestor),s:a=>a.gestor},
-  ],rows,openAut);
-}
-V.aut=()=>vAut('pend'); V['aut-mias']=()=>vAut('mias'); V['aut-hist']=()=>vAut('hist');
-
-function drawer(title,sub,body){
-  $('#layer').innerHTML=`<div class="scrim" data-close></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="dr-h"><div><div class="crumb">${sub}</div><h2>${title}</h2></div><button class="x" data-close aria-label="Cerrar">×</button></div><div class="dr-b">${body}</div></aside>`;
-  $('#layer .x').focus();
-}
+const locked=()=>`<div class="card lock"><h2>Este módulo no está habilitado para tu rol</h2><p class="sub" style="margin:0 auto">El administrador lo habilita en Administración › Permisos por rol.</p></div>`;
+const legend=items=>`<div class="legend">${items.map(i=>`<span><i class="dotl" style="background:${i[1]}"></i>${i[0]}</span>`).join('')}</div>`;
+function drawer(title,sub,body){$('#layer').innerHTML=`<div class="scrim" data-close></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="dr-h"><div><div class="crumb">${sub}</div><h2>${title}</h2></div><button class="x" data-close aria-label="Cerrar">×</button></div><div class="dr-b">${body}</div></aside>`;$('#layer .x').focus()}
 document.addEventListener('click',e=>{if(e.target.closest('[data-close]'))$('#layer').innerHTML=''});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('#layer').innerHTML='';closeDrop()}});
 
-function openAut(a){
-  const idx=ESTADOS_AUT.indexOf(a.estado);
-  const editable=can('aut',2)&&abiertaAut(a)&&(S.user.rol==='ADMIN'||a.gestor===S.user.nombre);
-  const next=ESTADOS_AUT[idx+1];
+/* ===================== VISTAS ===================== */
+const V={};
+
+V.inicio=()=>{const al=alertasDe(S.user),ings=ingV().filter(x=>x.enActual),pend=autV().filter(abierta),cs=casosV().filter(c=>estadoCaso(c)!=='CERRADO'),prev=HIST[HIST.length-2];
+  return head('Inicio','Hola, '+esc(S.user.nombre.split(' ')[0]),`${ROL_LBL[S.user.rol]}${S.user.area!=='*'?' · '+S.user.area:''} · corte ${fmtDT(HOY)}`)+
+  `<div class="grid g-kpi mb">
+   ${can('aut')?kpi('Autorizaciones pendientes',pend.length,pend.filter(a=>horas(a)>P.critHoras).length+' críticas · '+pend.filter(a=>a.fuente==='CODIGO').length+' solo por código','--crit','aut'):''}
+   ${can('ing')?kpi('Ingresos abiertos',ings.length,'vs. carga anterior','--accent','ing',null,{v:ings.length-prev.total,good:ings.length<=prev.total}):''}
+   ${can('ing')?kpi('Valor abierto',ings.reduce((s,x)=>s+x.valor,0),'suma de VALOR','--accent-2','ing-conc','m'):''}
+   ${can('ing')?kpi('Hospitalizados',ings.filter(x=>situacion(x)==='HOSPITALIZADO').length,'cama sin egreso','--info','ing-hosp'):''}
+   ${can('ing')?kpi('Egresados con cama',ings.filter(x=>situacion(x)==='CAMA_NO_LIBERADA').length,'cama sin liberar','--crit','ing'):''}
+   ${can('casos')?kpi('Casos especiales abiertos',cs.length,cs.filter(c=>!c.gestor).length+' sin gestor','--warn','casos'):''}
+  </div>
+  <div class="grid g-2"><div class="card"><h3>Mis alertas</h3><p class="hint">Reglas automáticas según tu rol. “Ver” abre el listado filtrado.</p>
+    <div class="alerts">${al.length?al.map((a,i)=>`<div class="alert ${a.sev} ${S.read.has(a.id)?'read':''}" style="animation-delay:${i*60}ms"><span class="sev"></span><div><div class="t">${esc(a.t)}</div><div class="d">${esc(a.d)}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn sm" data-go="${a.go}">Ver</button>${S.read.has(a.id)?'':`<button class="btn ghost sm" data-read="${a.id}">Leída</button>`}</div></div>`).join(''):'<div class="empty">Sin alertas. Todo al día.</div>'}</div></div>
+   <div class="card"><h3>Ingresos abiertos por carga</h3><p class="hint">Una fotografía por día de carga. Pasa el cursor para ver cada fecha.</p><div class="chart-box"><canvas id="cIni"></canvas></div></div></div>`};
+V.inicio.after=()=>chart('cIni',{type:'line',data:{labels:HIST.map(h=>fmtD(h.f)),datasets:[
+  {label:'Total abiertos',data:HIST.map(h=>h.total),borderColor:css('--s1'),backgroundColor:css('--s1')+'22',fill:true,tension:.3},
+  {label:'Egresados sin cerrar',data:HIST.map(h=>h.egresados),borderColor:css('--s2'),tension:.3},
+  {label:'Más de 30 días',data:HIST.map(h=>h.mas30),borderColor:css('--s3'),tension:.3}]},options:{interaction:{mode:'index',intersect:false}}});
+
+/* ---------- 01 Autorizaciones ---------- */
+function vAut(scope){if(!can('aut'))return locked();
+  let rows=autV();if(scope==='mias')rows=rows.filter(a=>a.gestor===S.user.nombre);
+  rows=scope==='hist'?rows.filter(a=>!abierta(a)):rows.filter(abierta);const baseR=rows,f=S.f;
+  if(f.aFue)rows=rows.filter(a=>a.fuente===f.aFue);if(f.aEst)rows=rows.filter(a=>a.estado===f.aEst);if(f.aErp)rows=rows.filter(a=>a.erp===f.aErp);
+  if(f.aGru)rows=rows.filter(a=>a.grupo===f.aGru);if(f.aGes)rows=rows.filter(a=>a.gestor===f.aGes);
+  if(f.aSla)rows=rows.filter(a=>f.aSla==='crit'?horas(a)>P.critHoras:f.aSla==='riesgo'?horas(a)>P.slaHoras&&horas(a)<=P.critHoras:horas(a)<=P.slaHoras);
+  if(f.aQ){const q=f.aQ.toUpperCase();rows=rows.filter(a=>(a.paciente+a.documento+a.ingreso+a.id+a.servicio).toUpperCase().includes(q))}
+  const cr=baseR.filter(a=>horas(a)>P.critHoras).length,ri=baseR.filter(a=>horas(a)>P.slaHoras&&horas(a)<=P.critHoras).length,cod=baseR.filter(a=>a.fuente==='CODIGO').length;
+  const T={pend:'Bandeja de pendientes',mias:'Mis trámites',hist:'Histórico de respuestas'}[scope];
+  return head('01 · Autorizaciones',T,scope==='hist'?'Trámites respondidos con su tiempo total de obtención.':'El autorizador gestiona y consulta como siempre. Nuevo: también aparecen las pendientes que solo estaban como código en RESPONSABLE, para registrarlas y medirlas.',
+   can('aut',2)&&scope!=='hist'?`<button class="btn" id="nuevaAut">+ Nueva solicitud</button>`:'')+subtabs()+
+  (scope!=='hist'?`<div class="chips"><button class="chip ${f.aSla==='crit'?'on':''}" data-chip="aSla=crit">Críticas <b>${cr}</b></button><button class="chip ${f.aSla==='riesgo'?'on':''}" data-chip="aSla=riesgo">Sobre la meta <b>${ri}</b></button><button class="chip ${f.aSla==='ok'?'on':''}" data-chip="aSla=ok">En tiempo <b>${baseR.length-cr-ri}</b></button><button class="chip ${f.aFue==='CODIGO'?'on':''}" data-chip="aFue=CODIGO">Solo código en RESPONSABLE <b>${cod}</b></button></div>`:'')+
+  `<div class="filters"><input type="search" placeholder="Buscar paciente, documento, ingreso o servicio" data-fs="aQ" value="${esc(f.aQ||'')}" aria-label="Buscar">${sel('aEst',uniq(baseR.map(a=>a.estado)),'Estado')}${sel('aErp',uniq(baseR.map(a=>a.erp)),'ERP')}${sel('aGru',uniq(baseR.map(a=>a.grupo)),'Área')}${sel('aGes',uniq(baseR.map(a=>a.gestor)),'Autorizador')}</div>`+
+  activeFilters([['aEst','Estado'],['aErp','ERP'],['aGru','Área'],['aGes','Autorizador'],['aSla','Tiempo'],['aFue','Fuente']])+
+  table('aut-'+scope,[
+   {h:'Trámite',v:a=>`<span class="mono">${a.id}</span><br>${fuentePill(a)}`,s:a=>a.id},
+   {h:'Paciente',v:a=>`${esc(a.paciente)}<br><span class="mono" style="color:var(--muted)">${a.documento} · ing ${a.ingreso}</span>`,s:a=>a.paciente},
+   {h:'Servicio',v:a=>esc(a.servicio),s:a=>a.servicio},{h:'ERP',v:a=>esc(a.erp),s:a=>a.erp},
+   {h:'Área',v:a=>esc(a.grupo)+(a.ala?'<br><small style="color:var(--muted)">'+esc(a.ala)+'</small>':''),s:a=>a.grupo},
+   {h:'Estado',v:a=>estPill(a.estado),s:a=>a.estado},{h:'Tiempo',v:slaPill,s:horas},{h:'Autorizador',v:a=>esc(a.gestor),s:a=>a.gestor}],rows,openAut)}
+V.aut=()=>vAut('pend');V['aut-mias']=()=>vAut('mias');V['aut-hist']=()=>vAut('hist');
+function openAut(a){const i=ESTADOS_AUT.indexOf(a.estado),ed=can('aut',2)&&abierta(a)&&(S.user.rol==='ADMIN'||a.gestor===S.user.nombre||a.gestor==='Sin asignar'),nx=ESTADOS_AUT[i+1];
   drawer(esc(a.servicio),a.id+' · '+esc(a.erp),`
-    <div class="steps">${ESTADOS_AUT.map((s,i)=>`<div class="step ${a.estado==='NEGADA'?'':i<idx?'done':i===idx?'cur':''}">${s}</div>`).join('')}${a.estado==='NEGADA'?'<div class="step cur" style="background:var(--crit)">NEGADA</div>':''}</div>
-    <div class="kv">
-      <div><small>Paciente</small><span>${esc(a.paciente)}</span></div>
-      <div><small>Documento</small><span class="mono">${a.documento}</span></div>
-      <div><small>Ingreso</small><span class="mono">${a.ingreso}</span></div>
-      <div><small>Área</small><span>${esc(a.area)}</span></div>
-      <div><small>Solicitada</small><span>${fmtDT(a.fSol)}</span></div>
-      <div><small>Tiempo transcurrido</small><span>${slaPill(a)}</span></div>
-      <div><small>Prioridad</small><span>${a.prioridad}</span></div>
-      <div><small>Autorizador</small><span>${esc(a.gestor)}</span></div>
-    </div>
-    <div><h3 style="font-size:14px;margin-bottom:8px">Bitácora</h3><ol class="timeline">${a.hist.map(h=>`<li><div>${esc(h.t)}</div><small>${fmtDT(h.f)} · ${esc(h.u)}</small></li>`).join('')}</ol></div>
-    ${editable?`<div class="card" style="display:grid;gap:8px"><h3>Registrar gestión</h3>
-      <label for="obsAut" class="hint" style="margin:0">Observación (queda en la bitácora)</label>
-      <textarea id="obsAut" placeholder="Ej.: se llamó a la EPS, radicado 55231, responden en 24 h"></textarea>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn" data-adv="${a.id}">${next?'Pasar a '+next:'Guardar'}</button>
-        <button class="btn ghost" data-nota="${a.id}">Solo agregar nota</button>
-        <button class="btn ghost" data-neg="${a.id}" style="color:var(--crit)">Registrar negación</button>
-      </div></div>`:`<p class="hint">${abiertaAut(a)?'Solo lectura: este trámite lo gestiona '+esc(a.gestor)+'.':'Trámite cerrado.'}</p>`}`);
-}
-document.addEventListener('click',e=>{
-  const b=e.target.closest('[data-adv],[data-nota],[data-neg]'); if(!b)return;
-  const id=b.dataset.adv||b.dataset.nota||b.dataset.neg; const a=AUTS.find(x=>x.id===id);
-  const obs=($('#obsAut')?.value||'').trim();
-  if(b.dataset.nota!==undefined && !b.dataset.adv && !b.dataset.neg){if(!obs){toast('Escribe la nota antes de guardarla.');return}a.hist.push({f:new Date(),u:S.user.nombre,t:obs});toast('Nota agregada a la bitácora de '+a.id)}
-  else if(b.dataset.neg){a.estado='NEGADA';a.fResp=new Date();a.hist.push({f:new Date(),u:S.user.nombre,t:'Negada'+(obs?' · '+obs:'')});toast(a.id+' registrada como negada')}
-  else {const n=ESTADOS_AUT[ESTADOS_AUT.indexOf(a.estado)+1]||a.estado;a.estado=n;if(n==='RADICADA')a.fRad=new Date();if(n==='AUTORIZADA')a.fResp=new Date();a.hist.push({f:new Date(),u:S.user.nombre,t:'Estado → '+n+(obs?' · '+obs:'')});toast(a.id+' pasó a '+n)}
-  INGRESOS.forEach(x=>{if(x.ingreso===a.ingreso)x.autPend=AUTS.filter(z=>z.ingreso===x.ingreso&&abiertaAut(z)).length});
-  render(false); openAut(a);
-});
-document.addEventListener('click',e=>{if(e.target.id!=='nuevaAut')return;
-  const ings=ingVisibles().filter(x=>x.enCargaActual&&x.area!=='CONSULTA EXTERNA');
-  drawer('Nueva solicitud','01 · Autorizaciones',`<form id="fNueva" style="display:grid;gap:10px">
-    <label>Ingreso / paciente<select id="nIng" class="filters" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">${ings.slice(0,60).map(x=>`<option value="${x.ingreso}">${x.ingreso} · ${esc(x.paciente)} · ${x.documento}</option>`).join('')}</select></label>
-    <label>Servicio<select id="nServ" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">${SERVICIOS.map(s=>`<option>${s}</option>`).join('')}</select></label>
-    <label>Prioridad<select id="nPri" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"><option>ALTA</option><option selected>MEDIA</option><option>BAJA</option></select></label>
-    <button class="btn" type="submit">Registrar solicitud</button></form>`);
-});
-document.addEventListener('submit',e=>{if(e.target.id!=='fNueva')return;e.preventDefault();
-  const ing=INGRESOS.find(x=>x.ingreso===$('#nIng').value);
-  const a={id:'A-'+(5200+AUTS.length),ingreso:ing.ingreso,documento:ing.documento,paciente:ing.paciente,erp:ing.erp,area:ing.area,servicio:$('#nServ').value,estado:'SOLICITADA',fSol:new Date(),gestor:S.user.rol==='AUTORIZADOR'?S.user.nombre:AUTORIZADORES[0],prioridad:$('#nPri').value,hist:[{f:new Date(),u:S.user.nombre,t:'Solicitud registrada'}]};
-  AUTS.unshift(a); ing.autPend++; $('#layer').innerHTML=''; toast('Solicitud '+a.id+' registrada'); render(false);
-});
+   ${a.fuente==='CODIGO'?`<div class="alert warn"><span class="sev"></span><div><div class="t">Pendiente detectada solo por código</div><div class="d">El Excel trae “${esc(a.codigo)}” en RESPONSABLE pero no hay trámite registrado. Tómala y completa el servicio para que entre a la medición.</div></div><span></span></div>`:''}
+   <div class="steps">${ESTADOS_AUT.map((s,k)=>`<div class="step ${a.estado==='NEGADA'?'':k<i?'done':k===i?'cur':''}">${s}</div>`).join('')}${a.estado==='NEGADA'?'<div class="step cur" style="background:var(--crit)">NEGADA</div>':''}</div>
+   <div class="kv"><div><small>Paciente</small><span>${esc(a.paciente)}</span></div><div><small>Documento</small><span class="mono">${a.documento}</span></div><div><small>Ingreso</small><span class="mono">${a.ingreso}</span></div><div><small>Área</small><span>${esc(a.grupo)} ${a.ala?'· '+esc(a.ala):''}</span></div><div><small>Solicitada</small><span>${fmtDT(a.fSol)}</span></div><div><small>Tiempo</small><span>${slaPill(a)}</span></div><div><small>Autorizador</small><span>${esc(a.gestor)}</span></div></div>
+   <div><h3 style="font-size:14px;margin-bottom:8px">Bitácora</h3><ol class="timeline">${a.hist.map(h=>`<li><div>${esc(h.t)}</div><small>${fmtDT(h.f)} · ${esc(h.u)}</small></li>`).join('')}</ol></div>
+   ${ed?`<div class="card" style="display:grid;gap:8px"><h3>Registrar gestión</h3><textarea id="obsAut" placeholder="Ej.: radicado 55231, EPS responde en 24 h"></textarea>
+   <div style="display:flex;gap:8px;flex-wrap:wrap">${a.gestor==='Sin asignar'?`<button class="btn" data-tomar="${a.id}">Tomar trámite</button>`:''}<button class="btn" data-adv="${a.id}">${nx?'Pasar a '+nx:'Guardar'}</button><button class="btn ghost" data-nota="${a.id}">Solo nota</button><button class="btn ghost" data-neg="${a.id}" style="color:var(--crit)">Registrar negación</button></div></div>`:`<p class="hint">${abierta(a)?'Solo lectura.':'Trámite cerrado.'}</p>`}`)}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-adv],[data-nota],[data-neg],[data-tomar]');if(!b)return;
+  const id=b.dataset.adv||b.dataset.nota||b.dataset.neg||b.dataset.tomar,a=AUTS.find(x=>x.id===id),obs=($('#obsAut')?.value||'').trim();
+  if(b.dataset.tomar){a.gestor=S.user.rol==='AUTORIZADOR'?S.user.nombre:AUTORIZADORES[0];a.fuente='APP';a.hist.push({f:new Date(),u:S.user.nombre,t:'Trámite registrado y asignado a '+a.gestor});toast(a.id+' asignado a '+a.gestor)}
+  else if(b.dataset.nota){if(!obs){toast('Escribe la nota antes de guardarla.');return}a.hist.push({f:new Date(),u:S.user.nombre,t:obs});toast('Nota agregada')}
+  else if(b.dataset.neg){a.estado='NEGADA';a.fResp=new Date();a.hist.push({f:new Date(),u:S.user.nombre,t:'Negada'+(obs?' · '+obs:'')});toast(a.id+' negada')}
+  else{const n=ESTADOS_AUT[ESTADOS_AUT.indexOf(a.estado)+1]||a.estado;a.estado=n;if(n==='AUTORIZADA')a.fResp=new Date();a.hist.push({f:new Date(),u:S.user.nombre,t:'Estado → '+n+(obs?' · '+obs:'')});toast(a.id+' pasó a '+n)}
+  INGRESOS.forEach(x=>{if(x.ingreso===a.ingreso)x.autPend=AUTS.filter(z=>z.ingreso===x.ingreso&&abierta(z)).length});render(false);openAut(a)});
+document.addEventListener('click',e=>{if(e.target.id!=='nuevaAut')return;const ings=ingV().filter(x=>x.enActual&&x.grupo!=='CONSULTA EXTERNA').slice(0,80);
+  drawer('Nueva solicitud','01 · Autorizaciones',`<form id="fNueva" style="display:grid;gap:10px"><label>Ingreso / paciente<select id="nIng" class="inp">${ings.map(x=>`<option value="${x.ingreso}">${x.ingreso} · ${esc(x.paciente)} · ${x.documento}</option>`).join('')}</select></label><label>Servicio<select id="nServ" class="inp">${SERVICIOS.map(s=>`<option>${s}</option>`).join('')}</select></label><button class="btn" type="submit">Registrar solicitud</button></form>`)});
+document.addEventListener('submit',e=>{if(e.target.id!=='fNueva')return;e.preventDefault();const ing=INGRESOS.find(x=>x.ingreso===$('#nIng').value);
+  const a={id:'A-'+(5200+AUTS.length),fuente:'APP',ingreso:ing.ingreso,documento:ing.documento,paciente:ing.paciente,erp:ing.erp,grupo:ing.grupo,ala:ing.ala,servicio:$('#nServ').value,estado:'SOLICITADA',fSol:new Date(),gestor:S.user.rol==='AUTORIZADOR'?S.user.nombre:AUTORIZADORES[0],hist:[{f:new Date(),u:S.user.nombre,t:'Solicitud registrada'}]};
+  AUTS.unshift(a);ing.autPend++;$('#layer').innerHTML='';toast('Solicitud '+a.id+' registrada');render(false)});
 
 /* ---------- 02 Ingresos abiertos ---------- */
-function vIng(scope){
-  if(!can('ing')) return locked();
-  let base=ingVisibles().filter(x=>x.enCargaActual);
-  if(scope==='hosp') base=base.filter(x=>situacion(x)==='HOSPITALIZADO');
-  if(scope==='ce') base=base.filter(x=>situacion(x)==='CE');
-  const f=S.f; let rows=base;
-  if(f.iSit) rows=rows.filter(x=>situacion(x)===f.iSit);
-  if(f.iArea) rows=rows.filter(x=>x.area===f.iArea);
-  if(f.iPab) rows=rows.filter(x=>x.pabellon===f.iPab);
-  if(f.iErp) rows=rows.filter(x=>x.erp===f.iErp);
-  if(f.iCon) rows=rows.filter(x=>x.contrato===f.iCon);
-  if(f.iUsr) rows=rows.filter(x=>x.usuario===f.iUsr);
-  if(f.iAut==='si') rows=rows.filter(x=>x.autPend>0); if(f.iAut==='no') rows=rows.filter(x=>!x.autPend);
-  if(f.iDias) rows=rows.filter(x=>{const d=diasAbierto(x);return f.iDias==='0-7'?d<=7:f.iDias==='8-30'?d>7&&d<=30:d>30});
-  if(f.iQ){const q=f.iQ.toUpperCase();rows=rows.filter(x=>(x.paciente+x.documento+x.ingreso+x.cama+x.obs).toUpperCase().includes(q))}
-  const sitCount=groupCount(base,situacion);
-  const title={all:'Listado de ingresos abiertos',hosp:'Pacientes hospitalizados',ce:'Consulta externa por cerrar'}[scope];
-  const sub={all:'Carga del '+fmtDT(CARGAS[0].f)+'. La carga del archivo se hace en Cargue e informes.',hosp:'Ingresos sin egreso y con cama asignada.',ce:`No llevan egreso, pero cuentan contra un plazo de cierre de ${PARAM.diasCE} días.`}[scope];
-  const valor=rows.reduce((s,x)=>s+x.valor,0);
-  return head('02 · Ingresos abiertos',title,sub)+subtabs()+
-  `<div class="grid g-kpi" style="margin-bottom:14px">
-    ${kpi('Ingresos',rows.length,'en la selección','--accent')}
-    ${kpi('Valor abierto',valor,'suma de VALOR','--accent-2',null,'m')}
-    ${kpi('Con autorización pendiente',rows.filter(x=>x.autPend).length,'según la bandeja de autorizaciones','--crit')}
-    ${kpi('Más de '+PARAM.diasProlongado+' días',rows.filter(x=>diasAbierto(x)>PARAM.diasProlongado).length,'estancia o cuenta prolongada','--warn')}
-  </div>`+
-  (scope==='all'?`<div class="chips">${sitCount.map(([k,n])=>`<button class="chip ${f.iSit===k?'on':''}" data-chip="iSit=${k}">${SIT_LBL[k]} <b>${n}</b></button>`).join('')}</div>`:'')+
-  `<div class="filters">
-    <input type="search" placeholder="Buscar paciente, documento, ingreso, cama u observación" data-fs="iQ" value="${esc(f.iQ||'')}" aria-label="Buscar">
-    <select data-f="iArea" aria-label="Área de ingreso">${opts(uniq(base.map(x=>x.area)),f.iArea,'Área de ingreso')}</select>
-    <select data-f="iPab" aria-label="Pabellón">${opts(uniq(base.map(x=>x.pabellon)),f.iPab,'Pabellón')}</select>
-    <select data-f="iErp" aria-label="ERP">${opts(uniq(base.map(x=>x.erp)),f.iErp,'ERP')}</select>
-    <select data-f="iCon" aria-label="Contrato">${opts(uniq(base.filter(x=>!f.iErp||x.erp===f.iErp).map(x=>x.contrato)),f.iCon,'Contrato')}</select>
-    <select data-f="iUsr" aria-label="Usuario que ingresó">${opts(uniq(base.map(x=>x.usuario)),f.iUsr,'Usuario de ingreso')}</select>
-    <select data-f="iAut" aria-label="Autorización pendiente"><option value="">Autorización pendiente</option><option value="si" ${f.iAut==='si'?'selected':''}>Con pendientes</option><option value="no" ${f.iAut==='no'?'selected':''}>Sin pendientes</option></select>
-    <select data-f="iDias" aria-label="Días abierto"><option value="">Días abierto</option>${['0-7','8-30','30+'].map(d=>`<option ${f.iDias===d?'selected':''}>${d}</option>`).join('')}</select>
-  </div>
-  <div class="grid g-2" style="margin-bottom:14px">
-    <div class="card"><h3>Por área y situación</h3><p class="hint">Haz clic en una barra para filtrar el listado por esa área.</p><div class="chart-box" style="height:300px"><canvas id="cIngArea"></canvas></div></div>
-    <div class="card"><h3>Por ERP (ingresos y valor)</h3><p class="hint">La ERP se agrupa sin importar el contrato; el contrato se filtra aparte.</p><div class="chart-box" style="height:300px"><canvas id="cIngErp"></canvas></div></div>
-  </div>`+
-  table('ing-'+scope,[
-    {h:'Ingreso',v:x=>`<span class="mono">${x.ingreso}</span><br><small style="color:var(--muted)">${fmtD(x.fechaIng)}</small>`,s:x=>x.ingreso},
-    {h:'Paciente',v:x=>`${esc(x.paciente)}<br><span class="mono" style="color:var(--muted)">${x.tipoId} ${x.documento} · ${x.edad} a</span>`,s:x=>x.paciente},
-    {h:'Área / cama',v:x=>`${esc(x.area)}${x.pabellon?'<br><small>'+x.pabellon+'</small>':''}${x.cama?'<br><span class="mono">'+x.cama+'</span>':''}`,s:x=>x.area},
-    {h:'Situación',v:x=>`<span class="pill ${SIT_PILL[situacion(x)]}">${SIT_LBL[situacion(x)]}</span>`,s:x=>situacion(x)},
-    {h:'ERP · contrato',v:x=>`${esc(x.erp)}<br><small style="color:var(--muted)">${esc(x.contrato)}</small>`,s:x=>x.erp},
-    {h:'Días',v:x=>{const d=diasAbierto(x);const lim=situacion(x)==='CE'?PARAM.diasCE:PARAM.diasProlongado;return `<span class="pill ${d>lim?'p-crit':d>lim/2?'p-warn':'p-mut'} num">${d}</span>`},s:x=>diasAbierto(x)},
-    {h:'Aut. pend.',v:x=>x.autPend?`<span class="pill p-crit">${x.autPend}</span>`:'<span class="pill p-ok">0</span>',s:x=>x.autPend},
-    {h:'Valor',v:x=>`<span class="num">${money(x.valor)}</span>`,s:x=>x.valor},
-    {h:'Observaciones',v:x=>esc(x.obs),cl:'obs',s:x=>x.obs},
-  ],rows,openIng);
-}
-V.ing=()=>vIng('all'); V['ing-hosp']=()=>vIng('hosp'); V['ing-ce']=()=>vIng('ce');
-function ingAfter(){
-  const key=Object.keys(TBL).find(k=>k.startsWith('ing-')&&k===('ing-'+({ing:'all','ing-hosp':'hosp','ing-ce':'ce'})[S.view]));
-  const rows=key?TBL[key].rows:[];
-  const areas=uniq(rows.map(x=>x.area));
-  const sits=['HOSPITALIZADO','CE','EGRESADO_ABIERTO','CAMA_NO_LIBERADA','EN_ATENCION'];
-  const col={HOSPITALIZADO:css('--info'),CE:css('--violet'),EGRESADO_ABIERTO:css('--warn'),CAMA_NO_LIBERADA:css('--crit'),EN_ATENCION:'#94a3b8'};
-  chart('cIngArea',{type:'bar',data:{labels:areas.map(a=>a.replace('HOSPITALIZACION','HOSP.')),datasets:sits.map(s=>({label:SIT_LBL[s],data:areas.map(a=>rows.filter(x=>x.area===a&&situacion(x)===s).length),backgroundColor:col[s],borderRadius:3}))},
-    options:{indexAxis:'y',scales:{x:{stacked:true},y:{stacked:true,ticks:{autoSkip:false}}},plugins:{legend:{position:'bottom'}},onClick:(e,els)=>{if(els[0]){S.f.iArea=areas[els[0].index];resetPages();render(false)}}}});
-  const erps=groupCount(rows,'erp').slice(0,8);
-  chart('cIngErp',{type:'bar',data:{labels:erps.map(e=>e[0]),datasets:[
-    {label:'Ingresos',data:erps.map(e=>e[1]),backgroundColor:css('--accent'),borderRadius:4,yAxisID:'y'},
-    {label:'Valor (millones)',data:erps.map(e=>rows.filter(x=>x.erp===e[0]).reduce((s,x)=>s+x.valor,0)/1e6),type:'line',borderColor:css('--warn'),backgroundColor:css('--warn'),yAxisID:'y1',tension:.3}]},
-    options:{plugins:{legend:{position:'bottom'}},scales:{y1:{position:'right',grid:{display:false}}},onClick:(e,els)=>{if(els[0]){S.f.iErp=erps[els[0].index][0];resetPages();render(false)}}}});
-}
+const ING_F=[['iSit','Situación'],['iGru','Área'],['iAla','Ala / pabellón'],['iErp','ERP'],['iCon','Contrato'],['iUsr','Usuario'],['iPor','Ingreso por'],['iAut','Autorización'],['iDias','Días'],['iHal','Hallazgo']];
+function filtIng(base){const f=S.f;let r=base;
+  if(f.iSit)r=r.filter(x=>situacion(x)===f.iSit);if(f.iGru)r=r.filter(x=>x.grupo===f.iGru);if(f.iAla)r=r.filter(x=>x.ala===f.iAla);
+  if(f.iErp)r=r.filter(x=>x.erp===f.iErp);if(f.iCon)r=r.filter(x=>x.contrato===f.iCon);if(f.iUsr)r=r.filter(x=>x.usuario===f.iUsr);if(f.iPor)r=r.filter(x=>(x.ingresoPor||'(vacío)')===f.iPor);
+  if(f.iAut==='Con pendientes')r=r.filter(x=>x.autPend>0);if(f.iAut==='Sin pendientes')r=r.filter(x=>!x.autPend);
+  if(f.iHal)r=r.filter(x=>hallazgos(x).includes(f.iHal));
+  if(f.iDias)r=r.filter(x=>{const d=dias(x);return f.iDias==='0-7'?d<=7:f.iDias==='8-30'?d>7&&d<=30:d>30});
+  if(f.iQ){const q=f.iQ.toUpperCase();r=r.filter(x=>(x.paciente+x.documento+x.ingreso+x.cama+x.obs+x.responsable).toUpperCase().includes(q))}return r}
+function filtrosIng(base){const f=S.f;return `<div class="filters"><input type="search" placeholder="Buscar paciente, documento, ingreso, cama, código u observación" data-fs="iQ" value="${esc(f.iQ||'')}" aria-label="Buscar">
+  ${sel('iGru',uniq(base.map(x=>x.grupo)),'Área de ingreso')}${sel('iAla',uniq(base.filter(x=>!f.iGru||x.grupo===f.iGru).map(x=>x.ala)),'Ala / pabellón')}${sel('iErp',uniq(base.map(x=>x.erp)),'ERP')}${sel('iCon',uniq(base.filter(x=>!f.iErp||x.erp===f.iErp).map(x=>x.contrato)),'Contrato')}
+  ${sel('iPor',uniq(base.map(x=>x.ingresoPor||'(vacío)')),'Ingreso por')}${sel('iUsr',uniq(base.map(x=>x.usuario)),'Usuario')}${sel('iAut',['Con pendientes','Sin pendientes'],'Autorización')}${sel('iDias',['0-7','8-30','30+'],'Días abierto')}</div>`+activeFilters(ING_F)}
+const colsIng=[
+ {h:'Ingreso',v:x=>`<span class="mono">${x.ingreso}</span><br><small style="color:var(--muted)">${fmtD(x.fechaIng)} · ${x.tipoIng.toLowerCase()}</small>`,s:x=>x.ingreso},
+ {h:'Paciente',v:x=>`${esc(x.paciente)}<br><span class="mono" style="color:var(--muted)">${x.tipoId} ${x.documento} · ${x.edad} a</span>`,s:x=>x.paciente},
+ {h:'Área · ala · cama',v:x=>`${esc(x.grupo)}${x.areaInferida?' <span class="pill p-mut" title="El Excel trae AREA vacía; se tomó de INGRESO POR">inferida</span>':''}${x.ala?'<br><small>'+esc(x.ala)+'</small>':''}${x.cama?'<br><span class="mono">'+x.cama+'</span>':''}`,s:x=>x.grupo},
+ {h:'Situación',v:x=>`<span class="pill ${SIT_PILL[situacion(x)]}">${SIT_LBL[situacion(x)]}</span>`,s:situacion},
+ {h:'ERP · contrato',v:x=>`${esc(x.erp)}<br><small style="color:var(--muted)">${esc(x.contrato)}</small>`,s:x=>x.erp},
+ {h:'Días',v:x=>{const d=dias(x),l=situacion(x)==='CE'?P.diasCE:P.diasProlongado;return `<span class="pill ${d>l?'p-crit':d>l/2?'p-warn':'p-mut'} num">${d}</span>`},s:dias},
+ {h:'Aut. pend.',v:x=>x.autPend?`<span class="pill p-crit">${x.autPend}</span>`:'<span class="pill p-ok">0</span>',s:x=>x.autPend},
+ {h:'Valor',cl:'r',v:x=>`<span class="num">${money(x.valor)}</span>`,s:x=>x.valor},
+ {h:'Observaciones',cl:'obs',v:x=>esc(x.obs),s:x=>x.obs}];
+function vIng(scope){if(!can('ing'))return locked();
+  let base=ingV().filter(x=>x.enActual);if(scope==='hosp')base=base.filter(x=>situacion(x)==='HOSPITALIZADO');if(scope==='ce')base=base.filter(x=>situacion(x)==='CE');
+  const rows=filtIng(base),v=rows.reduce((s,x)=>s+x.valor,0);
+  const T={all:'Listado de ingresos abiertos',hosp:'Pacientes hospitalizados',ce:'Consulta externa por cerrar'}[scope];
+  const D={all:`Carga del ${fmtDT(HIST[HIST.length-1].f)}. El archivo se carga en Cargue e informes, no aquí.`,hosp:'Sin egreso y con cama asignada: siguen hospitalizados.',ce:`No llevan egreso, pero cuentan contra un plazo de cierre de ${P.diasCE} días.`}[scope];
+  return head('02 · Ingresos abiertos',T,D)+subtabs()+
+  `<div class="grid g-kpi mb">${kpi('Ingresos',rows.length,'en la selección','--accent')}${kpi('Valor abierto',v,'suma de VALOR','--accent-2',null,'m')}${kpi('Con autorización pendiente',rows.filter(x=>x.autPend).length,'registradas + detectadas por código','--crit')}${kpi(scope==='ce'?'Fuera de plazo':'Más de '+P.diasProlongado+' días',rows.filter(x=>scope==='ce'?dias(x)>P.diasCE:dias(x)>P.diasProlongado).length,scope==='ce'?'más de '+P.diasCE+' días':'cuenta prolongada','--warn')}</div>`+
+  (scope==='all'?`<div class="chips">${SIT.map(k=>`<button class="chip ${S.f.iSit===k?'on':''}" data-chip="iSit=${k}">${SIT_LBL[k]} <b>${base.filter(x=>situacion(x)===k).length}</b></button>`).join('')}</div>`:'')+filtrosIng(base)+
+  `<div class="grid g-2 mb"><div class="card"><h3>Por área y situación</h3><p class="hint">Clic en una barra filtra el listado por esa área.</p><div class="chart-box lg"><canvas id="cIA"></canvas></div></div>
+   <div class="card"><div class="card-h"><div><h3>Por ERP</h3><p class="hint">Variantes del nombre unificadas. Clic filtra.</p></div><div class="seg"><button class="${S.medida==='n'?'on':''}" data-set="medida=n">Cantidad</button><button class="${S.medida==='v'?'on':''}" data-set="medida=v">Valor</button></div></div><div class="chart-box lg"><canvas id="cIE"></canvas></div></div></div>`+
+  table('ing-'+scope,colsIng,rows,openIng)}
+V.ing=()=>vIng('all');V['ing-hosp']=()=>vIng('hosp');V['ing-ce']=()=>vIng('ce');
+function ingAfter(){const k={ing:'ing-all','ing-hosp':'ing-hosp','ing-ce':'ing-ce'}[S.view],rows=TBL[k]?.rows||[];
+  const gr=[...groupBy(rows,'grupo').entries()].sort((a,b)=>b[1].length-a[1].length).map(e=>e[0]),ser=SER();
+  chart('cIA',{type:'bar',data:{labels:gr,datasets:SIT.map((s,i)=>({label:SIT_LBL[s],data:gr.map(g=>rows.filter(x=>x.grupo===g&&situacion(x)===s).length),backgroundColor:ser[i],borderColor:css('--surface'),borderWidth:{right:2},borderSkipped:false,borderRadius:0}))},
+   options:{indexAxis:'y',interaction:{mode:'index',intersect:false},scales:{x:{stacked:true},y:{stacked:true,ticks:{autoSkip:false}}},onClick:(e,els)=>{if(els[0]){S.f.iGru=gr[els[0].index];S.page={};render(false)}}}});
+  const by=[...groupBy(rows,'erp').entries()].map(([k,l])=>[k,S.medida==='v'?l.reduce((s,x)=>s+x.valor,0)/1e6:l.length,l.length,l.reduce((s,x)=>s+x.valor,0)]).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  chart('cIE',{type:'bar',data:{labels:by.map(e=>e[0]),datasets:[{label:S.medida==='v'?'Valor (millones)':'Ingresos',data:by.map(e=>Math.round(e[1]*10)/10),backgroundColor:css('--s1')}]},
+   options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{backgroundColor:css('--ink'),callbacks:{label:c=>`${by[c.dataIndex][2]} ingresos · ${moneyM(by[c.dataIndex][3])}`}}},scales:{y:{ticks:{autoSkip:false}}},onClick:(e,els)=>{if(els[0]){S.f.iErp=by[els[0].index][0];S.page={};render(false)}}}})}
 V.ing.after=V['ing-hosp'].after=V['ing-ce'].after=ingAfter;
-
-function openIng(x){
-  const auts=AUTS.filter(a=>a.ingreso===x.ingreso);
-  const caso=CASOS.find(c=>c.ref===x);
+function openIng(x){const auts=AUTS.filter(a=>a.ingreso===x.ingreso),c=CASOS.find(k=>k.ref===x),r=leerResp(x.responsable);
   drawer(esc(x.paciente),'Ingreso '+x.ingreso,`
-    <div class="kv">
-      <div><small>Documento</small><span class="mono">${x.tipoId} ${x.documento}</span></div>
-      <div><small>Edad</small><span>${x.edad} años</span></div>
-      <div><small>Fecha ingreso</small><span>${fmtDT(x.fechaIng)}</span></div>
-      <div><small>Días abierto</small><span>${diasAbierto(x)}</span></div>
-      <div><small>Área</small><span>${esc(x.area)} ${x.pabellon?'· '+x.pabellon:''}</span></div>
-      <div><small>Cama</small><span class="mono">${x.cama||'—'}</span></div>
-      <div><small>Situación</small><span class="pill ${SIT_PILL[situacion(x)]}">${SIT_LBL[situacion(x)]}</span></div>
-      <div><small>Egreso</small><span>${x.egreso?fmtD(x.fechaEgr)+(x.diagEgreso?' · '+x.diagEgreso:' · sin diagnóstico'):'No'}</span></div>
-      <div><small>ERP · contrato</small><span>${esc(x.erp)} · ${esc(x.contrato)}</span></div>
-      <div><small>Valor</small><span>${money(x.valor)}</span></div>
-      <div><small>Usuario de ingreso</small><span>${esc(x.usuario)}</span></div>
-      <div><small>Tipo de caso</small><span>${CAT_LBL[x.cat]}</span></div>
-    </div>
-    <div class="card" style="background:var(--surface-2)"><small class="crumb">Observaciones</small><div>${esc(x.obs)}</div></div>
-    <div><h3 style="font-size:14px;margin-bottom:8px">Autorizaciones de este ingreso (${auts.length})</h3>
-    ${auts.length?`<div class="tbl-wrap"><table><thead><tr><th>Trámite</th><th>Servicio</th><th>Estado</th><th>Tiempo</th></tr></thead><tbody>${auts.map(a=>`<tr><td class="mono">${a.id}</td><td>${esc(a.servicio)}</td><td>${estPill(a.estado)}</td><td>${slaPill(a)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="hint">Sin autorizaciones registradas.</p>'}</div>
-    ${caso?`<button class="btn ghost" data-caso="${caso.id}">Ver caso especial ${caso.id}</button>`:''}`);
-}
+  <div class="kv"><div><small>Documento</small><span class="mono">${x.tipoId} ${x.documento}</span></div><div><small>Edad</small><span>${x.edad} años</span></div><div><small>Fecha ingreso</small><span>${fmtDT(x.fechaIng)}</span></div><div><small>Días abierto</small><span>${dias(x)}</span></div>
+  <div><small>Área</small><span>${esc(x.grupo)}${x.areaInferida?' (inferida)':''}</span></div><div><small>Ala</small><span>${esc(x.ala||'—')}</span></div><div><small>Cama</small><span class="mono">${x.cama||'—'}</span></div><div><small>Situación</small><span class="pill ${SIT_PILL[situacion(x)]}">${SIT_LBL[situacion(x)]}</span></div>
+  <div><small>Ingreso por · tipo</small><span>${esc(x.ingresoPor||'—')} · ${x.tipoIng}</span></div><div><small>Egreso</small><span>${x.egreso?fmtD(x.fechaEgr)+(x.diag?' · '+x.diag:' · sin diagnóstico'):'No'}</span></div>
+  <div><small>ERP · contrato</small><span>${esc(x.erp)} · ${esc(x.contrato)}</span></div><div><small>Valor</small><span>${money(x.valor)}</span></div><div><small>Usuario</small><span>${esc(x.usuario)}</span></div><div><small>Estado</small><span>${x.estado}</span></div></div>
+  <div class="card" style="background:var(--surface-2)"><small class="crumb">ENTIDAD tal como llega en el Excel</small><div class="mono" style="overflow-wrap:anywhere">${esc(x.entidadRaw)}</div></div>
+  <div class="card" style="background:var(--surface-2)"><small class="crumb">RESPONSABLE</small><div>${x.responsable?`<span class="mono">${esc(x.responsable.trim())}</span> → ${r.lbl}`:'—'}</div><small class="crumb" style="display:block;margin-top:8px">Observaciones</small><div>${esc(x.obs)}</div></div>
+  <div><small class="crumb">Hallazgos</small><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${hallazgos(x).map(h=>`<span class="pill p-warn">${h}</span>`).join('')||'<span class="pill p-ok">Sin hallazgos</span>'}</div></div>
+  <div><h3 style="font-size:14px;margin-bottom:8px">Autorizaciones (${auts.length})</h3>${auts.length?`<div class="tbl-wrap"><table><thead><tr><th>Trámite</th><th>Servicio</th><th>Estado</th><th>Tiempo</th></tr></thead><tbody>${auts.map(a=>`<tr><td class="mono">${a.id}</td><td>${esc(a.servicio)}</td><td>${estPill(a.estado)}</td><td>${slaPill(a)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="hint">Sin autorizaciones.</p>'}</div>
+  ${c?`<button class="btn ghost" data-caso="${c.id}">Ver caso especial ${c.id}</button>`:''}`)}
+const DIMS={erp:['ERP',x=>x.erp],contrato:['ERP › contrato',x=>x.erp,x=>x.contrato],area:['Área',x=>x.grupo],ala:['Área › ala / pabellón',x=>x.grupo,x=>x.ala||'(sin ala)'],areaErp:['Área › ERP',x=>x.grupo,x=>x.erp],usuario:['Usuario › área',x=>x.usuario,x=>x.grupo],responsable:['Código RESPONSABLE',x=>x.responsable?leerResp(x.responsable).lbl:'(vacío)'],ingresoPor:['Ingreso por',x=>x.ingresoPor||'(vacío)']};
+V['ing-conc']=()=>{if(!can('ing'))return locked();const base=ingV().filter(x=>x.enActual),rows=filtIng(base),d=DIMS[S.dim],tot=rows.reduce((s,x)=>s+x.valor,0);
+  const mk=(k,l,isSub)=>({_sub:!isSub&&!!d[2],k,n:l.length,v:l.reduce((s,x)=>s+x.valor,0),prom:l.reduce((s,x)=>s+dias(x),0)/l.length,max:Math.max(...l.map(dias)),eg:l.filter(x=>x.egreso).length,hosp:l.filter(x=>situacion(x)==='HOSPITALIZADO').length,ce:l.filter(x=>situacion(x)==='CE').length,aut:l.filter(x=>x.autPend).length,isSub});
+  const out=[];[...groupBy(rows,d[1]).entries()].sort((a,b)=>b[1].length-a[1].length).forEach(([k,l])=>{out.push(mk(k,l,false));if(d[2])[...groupBy(l,d[2]).entries()].sort((a,b)=>b[1].length-a[1].length).forEach(([k2,l2])=>out.push(mk('   › '+k2,l2,true)))});
+  return head('02 · Ingresos abiertos','Concentración','Las mismas agrupaciones que ya tenías (ERP, contrato, área, pabellón, área × ERP, usuario × área), en una sola tabla con subtotales y los filtros del listado.')+subtabs()+
+  `<div class="chips">${Object.entries(DIMS).map(([k,v])=>`<button class="chip ${S.dim===k?'on':''}" data-set="dim=${k}">${v[0]}</button>`).join('')}</div>`+filtrosIng(base)+
+  `<div class="card mb"><h3>Top 12 · ${d[0].split(' › ')[0]} por valor abierto</h3><p class="hint">Total de la selección: ${moneyM(tot)}. El tooltip muestra ingresos y valor.</p><div class="chart-box"><canvas id="cConc"></canvas></div></div>`+
+  table('conc-'+S.dim,[{h:d[0],v:r=>esc(r.k),s:r=>r.k},{h:'Ingresos',cl:'r',v:r=>r.n,s:r=>r.n},{h:'Valor',cl:'r',v:r=>money(r.v),s:r=>r.v},{h:'% valor',cl:'r',v:r=>pct(r.v,tot)+'%',s:r=>r.v},
+   {h:'Días prom.',cl:'r',v:r=>Math.round(r.prom),s:r=>r.prom},{h:'Días máx.',cl:'r',v:r=>r.max,s:r=>r.max},{h:'Egresados',cl:'r',v:r=>r.eg,s:r=>r.eg},{h:'Hospitalizados',cl:'r',v:r=>r.hosp,s:r=>r.hosp},{h:'C. externa',cl:'r',v:r=>r.ce,s:r=>r.ce},{h:'Con aut. pend.',cl:'r',v:r=>r.aut,s:r=>r.aut}],out,null,{per:25})};
+V['ing-conc'].after=()=>{const rows=(TBL['conc-'+S.dim]?.rows||[]).filter(r=>!r.isSub).sort((a,b)=>b.v-a.v).slice(0,12);
+  chart('cConc',{type:'bar',data:{labels:rows.map(r=>r.k.length>34?r.k.slice(0,32)+'…':r.k),datasets:[{label:'Valor (millones)',data:rows.map(r=>Math.round(r.v/1e5)/10),backgroundColor:css('--s1')}]},options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{backgroundColor:css('--ink'),callbacks:{label:c=>`${moneyM(rows[c.dataIndex].v)} · ${rows[c.dataIndex].n} ingresos`}}},scales:{y:{ticks:{autoSkip:false}}}}})};
+const HALL=['Egresado con ingreso abierto','Egresado sin diagnóstico','30 días o más sin egreso','Consulta externa fuera de plazo','Área inferida','Valor en cero'];
+V['ing-hall']=()=>{if(!can('ing'))return locked();const base=ingV().filter(x=>x.enActual),docs=groupBy(base,'documento'),multi=new Set([...docs.entries()].filter(e=>e[1].length>1).map(e=>e[0]));
+  const extra={'Paciente con varios ingresos abiertos':base.filter(x=>multi.has(x.documento)).length,'Egresado con cama asignada':base.filter(x=>situacion(x)==='CAMA_NO_LIBERADA').length,'Con autorización pendiente':base.filter(x=>x.autPend).length};
+  return head('02 · Ingresos abiertos','Hallazgos','Las banderas que ya calculaba ANALISIS_INGRESOS, más las nuevas. Clic en una tarjeta filtra el listado.')+subtabs()+
+  `<div class="grid g-kpi mb">${HALL.map(h=>{const n=base.filter(x=>hallazgos(x).includes(h)).length;return `<button class="kpi" style="--k:var(--warn)" data-chip="iHal=${h}"><div class="lbl">${h}</div><div class="val num">${n}</div><div class="foot">${pct(n,base.length)}% de los abiertos${S.f.iHal===h?' · filtrando':''}</div></button>`}).join('')}
+   ${Object.entries(extra).map(([k,v])=>`<div class="kpi" style="--k:var(--crit)"><div class="lbl">${k}</div><div class="val num">${v}</div><div class="foot">${pct(v,base.length)}%</div></div>`).join('')}</div>`+filtrosIng(base)+table('hall',colsIng,filtIng(base),openIng)};
+V['ing-cambios']=()=>{if(!can('ing'))return locked();const all=ingV(),nu=all.filter(x=>x.enActual&&!x.enAnterior),sa=all.filter(x=>!x.enActual),ca=all.filter(x=>x.enActual&&x.bandeja!==x.bandejaOrigen),k=S.f.cmb||'sa',rows={nu,sa,ca}[k],prev=HIST[HIST.length-2];
+  const bl=b=>b==='EPS'?'EPS':b==='SOAT'?'SOAT definido':BANDEJAS[b];
+  return head('02 · Ingresos abiertos','Cambios entre cargas',`Carga actual contra la del ${fmtD(prev.f)}. Un ingreso que deja de aparecer queda como “presunto facturado” hasta que se confirme con soporte.`)+subtabs()+
+  `<div class="flow mb"><div class="node" data-chip="cmb=sa" style="${k==='sa'?'border-color:var(--accent)':''}"><b class="num" style="color:var(--crit)">−${sa.length}</b><small>Salieron (presunto facturado)</small></div><div class="node" data-chip="cmb=nu" style="${k==='nu'?'border-color:var(--accent)':''}"><b class="num" style="color:var(--ok)">+${nu.length}</b><small>Ingresos nuevos</small></div><div class="node" data-chip="cmb=ca" style="${k==='ca'?'border-color:var(--accent)':''}"><b class="num" style="color:var(--info)">${ca.length}</b><small>Cambiaron de pagador</small></div></div>`+
+  table('cmb-'+k,[{h:'Ingreso',v:x=>`<span class="mono">${x.ingreso}</span>`,s:x=>x.ingreso},{h:'Paciente',v:x=>`${esc(x.paciente)}<br><span class="mono" style="color:var(--muted)">${x.documento}</span>`,s:x=>x.paciente},{h:'Área',v:x=>esc(x.grupo),s:x=>x.grupo},
+   {h:'Antes',v:x=>esc(bl(x.bandejaOrigen)),s:x=>x.bandejaOrigen},{h:'Ahora',v:x=>!x.enActual?'<span class="pill p-crit">Fuera de abiertos</span>':esc(x.erp+' · '+x.contrato),s:x=>x.erp},{h:'Valor',cl:'r',v:x=>money(x.valor),s:x=>x.valor}],rows,openIng)};
 
-V['ing-cambios']=()=>{
-  if(!can('ing')) return locked();
-  const all=INGRESOS.filter(x=>enMiArea(x.area));
-  const nuevos=all.filter(x=>x.enCargaActual&&!x.enCargaAnterior);
-  const salieron=all.filter(x=>!x.enCargaActual);
-  const cambio=all.filter(x=>x.enCargaActual&&x.cat!==x.catOrigen);
-  const S2=S.f.cmb||'salieron';
-  const rows={nuevos,salieron,cambio}[S2];
-  return head('02 · Ingresos abiertos','Cambios entre cargas',`Comparación de la carga del ${fmtD(CARGAS[0].f)} contra la del ${fmtD(CARGAS[1].f)}. Un ingreso que deja de aparecer se marca como presunto facturado hasta que se confirme.`)+subtabs()+
-  `<div class="flow" style="margin-bottom:14px">
-    <div class="node"><b class="num">${CARGAS[1].filas}</b><small>Carga anterior</small></div>
-    <div class="node" style="border-color:var(--ok)"><b class="num" style="color:var(--ok)">+${nuevos.length}</b><small>Ingresos nuevos</small></div>
-    <div class="node" style="border-color:var(--crit)"><b class="num" style="color:var(--crit)">−${salieron.length}</b><small>Salieron (presunto facturado)</small></div>
-    <div class="node" style="border-color:var(--info)"><b class="num" style="color:var(--info)">${cambio.length}</b><small>Cambiaron de pagador</small></div>
-    <div class="node"><b class="num">${CARGAS[0].filas}</b><small>Carga actual</small></div>
-  </div>
-  <div class="chips"><button class="chip ${S2==='salieron'?'on':''}" data-chip="cmb=salieron">Salieron <b>${salieron.length}</b></button>
-  <button class="chip ${S2==='nuevos'?'on':''}" data-chip="cmb=nuevos">Nuevos <b>${nuevos.length}</b></button>
-  <button class="chip ${S2==='cambio'?'on':''}" data-chip="cmb=cambio">Cambio de pagador <b>${cambio.length}</b></button></div>`+
-  table('cmb-'+S2,[
-    {h:'Ingreso',v:x=>`<span class="mono">${x.ingreso}</span>`,s:x=>x.ingreso},
-    {h:'Paciente',v:x=>`${esc(x.paciente)}<br><span class="mono" style="color:var(--muted)">${x.documento}</span>`,s:x=>x.paciente},
-    {h:'Área',v:x=>esc(x.area),s:x=>x.area},
-    {h:'Antes',v:x=>CAT_LBL[x.catOrigen],s:x=>x.catOrigen},
-    {h:'Ahora',v:x=>!x.enCargaActual?'<span class="pill p-crit">Fuera de abiertos</span>':esc(x.erp)+' · '+esc(x.contrato),s:x=>x.erp},
-    {h:'Valor',v:x=>money(x.valor),s:x=>x.valor},
-  ],rows,openIng);
-};
+/* ---------- 03 Casos especiales ---------- */
+function vCasos(scope){if(!can('casos'))return locked();let base=casosV();
+  if(scope==='soat')base=base.filter(c=>c.bandeja==='SOAT_DEFINIDO');if(scope==='sindoc')base=base.filter(c=>c.bandeja==='SOAT_SIN_DOC');
+  if(scope==='sss')base=base.filter(c=>c.bandeja==='SIN_SS');if(scope==='salio')base=base.filter(c=>estadoCaso(c)==='SALIO_SIN_CIERRE');
+  const f=S.f;let rows=base;
+  if(f.cEst)rows=rows.filter(c=>estadoCaso(c)===f.cEst);if(f.cGes)rows=rows.filter(c=>(c.gestor||'Sin asignar')===f.cGes);if(f.cSit)rows=rows.filter(c=>situacion(c.ref)===f.cSit);
+  if(f.cNeo==='Neonatos')rows=rows.filter(c=>c.ref.contrato==='RECIEN NACIDO');if(f.cNeo==='Adultos y niños')rows=rows.filter(c=>c.ref.contrato!=='RECIEN NACIDO');
+  if(f.cQ){const q=f.cQ.toUpperCase();rows=rows.filter(c=>(c.ref.paciente+c.ref.documento+c.ref.ingreso+c.id+c.placa).toUpperCase().includes(q))}
+  const T={soat:['SOAT definido','Aseguradora identificada. Se separan los que siguen hospitalizados, los de consulta externa y los egresados, para reunir soportes, facturar y cerrar.'],sindoc:['SOAT sin documentos','Accidentes sin póliza o FURIPS (cobro a ADRES). Muestra cuáles pasaron a aseguradora.'],sss:['Sin seguridad social y neonatos','Pacientes sin afiliación y recién nacidos: cuáles pasaron a pagador asignado y cuáles ya salieron de abiertos (facturados).'],salio:['Salieron de abiertos sin cierre','Antes se cerraban solos como “CERRADO EN DINÁMICA”. Ahora quedan aquí y alertan al gestor hasta que cargue el soporte y cierre.']}[scope];
+  const docP=c=>pct(c.docs.filter(d=>d.ok).length,c.docs.length);
+  return head('03 · Casos especiales',T[0],T[1])+subtabs()+
+  `<div class="flow mb">${EC.map(k=>{const n=base.filter(c=>estadoCaso(c)===k).length;return n?`<div class="node" data-chip="cEst=${k}" style="${S.f.cEst===k?'border-color:var(--accent)':''}"><b class="num">${n}</b><small>${EC_LBL[k]}</small></div>`:''}).join('')}</div>
+  <div class="chips">${['HOSPITALIZADO','EGRESADO_ABIERTO','CAMA_NO_LIBERADA','EN_ATENCION','CE'].map(k=>{const n=base.filter(c=>c.ref.enActual&&situacion(c.ref)===k).length;return n?`<button class="chip ${f.cSit===k?'on':''}" data-chip="cSit=${k}">${SIT_LBL[k]} <b>${n}</b></button>`:''}).join('')}</div>
+  <div class="filters"><input type="search" placeholder="Buscar paciente, documento, ingreso, caso o placa" data-fs="cQ" value="${esc(f.cQ||'')}" aria-label="Buscar">${sel('cGes',uniq(base.map(c=>c.gestor||'Sin asignar')),'Gestor')}${scope==='sss'?sel('cNeo',['Neonatos','Adultos y niños'],'Tipo de paciente'):''}</div>`+
+  activeFilters([['cEst','Estado'],['cGes','Gestor'],['cSit','Situación'],['cNeo','Tipo']])+
+  table('casos-'+scope,[
+   {h:'Caso',v:c=>`<span class="mono">${c.id}</span><br><small style="color:var(--muted)">ing ${c.ref.ingreso}</small>`,s:c=>c.id},
+   {h:'Paciente',v:c=>`${esc(c.ref.paciente)}<br><span class="mono" style="color:var(--muted)">${c.ref.tipoId} ${c.ref.documento}</span>`,s:c=>c.ref.paciente},
+   {h:'Área · situación',v:c=>`${esc(c.ref.grupo)}<br><span class="pill ${SIT_PILL[situacion(c.ref)]}">${SIT_LBL[situacion(c.ref)]}</span>`,s:c=>c.ref.grupo},
+   {h:'Pagador',v:c=>esc(c.ref.erp)+(c.ref.bandeja!==c.ref.bandejaOrigen?'<br><span class="pill p-acc">cambió '+fmtD(c.ref.cambio)+'</span>':''),s:c=>c.ref.erp},
+   {h:'Documentos',v:c=>`<div class="bar" style="width:90px"><i style="width:${docP(c)}%"></i></div><small class="num">${docP(c)}%</small>`,s:docP},
+   {h:'Gestor',v:c=>c.gestor?esc(c.gestor):'<span class="pill p-warn">Sin asignar</span>',s:c=>c.gestor},
+   {h:'Compromiso',v:c=>c.fCompromiso?`<span class="pill ${c.fCompromiso<HOY?'p-crit':'p-mut'}">${fmtD(c.fCompromiso)}</span>`:'—',s:c=>+c.fCompromiso||0},
+   {h:'Días',cl:'r',v:c=>dias(c.ref),s:c=>dias(c.ref)},
+   {h:'Estado',v:c=>`<span class="pill ${EC_PILL[estadoCaso(c)]}">${EC_LBL[estadoCaso(c)]}</span>`,s:estadoCaso}],rows,openCaso)}
+V.casos=()=>vCasos('soat');V['casos-sindoc']=()=>vCasos('sindoc');V['casos-sss']=()=>vCasos('sss');V['casos-salio']=()=>vCasos('salio');
+function openCaso(c){const ed=can('casos',2)&&!c.cerrado,st=estadoCaso(c);
+  drawer(esc(c.ref.paciente),c.id+' · '+BANDEJAS[c.bandeja],`
+  ${st==='SALIO_SIN_CIERRE'?`<div class="alert crit"><span class="sev"></span><div><div class="t">El ingreso ya no está en abiertos y el caso no tiene cierre</div><div class="d">Carga el soporte (factura o pagador) y cierra el caso.</div></div><span></span></div>`:''}
+  <div class="kv"><div><small>Documento</small><span class="mono">${c.ref.tipoId} ${c.ref.documento}</span></div><div><small>Ingreso</small><span class="mono">${c.ref.ingreso}</span></div><div><small>Área</small><span>${esc(c.ref.grupo)}</span></div><div><small>Situación</small><span class="pill ${SIT_PILL[situacion(c.ref)]}">${SIT_LBL[situacion(c.ref)]}</span></div><div><small>Pagador</small><span>${esc(c.ref.erp)}</span></div>
+  ${c.fAccidente?`<div><small>Fecha accidente</small><span>${fmtD(c.fAccidente)}</span></div><div><small>Placa</small><span class="mono">${c.placa}</span></div>`:''}<div><small>Estado</small><span class="pill ${EC_PILL[st]}">${EC_LBL[st]}</span></div><div><small>Valor</small><span>${money(c.ref.valor)}</span></div></div>
+  ${ed?`<div class="card" style="display:grid;gap:8px"><h3>Gestor y compromiso</h3><div style="display:flex;gap:8px;flex-wrap:wrap"><select id="cgSel" class="inp" style="flex:1 1 180px" aria-label="Gestor"><option value="">Sin asignar</option>${GESTORES.map(g=>`<option ${c.gestor===g?'selected':''}>${g}</option>`).join('')}</select><input id="cgFecha" class="inp" type="date" aria-label="Fecha compromiso" style="flex:1 1 150px" value="${c.fCompromiso?c.fCompromiso.toISOString().slice(0,10):''}"><button class="btn sm" data-asig="${c.id}">Guardar</button></div></div>`:''}
+  <div><h3 style="font-size:14px;margin-bottom:8px">Lista de chequeo</h3><div class="checks">${c.docs.map((d,i)=>`<label><input type="checkbox" data-doc="${c.id}:${i}" ${d.ok?'checked':''} ${ed?'':'disabled'}> ${d.d}</label>`).join('')}</div></div>
+  <div><h3 style="font-size:14px;margin-bottom:8px">Bitácora</h3><ol class="timeline">${c.gest.map(h=>`<li><div>${esc(h.t)}</div><small>${fmtDT(h.f)} · ${esc(h.u)} · ${esc(h.tipo)}</small></li>`).join('')}</ol></div>
+  ${ed?`<div class="card" style="display:grid;gap:8px"><h3>Registrar gestión</h3><select id="cgTipo" class="inp" aria-label="Tipo de gestión">${['Llamada telefónica','Correo electrónico','Revisión de documentos','Actualización de datos','Otra'].map(t=>`<option>${t}</option>`).join('')}</select><textarea id="obsCaso" placeholder="Ej.: se recibe póliza N° 12345"></textarea>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" data-cnota="${c.id}">Agregar a bitácora</button><button class="btn" data-cerrar="${c.id}">Cerrar con soporte</button></div><p class="hint" style="margin:0">Para cerrar, escribe el soporte (factura, pagador o motivo).</p></div>`:''}`)}
+document.addEventListener('click',e=>{const v=e.target.closest('[data-caso]');if(v){openCaso(CASOS.find(c=>c.id===v.dataset.caso));return}
+  const as=e.target.closest('[data-asig]');if(as){const c=CASOS.find(x=>x.id===as.dataset.asig);c.gestor=$('#cgSel').value;const fv=$('#cgFecha').value;c.fCompromiso=fv?new Date(fv+'T12:00:00'):null;c.gest.push({f:new Date(),u:S.user.nombre,tipo:'Actualización de datos',t:'Gestor: '+(c.gestor||'sin asignar')+(fv?' · compromiso '+fv:'')});toast('Caso '+c.id+' actualizado');render(false);openCaso(c);return}
+  const n=e.target.closest('[data-cnota],[data-cerrar]');if(!n)return;const c=CASOS.find(x=>x.id===(n.dataset.cnota||n.dataset.cerrar)),obs=($('#obsCaso')?.value||'').trim(),tipo=$('#cgTipo')?.value||'Otra';
+  if(!obs){toast(n.dataset.cerrar?'Escribe el soporte del cierre.':'Escribe la gestión.');return}
+  if(n.dataset.cerrar){c.cerrado=true;c.gest.push({f:new Date(),u:S.user.nombre,tipo,t:'Caso cerrado · '+obs});toast(c.id+' cerrado')}else{c.gest.push({f:new Date(),u:S.user.nombre,tipo,t:obs});toast('Gestión registrada')}
+  if(!c.gestor&&S.user.rol==='GESTOR_CASOS')c.gestor=S.user.nombre;render(false);openCaso(c)});
+document.addEventListener('change',e=>{const d=e.target.closest('[data-doc]');if(!d)return;const[id,i]=d.dataset.doc.split(':'),c=CASOS.find(x=>x.id===id);c.docs[+i].ok=d.checked;c.gest.push({f:new Date(),u:S.user.nombre,tipo:'Revisión de documentos',t:(d.checked?'Recibido: ':'Retirado: ')+c.docs[+i].d});render(false);openCaso(c)});
 
-/* ---------- 03 SOAT y 04 Sin seguridad social ---------- */
-function vCasos(grupo,scope){
-  const mod=grupo==='SOAT'?'soat':'sss';
-  if(!can(mod)) return locked();
-  let base=CASOS.filter(c=>c.grupo===grupo&&enMiArea(c.ref.area));
-  let rows=base;
-  if(scope==='sindoc') rows=rows.filter(c=>c.ref.cat==='SOAT_SIN_DOC');
-  if(scope==='cambio') rows=rows.filter(c=>c.ref.cat!==c.ref.catOrigen);
-  if(scope==='neo') rows=rows.filter(c=>c.ref.catOrigen==='NEONATO');
-  if(scope==='fact') rows=rows.filter(c=>!c.ref.enCargaActual);
-  const f=S.f;
-  if(f.cEst) rows=rows.filter(c=>estadoCaso(c)===f.cEst);
-  if(f.cQ){const q=f.cQ.toUpperCase();rows=rows.filter(c=>(c.ref.paciente+c.ref.documento+c.ref.ingreso+c.id).toUpperCase().includes(q))}
-  const ec=groupCount(base,estadoCaso);
-  const docsPct=c=>Math.round(100*c.docs.filter(d=>d.ok).length/c.docs.length);
-  const titles={all:grupo==='SOAT'?'Accidentes de tránsito (SOAT)':'Sin seguridad social y neonatos',sindoc:'SOAT sin documentos',cambio:'Pasaron a pagador asignado',neo:'Neonatos sin seguridad social',fact:'Salieron de ingresos abiertos'};
-  const subs={all:grupo==='SOAT'?'Control de cada accidente: documentos, cambio de “sin documentos” a aseguradora y cierre.':'Control de pacientes sin afiliación hasta que tienen pagador o se facturan.',
-    sindoc:'Accidentes sin FURIPS o póliza. Sin estos soportes no se puede cobrar al SOAT ni a ADRES.',cambio:'Casos que entre cargas pasaron de no tener pagador a tener uno.',neo:'Recién nacidos sin registro ni afiliación.',fact:'Si ya no están en ingresos abiertos es porque se facturaron. El gestor debe cargar el soporte y cerrar el caso.'};
-  const flow = grupo==='SOAT'
-    ? [['Sin documentos',base.filter(c=>c.ref.catOrigen==='SOAT_SIN_DOC').length],['SOAT definido',base.filter(c=>c.ref.cat==='SOAT').length],['Salieron de abiertos',base.filter(c=>!c.ref.enCargaActual).length],['Cerrados',base.filter(c=>c.cerrado).length]]
-    : [['Sin seguridad / neonato',base.length],['Pagador asignado',base.filter(c=>c.ref.cat!==c.ref.catOrigen).length],['Salieron de abiertos',base.filter(c=>!c.ref.enCargaActual).length],['Cerrados',base.filter(c=>c.cerrado).length]];
-  return head((grupo==='SOAT'?'03 · SOAT':'04 · Sin seguridad social'),titles[scope],subs[scope])+subtabs()+
-  `<div class="flow" style="margin-bottom:14px">${flow.map((n,i)=>`<div class="node"><b class="num">${n[1]}</b><small>${n[0]}</small></div>`).join('')}</div>
-  <div class="chips">${ec.map(([k,n])=>`<button class="chip ${f.cEst===k?'on':''}" data-chip="cEst=${k}">${EC_LBL[k]} <b>${n}</b></button>`).join('')}</div>
-  <div class="filters"><input type="search" placeholder="Buscar paciente, documento, ingreso o caso" data-fs="cQ" value="${esc(f.cQ||'')}" aria-label="Buscar"></div>`+
-  table('casos-'+grupo+scope,[
-    {h:'Caso',v:c=>`<span class="mono">${c.id}</span><br><small style="color:var(--muted)">ing ${c.ref.ingreso}</small>`,s:c=>c.id},
-    {h:'Paciente',v:c=>`${esc(c.ref.paciente)}<br><span class="mono" style="color:var(--muted)">${c.ref.tipoId} ${c.ref.documento}</span>`,s:c=>c.ref.paciente},
-    {h:'Área',v:c=>esc(c.ref.area),s:c=>c.ref.area},
-    {h:'Origen → actual',v:c=>`${CAT_LBL[c.ref.catOrigen]}<br><small style="color:var(--muted)">→ ${esc(c.ref.erp)}</small>`,s:c=>c.ref.erp},
-    {h:'Documentos',v:c=>`<div class="bar" style="width:90px" title="${docsPct(c)}%"><i style="width:${docsPct(c)}%"></i></div><small class="num">${docsPct(c)}%</small>`,s:docsPct},
-    {h:'Días',v:c=>`<span class="num">${diasAbierto(c.ref)}</span>`,s:c=>diasAbierto(c.ref)},
-    {h:'Estado del caso',v:c=>`<span class="pill ${EC_PILL[estadoCaso(c)]}">${EC_LBL[estadoCaso(c)]}</span>`,s:estadoCaso},
-  ],rows,openCaso);
-}
-V.soat=()=>vCasos('SOAT','all'); V['soat-sindoc']=()=>vCasos('SOAT','sindoc'); V['soat-cambio']=()=>vCasos('SOAT','cambio');
-V.sss=()=>vCasos('SSS','all'); V['sss-neo']=()=>vCasos('SSS','neo'); V['sss-cambio']=()=>vCasos('SSS','cambio'); V['sss-fact']=()=>vCasos('SSS','fact');
+/* ---------- 04 Medición ---------- */
+function medBase(){let r=autV();const f=S.f;
+  if(f.mErp)r=r.filter(a=>a.erp===f.mErp);if(f.mGru)r=r.filter(a=>a.grupo===f.mGru);if(f.mSer)r=r.filter(a=>a.servicio===f.mSer);if(f.mGes)r=r.filter(a=>a.gestor===f.mGes);
+  const per=+(f.mPer||90);return {all:r.filter(a=>a.fSol>HOY-per*DAY),prev:r.filter(a=>a.fSol<=HOY-per*DAY&&a.fSol>HOY-2*per*DAY),per}}
+const q=(arr,p)=>{if(!arr.length)return 0;const s=[...arr].sort((a,b)=>a-b);return s[Math.min(s.length-1,Math.floor(s.length*p))]};
+function medFiltros(){const r=autV();return `<div class="filters"><select data-f="mPer" aria-label="Periodo">${[7,30,90,180].map(d=>`<option value="${d}" ${String(S.f.mPer||'90')===String(d)?'selected':''}>Últimos ${d} días</option>`).join('')}</select>${sel('mErp',uniq(r.map(a=>a.erp)),'ERP')}${sel('mGru',uniq(r.map(a=>a.grupo)),'Área')}${sel('mSer',uniq(r.filter(a=>a.fuente==='APP').map(a=>a.servicio)),'Servicio')}${sel('mGes',uniq(r.map(a=>a.gestor)),'Autorizador')}</div>`+activeFilters([['mErp','ERP'],['mGru','Área'],['mSer','Servicio'],['mGes','Autorizador']])}
+function stats(l){const done=l.filter(a=>a.estado==='AUTORIZADA'),h=done.map(horas);return {n:l.length,pend:l.filter(abierta).length,done:done.length,neg:l.filter(a=>a.estado==='NEGADA').length,avg:h.reduce((s,x)=>s+x,0)/Math.max(1,h.length),med:q(h,.5),p90:q(h,.9),meta:pct(h.filter(x=>x<=P.slaHoras).length,h.length)}}
+V.med=()=>{if(!can('med'))return locked();const {all,prev,per}=medBase(),s=stats(all),p=stats(prev),dl=(a,b,inv)=>({v:Math.round(a-b),good:inv?a<=b:a>=b});
+  return head('04 · Medición','Resumen y tendencia',`Comparado con los ${per} días anteriores. Tiempo = desde la solicitud hasta la respuesta de la EPS (antes se medía hasta la última edición del registro).`)+subtabs()+medFiltros()+
+  `<div class="grid g-kpi mb">${kpi('Solicitudes',s.n,'en el periodo','--accent',null,null,dl(s.n,p.n,true))}${kpi('Tiempo promedio',s.avg,'solicitud → autorización','--accent-2',null,'h',{...dl(s.avg,p.avg,true),u:' h'})}${kpi('Mediana',s.med,'la mitad se resuelve en menos','--accent-2',null,'h')}${kpi('Percentil 90',s.p90,'los casos más lentos','--warn',null,'h')}${kpi('Cumplimiento meta',s.meta,'autorizadas en ≤ '+P.slaHoras+' h','--ok',null,'p',{...dl(s.meta,p.meta),u:' pts'})}${kpi('Negadas',s.neg,pct(s.neg,s.n)+'% de las solicitudes','--crit')}</div>
+  <div class="grid g-2"><div class="card"><h3>Solicitudes y respuestas por semana</h3><p class="hint">Si las respuestas quedan por debajo, la bandeja crece.</p><div class="chart-box"><canvas id="mTrend"></canvas></div></div>
+  <div class="card"><h3>Distribución del tiempo de respuesta</h3><p class="hint">Autorizadas por rango de horas. Más oscuro = más lento.</p><div class="chart-box"><canvas id="mDist"></canvas></div></div>
+  <div class="card"><h3>Pendientes por estado</h3><p class="hint">Dónde está detenida la bandeja hoy.</p><div class="chart-box sm"><canvas id="mEst"></canvas></div></div>
+  <div class="card"><h3>Pendientes más antiguos</h3><p class="hint">Los 8 trámites abiertos con más horas.</p>${table('mOld',[{h:'Trámite',v:a=>`<span class="mono">${a.id}</span>`},{h:'Documento',v:a=>`<span class="mono">${a.documento}</span>`},{h:'ERP',v:a=>esc(a.erp)},{h:'Tiempo',v:slaPill}],all.filter(abierta).sort((a,b)=>horas(b)-horas(a)).slice(0,8),openAut,{per:8})}</div></div>`};
+V.med.after=()=>{const {all}=medBase(),wk=[...Array(10)].map((_,i)=>new Date(HOY-(9-i)*7*DAY));
+  chart('mTrend',{type:'line',data:{labels:wk.map(w=>fmtD(w)),datasets:[{label:'Solicitadas',data:wk.map(w=>all.filter(a=>a.fSol<=w&&a.fSol>w-7*DAY).length),borderColor:css('--s1'),backgroundColor:css('--s1')+'22',fill:true,tension:.3},{label:'Respondidas',data:wk.map(w=>all.filter(a=>a.fResp&&a.fResp<=w&&a.fResp>w-7*DAY).length),borderColor:css('--s2'),tension:.3}]},options:{interaction:{mode:'index',intersect:false}}});
+  const b=[['≤12 h',-1,12],['12–24',12,24],['24–48',24,48],['48–72',48,72],['72–120',72,120],['>120',120,1e9]],h=all.filter(a=>a.estado==='AUTORIZADA').map(horas);
+  chart('mDist',{type:'bar',data:{labels:b.map(x=>x[0]),datasets:[{label:'Autorizadas',data:b.map(x=>h.filter(v=>v>x[1]&&v<=x[2]).length),backgroundColor:RAMP()}]},options:{plugins:{legend:{display:false}}}});
+  const pe=all.filter(abierta),es=['SOLICITADA','RADICADA','EN TRAMITE'];
+  chart('mEst',{type:'bar',data:{labels:es,datasets:[{label:'Pendientes',data:es.map(e=>pe.filter(a=>a.estado===e).length),backgroundColor:css('--s1')}]},options:{indexAxis:'y',plugins:{legend:{display:false}}}})};
+function rankTable(key,l,dimFn,label){const m=[...groupBy(l,dimFn).entries()].map(([k,x])=>({k,...stats(x)}));return table(key,[{h:label,v:r=>esc(r.k),s:r=>r.k},{h:'Solicitudes',cl:'r',v:r=>r.n,s:r=>r.n},{h:'Pendientes',cl:'r',v:r=>r.pend,s:r=>r.pend},{h:'Promedio',cl:'r',v:r=>Math.round(r.avg)+' h',s:r=>r.avg},{h:'Mediana',cl:'r',v:r=>Math.round(r.med)+' h',s:r=>r.med},{h:'P90',cl:'r',v:r=>Math.round(r.p90)+' h',s:r=>r.p90},{h:'% en meta',cl:'r',v:r=>`<span class="pill ${r.meta>=80?'p-ok':r.meta>=60?'p-warn':'p-crit'}">${r.meta}%</span>`,s:r=>r.meta},{h:'Negadas',cl:'r',v:r=>r.neg,s:r=>r.neg}],m.sort((a,b)=>b.avg-a.avg),null)}
+V['med-erp']=()=>{if(!can('med'))return locked();const {all}=medBase();
+  return head('04 · Medición','ERP y EPS','Quién demora más en autorizar y dónde se acumulan los pendientes.')+subtabs()+medFiltros()+
+  `<div class="grid g-2 mb"><div class="card"><h3>ERP que más demoran</h3><p class="hint">Horas promedio hasta la autorización. Línea gris = meta de ${P.slaHoras} h. Clic filtra.</p><div class="chart-box"><canvas id="eDem"></canvas></div></div>
+  <div class="card"><h3>Pareto de pendientes por ERP</h3><p class="hint">Barras = pendientes. El acumulado está en el tooltip.</p><div class="chart-box"><canvas id="ePar"></canvas></div></div></div>
+  <div class="card mb"><h3>Mapa de pendientes · área × ERP</h3><p class="hint">Más oscuro = más pendientes. Clic en una celda abre la bandeja filtrada.</p><div id="heat" style="overflow-x:auto"></div></div>`+rankTable('rkErp',all,'erp','ERP')};
+V['med-erp'].after=()=>{const {all}=medBase(),done=all.filter(a=>a.estado==='AUTORIZADA');
+  const e=[...groupBy(done,'erp').entries()].map(([k,l])=>[k,l.reduce((s,a)=>s+horas(a),0)/l.length]).sort((a,b)=>b[1]-a[1]);
+  chart('eDem',{type:'bar',data:{labels:e.map(x=>x[0]),datasets:[{label:'Horas promedio',data:e.map(x=>Math.round(x[1])),backgroundColor:css('--s1')},{type:'line',label:'Meta',data:e.map(()=>P.slaHoras),borderColor:css('--muted'),pointRadius:0,borderWidth:1}]},options:{onClick:(ev,els)=>{if(els[0]){S.f.mErp=e[els[0].index][0];render(false)}}}});
+  const pe=all.filter(abierta),pr=[...groupBy(pe,'erp').entries()].map(([k,l])=>[k,l.length]).sort((a,b)=>b[1]-a[1]);let acc=0;const cum=pr.map(x=>(acc+=x[1],pct(acc,pe.length)));
+  chart('ePar',{type:'bar',data:{labels:pr.map(x=>x[0]),datasets:[{label:'Pendientes',data:pr.map(x=>x[1]),backgroundColor:css('--s1')}]},options:{plugins:{legend:{display:false},tooltip:{backgroundColor:css('--ink'),callbacks:{afterLabel:c=>'Acumulado: '+cum[c.dataIndex]+'%'}}}}});
+  const ers=uniq(pe.map(a=>a.erp)),ars=uniq(pe.map(a=>a.grupo)),mx=Math.max(1,...ars.flatMap(a=>ers.map(x=>pe.filter(p=>p.grupo===a&&p.erp===x).length)));
+  $('#heat').innerHTML=`<table style="min-width:640px"><thead><tr><th>Área</th>${ers.map(e=>`<th style="text-align:center">${esc(e)}</th>`).join('')}</tr></thead><tbody>${ars.map(a=>`<tr><td>${esc(a)}</td>${ers.map(x=>{const n=pe.filter(p=>p.grupo===a&&p.erp===x).length;return `<td class="num" title="${esc(a)} · ${esc(x)}: ${n}" data-hm="${esc(a)}|${esc(x)}" style="text-align:center;cursor:${n?'pointer':'default'};background:color-mix(in srgb,var(--q4) ${Math.round(n/mx*85)}%,transparent);color:${n/mx>.5?'#fff':'inherit'};font-weight:${n?600:400}">${n||''}</td>`}).join('')}</tr>`).join('')}</tbody></table>`};
+document.addEventListener('click',e=>{const h=e.target.closest('[data-hm]');if(h&&h.textContent){const[a,x]=h.dataset.hm.split('|');S.f.aGru=a;S.f.aErp=x;go('aut')}});
+V['med-areas']=()=>{if(!can('med'))return locked();const {all}=medBase();
+  return head('04 · Medición','Áreas y servicios','Áreas con más pendientes y servicios que más demoran.')+subtabs()+medFiltros()+
+  `<div class="grid g-2 mb"><div class="card"><h3>Pendientes por área según demora</h3><p class="hint">Colores de estado: en tiempo, sobre la meta, crítica.</p><div class="chart-box lg"><canvas id="arP"></canvas></div>${legend([['En tiempo',css('--st-good')],['Sobre la meta',css('--st-warn')],['Crítica',css('--st-crit')]])}</div>
+  <div class="card"><h3>Servicios que más demoran</h3><p class="hint">Horas promedio hasta la autorización.</p><div class="chart-box lg"><canvas id="svD"></canvas></div></div></div>`+rankTable('rkArea',all,'grupo','Área')+`<div class="mt"></div>`+rankTable('rkSer',all.filter(a=>a.fuente==='APP'),'servicio','Servicio')};
+V['med-areas'].after=()=>{const {all}=medBase(),pe=all.filter(abierta),ar=[...groupBy(pe,'grupo').entries()].sort((a,b)=>b[1].length-a[1].length).map(x=>x[0]);
+  const lv=[['En tiempo',a=>horas(a)<=P.slaHoras,'--st-good'],['Sobre la meta',a=>horas(a)>P.slaHoras&&horas(a)<=P.critHoras,'--st-warn'],['Crítica',a=>horas(a)>P.critHoras,'--st-crit']];
+  chart('arP',{type:'bar',data:{labels:ar,datasets:lv.map(l=>({label:l[0],data:ar.map(g=>pe.filter(a=>a.grupo===g&&l[1](a)).length),backgroundColor:css(l[2]),borderColor:css('--surface'),borderWidth:{right:2},borderSkipped:false,borderRadius:0}))},options:{indexAxis:'y',plugins:{legend:{display:false}},interaction:{mode:'index',intersect:false},scales:{x:{stacked:true},y:{stacked:true,ticks:{autoSkip:false}}}}});
+  const sv=[...groupBy(all.filter(a=>a.estado==='AUTORIZADA'),'servicio').entries()].map(([k,l])=>[k,l.reduce((s,a)=>s+horas(a),0)/l.length]).sort((a,b)=>b[1]-a[1]);
+  chart('svD',{type:'bar',data:{labels:sv.map(x=>x[0]),datasets:[{label:'Horas promedio',data:sv.map(x=>Math.round(x[1])),backgroundColor:css('--s1')}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{y:{ticks:{autoSkip:false}}}}})};
+V['med-gest']=()=>{if(!can('med'))return locked();const {all}=medBase();
+  const gc=GESTORES.map(g=>{const l=CASOS.filter(c=>c.gestor===g);return {k:g,asig:l.length,abiertos:l.filter(c=>estadoCaso(c)!=='CERRADO').length,gest:CASOS.reduce((s,c)=>s+c.gest.filter(x=>x.u===g).length,0),venc:l.filter(c=>c.fCompromiso&&c.fCompromiso<HOY&&estadoCaso(c)!=='CERRADO').length}});
+  gc.push({k:'Sin asignar',asig:CASOS.filter(c=>!c.gestor).length,abiertos:CASOS.filter(c=>!c.gestor&&estadoCaso(c)!=='CERRADO').length,gest:0,venc:0});
+  return head('04 · Medición','Autorizadores y gestores','Carga de trabajo y tiempos por persona.')+subtabs()+medFiltros()+
+  `<div class="grid g-2 mb"><div class="card"><h3>Tiempo promedio por autorizador</h3><p class="hint">Horas hasta la autorización. El volumen está en la gráfica de al lado.</p><div class="chart-box sm"><canvas id="gT"></canvas></div></div>
+  <div class="card"><h3>Trámites por autorizador</h3><p class="hint">Incluye “Sin asignar”: pendientes detectadas por código.</p><div class="chart-box sm"><canvas id="gN"></canvas></div></div></div>`+rankTable('rkGes',all,'gestor','Autorizador')+
+  `<div class="card mt"><h3>Gestores de casos especiales</h3><p class="hint">Solo gestiones hechas por personas (las automáticas del sistema no cuentan).</p>${table('gc',[{h:'Gestor',v:r=>esc(r.k)},{h:'Casos asignados',cl:'r',v:r=>r.asig},{h:'Abiertos',cl:'r',v:r=>r.abiertos},{h:'Gestiones',cl:'r',v:r=>r.gest},{h:'Compromisos vencidos',cl:'r',v:r=>r.venc?`<span class="pill p-crit">${r.venc}</span>`:0}],gc,null)}</div>`};
+V['med-gest'].after=()=>{const {all}=medBase(),g=uniq(all.map(a=>a.gestor)),done=all.filter(a=>a.estado==='AUTORIZADA');
+  chart('gT',{type:'bar',data:{labels:g,datasets:[{label:'Horas promedio',data:g.map(x=>{const l=done.filter(a=>a.gestor===x);return Math.round(l.reduce((s,a)=>s+horas(a),0)/Math.max(1,l.length))}),backgroundColor:css('--s1')}]},options:{plugins:{legend:{display:false}}}});
+  chart('gN',{type:'bar',data:{labels:g,datasets:[{label:'Trámites',data:g.map(x=>all.filter(a=>a.gestor===x).length),backgroundColor:css('--s1')}]},options:{plugins:{legend:{display:false}}}})};
+V['med-patron']=()=>{if(!can('med'))return locked();
+  return head('04 · Medición','Patrones de carga','Cuándo llegan las solicitudes, para planear turnos.')+subtabs()+medFiltros()+
+  `<div class="grid g-2"><div class="card"><h3>Solicitudes por día de la semana</h3><div class="chart-box"><canvas id="pD"></canvas></div></div><div class="card"><h3>Solicitudes por hora del día</h3><div class="chart-box"><canvas id="pH"></canvas></div></div></div>`};
+V['med-patron'].after=()=>{const {all}=medBase(),dn=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  chart('pD',{type:'bar',data:{labels:dn,datasets:[{label:'Solicitudes',data:dn.map((_,i)=>all.filter(a=>(a.fSol.getDay()+6)%7===i).length),backgroundColor:css('--s1')}]},options:{plugins:{legend:{display:false}}}});
+  chart('pH',{type:'bar',data:{labels:[...Array(24)].map((_,i)=>i+'h'),datasets:[{label:'Solicitudes',data:[...Array(24)].map((_,i)=>all.filter(a=>a.fSol.getHours()===i).length),backgroundColor:css('--s1')}]},options:{plugins:{legend:{display:false}}}})};
 
-function openCaso(c){
-  const mod=c.grupo==='SOAT'?'soat':'sss';
-  const ed=can(mod,2)&&!c.cerrado;
-  const st=estadoCaso(c);
-  drawer(esc(c.ref.paciente),c.id+' · '+CAT_LBL[c.ref.catOrigen],`
-    ${st==='FACTURADO_SIN_CIERRE'?`<div class="alert crit"><span class="sev"></span><div><div class="t">El ingreso ya no está en abiertos y el caso sigue sin cierre</div><div class="d">Carga el soporte (factura, pagador asignado) y cierra el caso.</div></div><span></span></div>`:''}
-    <div class="kv">
-      <div><small>Documento</small><span class="mono">${c.ref.tipoId} ${c.ref.documento}</span></div>
-      <div><small>Ingreso</small><span class="mono">${c.ref.ingreso}</span></div>
-      <div><small>Área</small><span>${esc(c.ref.area)}</span></div>
-      ${c.fAccidente?`<div><small>Fecha accidente</small><span>${fmtD(c.fAccidente)}</span></div>`:''}
-      <div><small>Pagador actual</small><span>${esc(c.ref.erp)}</span></div>
-      <div><small>Estado</small><span class="pill ${EC_PILL[st]}">${EC_LBL[st]}</span></div>
-      <div><small>Gestor</small><span>${esc(c.gestor)}</span></div>
-      <div><small>Valor</small><span>${money(c.ref.valor)}</span></div>
-    </div>
-    <div><h3 style="font-size:14px;margin-bottom:8px">Lista de chequeo</h3>
-      <div class="checks">${c.docs.map((d,i)=>`<label><input type="checkbox" data-doc="${c.id}:${i}" ${d.ok?'checked':''} ${ed?'':'disabled'}> ${d.d}</label>`).join('')}</div></div>
-    <div><h3 style="font-size:14px;margin-bottom:8px">Bitácora</h3><ol class="timeline">${c.bit.map(h=>`<li><div>${esc(h.t)}</div><small>${fmtDT(h.f)} · ${esc(h.u)}</small></li>`).join('')}</ol></div>
-    ${ed?`<div class="card" style="display:grid;gap:8px"><h3>Registrar gestión</h3>
-      <textarea id="obsCaso" placeholder="Ej.: se recibe póliza de Seguros del Estado, N° 12345"></textarea>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" data-cnota="${c.id}">Agregar a bitácora</button>
-      <button class="btn" data-cerrar="${c.id}">Cerrar caso</button></div>
-      <p class="hint" style="margin:0">Para cerrar, escribe el soporte (factura o pagador) en la observación.</p></div>`:''}`);
-}
-document.addEventListener('click',e=>{
-  const v=e.target.closest('[data-caso]'); if(v){openCaso(CASOS.find(c=>c.id===v.dataset.caso));return}
-  const n=e.target.closest('[data-cnota],[data-cerrar]'); if(!n)return;
-  const c=CASOS.find(x=>x.id===(n.dataset.cnota||n.dataset.cerrar)); const obs=($('#obsCaso')?.value||'').trim();
-  if(!obs){toast(n.dataset.cerrar?'Escribe el soporte del cierre (factura o pagador).':'Escribe la gestión antes de guardarla.');return}
-  if(n.dataset.cerrar){c.cerrado=true;c.bit.push({f:new Date(),u:S.user.nombre,t:'Caso cerrado · '+obs});toast(c.id+' cerrado')}
-  else {c.bit.push({f:new Date(),u:S.user.nombre,t:obs});toast('Gestión registrada en '+c.id)}
-  render(false); openCaso(c);
-});
-document.addEventListener('change',e=>{const d=e.target.closest('[data-doc]');if(!d)return;const [id,i]=d.dataset.doc.split(':');const c=CASOS.find(x=>x.id===id);c.docs[+i].ok=d.checked;c.bit.push({f:new Date(),u:S.user.nombre,t:(d.checked?'Documento recibido: ':'Documento retirado: ')+c.docs[+i].d});render(false);openCaso(c)});
+/* ---------- 05 Cargue, calidad del dato, informes ---------- */
+V.carga=()=>{if(!can('carga'))return locked();
+  return head('05 · Cargue e informes','Cargar ingresos abiertos','Solo el administrador carga. Cada carga es una fotografía: detecta nuevos, salidos y cambios de pagador, y crea o actualiza casos especiales. Ya no cierra casos sola.')+subtabs()+
+  `<div class="grid g-2"><div class="card"><h3>Nuevo archivo</h3><p class="hint">Excel de Dinámica con las 23 columnas. Se leen por encabezado.</p><div class="drop-zone" id="dz"><b>Arrastra el archivo aquí</b><br>o<br><label class="btn ghost sm" style="display:inline-block;margin-top:8px">Elegir archivo<input type="file" id="fileIn" accept=".xlsx,.xls,.csv" hidden></label><p class="hint" style="margin-top:10px">En el prototipo solo se valida el nombre.</p></div><div id="valid" class="mt"></div></div>
+  <div class="card"><h3>Qué hace la carga</h3><ol style="padding-left:18px;margin:0;display:grid;gap:6px"><li>Valida las 23 columnas y convierte VALOR de texto (“1.234.567,89”) a número.</li><li>Unifica ENTIDAD con el catálogo ERP › contrato y avisa los textos nuevos.</li><li>Si AREA viene vacía, la infiere de INGRESO POR y lo marca.</li><li>Lee los códigos de RESPONSABLE y crea pendientes de autorización.</li><li>Compara con la carga anterior: nuevos, salidos, cambio de pagador.</li><li>Los casos que salen pasan a “Salió sin cierre” y alertan al gestor.</li><li>Si ya hubo una carga hoy, pregunta antes de duplicar la fotografía.</li></ol></div></div>
+  <div class="card mt"><h3>Historial de cargas</h3>${table('hist',[{h:'Fecha',v:h=>fmtDT(h.f)},{h:'Total',cl:'r',v:h=>h.total},{h:'Valor',cl:'r',v:h=>moneyM(h.valor)},{h:'Egresados abiertos',cl:'r',v:h=>h.egresados},{h:'Más de 30 días',cl:'r',v:h=>h.mas30},{h:'Con aut. pendiente',cl:'r',v:h=>h.autPend}],[...HIST].reverse(),null,{per:8})}</div>`};
+V.carga.after=()=>{const dz=$('#dz'),fi=$('#fileIn');if(!dz)return;const h=f=>{if(!f)return;const ok=/\.(xlsx|xls|csv)$/i.test(f.name);$('#valid').innerHTML=`<div class="alert ${ok?'info':'crit'}"><span class="sev"></span><div><div class="t">${ok?esc(f.name)+' recibido':'Formato no válido'}</div><div class="d">${ok?'En la app real aquí se ejecutan los 7 pasos.':'Sube un .xlsx, .xls o .csv.'}</div></div><span></span></div>`};
+  ['dragenter','dragover'].forEach(v=>dz.addEventListener(v,e=>{e.preventDefault();dz.classList.add('over')}));['dragleave','drop'].forEach(v=>dz.addEventListener(v,e=>{e.preventDefault();dz.classList.remove('over')}));dz.addEventListener('drop',e=>h(e.dataTransfer.files[0]));fi.onchange=()=>h(fi.files[0])};
+V['carga-cal']=()=>{if(!can('carga'))return locked();const b=INGRESOS.filter(x=>x.enActual);
+  const codes=[...groupBy(b.filter(x=>x.responsable),x=>x.responsable.trim()).entries()].map(([k,l])=>({k,n:l.length,r:leerResp(k)})).sort((a,c)=>c.n-a.n);
+  const ent=[...groupBy(b,'erp').entries()].map(([k,l])=>({k,var:uniq(l.map(x=>x.entidadRaw)).length,n:l.length})).sort((a,c)=>c.var-a.var);
+  const vacA=b.filter(x=>!x.areaRaw).length;
+  return head('05 · Cargue e informes','Calidad del dato','Qué tan confiable es el Excel que se carga. Estos problemas se encontraron en tu hoja real.')+subtabs()+
+  `<div class="grid g-kpi mb">${kpi('AREA vacía',pct(vacA,b.length),vacA+' ingresos · se infiere de INGRESO POR','--warn',null,'p')}${kpi('Variantes de ERP unificadas',ent.reduce((s,e)=>s+e.var,0),'textos de ENTIDAD → '+ent.length+' ERP','--accent')}${kpi('Códigos en RESPONSABLE',codes.length,codes.filter(c=>c.r.sig==='SIN_REGLA').length+' sin regla todavía','--violet')}${kpi('Pendientes solo por código',AUTS.filter(a=>a.fuente==='CODIGO').length,'antes no se medían','--crit','aut')}</div>
+  <div class="grid g-2"><div class="card"><h3>Campos vacíos</h3><p class="hint">% de ingresos abiertos con la columna vacía. *Solo egresados.</p><div class="chart-box"><canvas id="qV"></canvas></div></div>
+  <div class="card"><h3>Códigos encontrados en RESPONSABLE</h3><p class="hint">Cada código se traduce con una regla editable en Administración.</p>${table('cod',[{h:'Código',v:c=>`<span class="mono">${esc(c.k)}</span>`},{h:'Ingresos',cl:'r',v:c=>c.n},{h:'Se interpreta como',v:c=>`<span class="pill ${c.r.sig==='SIN_REGLA'?'p-warn':c.r.sig==='AUT_PEND'?'p-crit':'p-acc'}">${c.r.lbl}</span>`}],codes,null,{per:8})}</div></div>
+  <div class="card mt"><h3>ERP con más variantes de nombre</h3><p class="hint">Antes cada variante salía como una ERP distinta y partía los totales.</p>${table('ent',[{h:'ERP',v:e=>esc(e.k)},{h:'Variantes en ENTIDAD',cl:'r',v:e=>e.var},{h:'Ingresos',cl:'r',v:e=>e.n}],ent,null,{per:8})}</div>`};
+V['carga-cal'].after=()=>{const b=INGRESOS.filter(x=>x.enActual),eg=b.filter(x=>x.egreso),v=[['AREA',b.filter(x=>!x.areaRaw).length/b.length],['RESPONSABLE',b.filter(x=>!x.responsable).length/b.length],['CAMA',b.filter(x=>!x.cama).length/b.length],['INGRESO POR',b.filter(x=>!x.ingresoPor).length/b.length],['DIAG EGRESO*',eg.filter(x=>!x.diag).length/Math.max(1,eg.length)]];
+  chart('qV',{type:'bar',data:{labels:v.map(x=>x[0]),datasets:[{label:'% vacío',data:v.map(x=>Math.round(x[1]*100)),backgroundColor:css('--s1')}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{max:100}}}})};
+V['carga-inf']=()=>{if(!can('carga'))return locked();
+  const inf=[['Informe gerencial de ingresos abiertos','PDF y Word · se conserva el actual (NTC 1486)',['Portada con corte, alcance y nivel de riesgo','Resumen ejecutivo e indicadores vs. carga anterior','Antigüedad, ERP › contrato, área › ala','Hospitalizados, consulta externa fuera de plazo, egresados con cama','Calidad de la información y cruce con autorizaciones','Evolución entre cargas','Plan de acción con responsable, plazo e indicador','Anexos: metodología y 15 ingresos más antiguos'],'Nuevo: secciones de calidad del dato, casos especiales sin cierre y comparación con el corte anterior.'],
+   ['Informe de casos especiales','PDF y Excel · nuevo',['SOAT definido, SOAT sin documentos, sin seguridad social y neonatos','Cuáles pasaron a pagador asignado y cuáles salieron de abiertos','Casos sin cierre con gestor responsable','Bitácora resumida y valor en riesgo de no cobro'],'Pedido en el último mensaje de la conversación original.'],
+   ['Reporte Excel de autorizaciones','.xlsx · se conserva',['RESUMEN, AUT POR EPS, AUT POR ÁREA, AUT POR SERVICIO','AUT AUTORIZADORES, AUT PENDIENTES con documento'],'Nuevo: columna Fuente (registrada / código) y tiempos desde la solicitud.'],
+   ['Reporte Excel de ingresos abiertos','.xlsx · se conserva',['POR ERP, POR CONTRATO, POR ÁREA, ÁREA Y PABELLÓN','ÁREA Y ERP, USUARIO Y ÁREA, POSIBLES HOSPITALIZADOS','CONSULTA EXTERNA, DETALLE INGRESOS con documento'],'Nuevo: hojas HALLAZGOS y CASOS ESPECIALES.'],
+   ['Asistente IA','Solo datos agregados · se conserva',['Preguntas libres y sugeridas (resumen para gerencia, plan de acción)','Límite de consultas por usuario'],'Nuevo: lee calidad del dato y casos sin cierre.']];
+  return head('05 · Cargue e informes','Informes y asistente IA','Se conservan todos los informes y reportes actuales. En cada uno, lo que se agrega.')+subtabs()+
+  `<div class="grid g-2">${inf.map(i=>`<div class="card"><h3>${i[0]}</h3><p class="hint">${i[1]}</p><ul style="padding-left:18px;margin:0 0 10px">${i[2].map(x=>`<li>${x}</li>`).join('')}</ul><p style="margin:0 0 10px"><span class="pill p-acc">Mejora</span> ${i[3]}</p><button class="btn sm" data-gen="${esc(i[0])}">Generar</button></div>`).join('')}</div>`};
+document.addEventListener('click',e=>{const g=e.target.closest('[data-gen]');if(g)toast('En la app real se genera «'+g.dataset.gen+'». El prototipo no crea archivos.')});
 
-/* ---------- 05 Medición ---------- */
-V.med=()=>{
-  if(!can('med')) return locked();
-  const done=AUTS.filter(a=>a.estado==='AUTORIZADA');
-  const avg=done.reduce((s,a)=>s+horasAut(a),0)/Math.max(1,done.length);
-  const sorted=done.map(horasAut).sort((a,b)=>a-b); const med=sorted[Math.floor(sorted.length/2)]||0; const p90=sorted[Math.floor(sorted.length*.9)]||0;
-  const cumple=100*done.filter(a=>horasAut(a)<=PARAM.slaHoras).length/Math.max(1,done.length);
-  const open=INGRESOS.filter(x=>x.enCargaActual);
-  return head('05 · Medición','Tablero gerencial','Tiempos de obtención, cumplimiento de la meta y concentración de pendientes. Mide desde la solicitud hasta la respuesta de la EPS.')+
-  `<div class="grid g-kpi" style="margin-bottom:14px">
-    ${kpi('Tiempo promedio',avg,'solicitud → autorización','--accent',null,'h')}
-    ${kpi('Mediana',med,'la mitad se resuelve en menos','--accent-2',null,'h')}
-    ${kpi('Percentil 90',p90,'los casos más lentos','--warn',null,'h')}
-    ${kpi('Cumplimiento meta',cumple,'autorizadas en ≤ '+PARAM.slaHoras+' h','--ok',null,'p')}
-    ${kpi('Valor abierto',open.reduce((s,x)=>s+x.valor,0),open.length+' ingresos','--violet','ing','m')}
-  </div>
-  <div class="grid g-2">
-    <div class="card"><h3>ERP que más demoran en autorizar</h3><p class="hint">Horas promedio hasta la autorización. La línea marca la meta de ${PARAM.slaHoras} h.</p><div class="chart-box"><canvas id="cMedErp"></canvas></div></div>
-    <div class="card"><h3>Áreas con más autorizaciones pendientes</h3><p class="hint">Pendientes abiertas por área, separadas por nivel de demora.</p><div class="chart-box"><canvas id="cMedArea"></canvas></div></div>
-    <div class="card"><h3>Desempeño por autorizador</h3><p class="hint">Volumen gestionado y tiempo promedio de respuesta.</p><div class="chart-box sm"><canvas id="cMedGest"></canvas></div></div>
-    <div class="card"><h3>Antigüedad de ingresos abiertos</h3><p class="hint">Días desde el ingreso hasta el corte.</p><div class="chart-box sm"><canvas id="cMedAge"></canvas></div></div>
-  </div>
-  <div class="card" style="margin-top:14px"><h3>Mapa de pendientes · área × ERP</h3><p class="hint">Más oscuro = más autorizaciones pendientes en ese cruce.</p><div id="heat" style="overflow-x:auto"></div></div>`;
-};
-V.med.after=()=>{
-  const done=AUTS.filter(a=>a.estado==='AUTORIZADA');
-  const erps=uniq(done.map(a=>a.erp)).map(e=>{const l=done.filter(a=>a.erp===e);return [e,l.reduce((s,a)=>s+horasAut(a),0)/l.length]}).sort((a,b)=>b[1]-a[1]);
-  chart('cMedErp',{type:'bar',data:{labels:erps.map(e=>e[0]),datasets:[{label:'Horas promedio',data:erps.map(e=>Math.round(e[1])),backgroundColor:erps.map(e=>e[1]>PARAM.slaHoras?css('--crit'):css('--accent')),borderRadius:5},
-    {label:'Meta',type:'line',data:erps.map(()=>PARAM.slaHoras),borderColor:css('--muted'),borderDash:[5,5],pointRadius:0}]},options:{plugins:{legend:{position:'bottom'}}}});
-  const pend=AUTS.filter(abiertaAut); const areas=groupCount(pend,'area').map(a=>a[0]);
-  chart('cMedArea',{type:'bar',data:{labels:areas.map(a=>a.replace('HOSPITALIZACION','HOSP.')),datasets:[
-    {label:'En tiempo',data:areas.map(a=>pend.filter(x=>x.area===a&&horasAut(x)<=PARAM.slaHoras).length),backgroundColor:css('--ok'),borderRadius:3},
-    {label:'Sobre la meta',data:areas.map(a=>pend.filter(x=>x.area===a&&horasAut(x)>PARAM.slaHoras&&horasAut(x)<=PARAM.critHoras).length),backgroundColor:css('--warn'),borderRadius:3},
-    {label:'Críticas',data:areas.map(a=>pend.filter(x=>x.area===a&&horasAut(x)>PARAM.critHoras).length),backgroundColor:css('--crit'),borderRadius:3}]},
-    options:{indexAxis:'y',scales:{x:{stacked:true},y:{stacked:true,ticks:{autoSkip:false}}},plugins:{legend:{position:'bottom'}}}});
-  chart('cMedGest',{type:'bar',data:{labels:AUTORIZADORES,datasets:[
-    {label:'Trámites',data:AUTORIZADORES.map(g=>AUTS.filter(a=>a.gestor===g).length),backgroundColor:css('--accent-2'),borderRadius:5,yAxisID:'y'},
-    {label:'Horas promedio',type:'line',data:AUTORIZADORES.map(g=>{const l=done.filter(a=>a.gestor===g);return Math.round(l.reduce((s,a)=>s+horasAut(a),0)/Math.max(1,l.length))}),borderColor:css('--warn'),backgroundColor:css('--warn'),yAxisID:'y1'}]},
-    options:{plugins:{legend:{position:'bottom'}},scales:{y1:{position:'right',grid:{display:false}}}}});
-  const open=INGRESOS.filter(x=>x.enCargaActual); const b=[['0–3',0,3],['4–7',4,7],['8–15',8,15],['16–30',16,30],['31–60',31,60],['60+',61,999]];
-  chart('cMedAge',{type:'bar',data:{labels:b.map(x=>x[0]+' d'),datasets:[{label:'Ingresos',data:b.map(x=>open.filter(i=>diasAbierto(i)>=x[1]&&diasAbierto(i)<=x[2]).length),backgroundColor:b.map((x,i)=>i<2?css('--accent'):i<4?css('--warn'):css('--crit')),borderRadius:5}]},options:{plugins:{legend:{display:false}}}});
-  const ers=uniq(pend.map(a=>a.erp)), ars=uniq(pend.map(a=>a.area));
-  const max=Math.max(1,...ars.flatMap(a=>ers.map(e=>pend.filter(x=>x.area===a&&x.erp===e).length)));
-  $('#heat').innerHTML=`<table style="min-width:600px"><thead><tr><th>Área</th>${ers.map(e=>`<th style="text-align:center">${esc(e)}</th>`).join('')}</tr></thead><tbody>${ars.map(a=>`<tr><td>${esc(a)}</td>${ers.map(e=>{const n=pend.filter(x=>x.area===a&&x.erp===e).length;return `<td style="text-align:center;background:color-mix(in srgb,var(--crit) ${Math.round(n/max*70)}%,transparent);font-weight:${n?600:400}" class="num">${n||''}</td>`}).join('')}</tr>`).join('')}</tbody></table>`;
-};
+/* ---------- 06 Administración ---------- */
+V.admin=()=>{if(!can('admin'))return locked();const s='padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--surface)';
+  return head('06 · Administración','Usuarios','Una sola tabla de usuarios (hoy hay dos: USUARIOS y SEG_Usuarios). Ingreso con usuario y contraseña, registro con aprobación.')+subtabs()+
+  `<div class="tbl-wrap"><table><thead><tr><th>Nombre</th><th>Rol</th><th>Área</th><th>Estado</th><th></th></tr></thead><tbody>${USERS.map(u=>`<tr><td>${esc(u.nombre)}</td><td><select data-urol="${u.id}" aria-label="Rol de ${esc(u.nombre)}" style="${s}">${(u.rol==='PENDIENTE'?['PENDIENTE',...ROLES]:ROLES).map(r=>`<option value="${r}" ${u.rol===r?'selected':''}>${ROL_LBL[r]}</option>`).join('')}</select></td><td><select data-uarea="${u.id}" aria-label="Área de ${esc(u.nombre)}" style="${s}"><option value="*">Todas</option>${uniq(AREAS.map(a=>a.g).concat(['CONSULTA EXTERNA'])).map(a=>`<option ${u.area===a?'selected':''}>${a}</option>`).join('')}</select></td><td>${u.rol==='PENDIENTE'?'<span class="pill p-warn">Pendiente</span>':'<span class="pill p-ok">Activo</span>'}</td><td>${u.rol==='PENDIENTE'?`<button class="btn sm" data-aprob="${u.id}">Aprobar</button>`:''}</td></tr>`).join('')}</tbody></table></div>`};
+document.addEventListener('change',e=>{const r=e.target.closest('[data-urol]');if(r){const u=USERS.find(x=>x.id===r.dataset.urol);u.rol=r.value;toast(u.nombre+': '+ROL_LBL[u.rol]);renderUserSel();render(false)}
+  const a=e.target.closest('[data-uarea]');if(a){const u=USERS.find(x=>x.id===a.dataset.uarea);u.area=a.value;toast('Área de '+u.nombre+': '+(u.area==='*'?'todas':u.area))}
+  const p=e.target.closest('[data-perm]');if(p){const[m,rol]=p.dataset.perm.split(':');PERM[m][rol]=+p.value;toast('Permiso actualizado');renderNav()}
+  const pr=e.target.closest('[data-param]');if(pr){P[pr.dataset.param]=Math.max(1,+pr.value||1);toast('Regla actualizada. Alertas recalculadas.');renderNav()}});
+document.addEventListener('click',e=>{const a=e.target.closest('[data-aprob]');if(a){const u=USERS.find(x=>x.id===a.dataset.aprob);u.rol='AUTORIZADOR';toast(u.nombre+' aprobado');renderUserSel();render(false)}});
+V['admin-perm']=()=>{if(!can('admin'))return locked();
+  return head('06 · Administración','Permisos por rol','El menú cambia al instante. Pruébalo con “Ver como”.')+subtabs()+
+  `<div class="tbl-wrap"><table><thead><tr><th>Módulo</th>${ROLES.map(r=>`<th>${ROL_LBL[r]}</th>`).join('')}</tr></thead><tbody>${MODULOS.filter(m=>m.id!=='inicio').map(m=>`<tr><td><b>${m.n}</b> ${m.t}</td>${ROLES.map(r=>`<td><select data-perm="${m.id}:${r}" aria-label="${m.t} ${ROL_LBL[r]}" ${m.id==='admin'&&r==='ADMIN'?'disabled':''} style="padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--surface)">${PERM_LBL.map((l,i)=>`<option value="${i}" ${PERM[m.id][r]===i?'selected':''}>${l}</option>`).join('')}</select></td>`).join('')}</tr>`).join('')}</tbody></table></div>`};
+V['admin-param']=()=>{if(!can('admin'))return locked();
+  const p=(k,l,u)=>`<label style="display:grid;gap:4px"><span>${l}</span><span style="display:flex;gap:6px;align-items:center"><input type="number" min="1" data-param="${k}" value="${P[k]}" class="inp" style="width:90px"> ${u}</span></label>`;
+  return head('06 · Administración','Reglas y catálogos','Umbrales, códigos de RESPONSABLE y catálogo de nombres. Cada cambio de regla queda con fecha para que la serie histórica no se rompa.')+subtabs()+
+  `<div class="grid g-3"><div class="card"><h3>Umbrales</h3><div style="display:grid;gap:10px">${p('slaHoras','Meta de autorización','horas')}${p('critHoras','Autorización crítica desde','horas')}${p('diasCE','Cierre consulta externa','días')}${p('diasSoatDoc','SOAT sin documentos, alerta desde','días')}${p('diasProlongado','Ingreso prolongado desde','días')}</div></div>
+  <div class="card"><h3>Códigos de RESPONSABLE</h3><p class="hint">Patrón → significado. Incluye errores de digitación conocidos.</p>${table('rc',[{h:'Patrones',v:r=>`<span class="mono">${esc(r.pat)}</span>`},{h:'Significa',v:r=>r.lbl}],COD_RESP,null)}</div>
+  <div class="card"><h3>Catálogo ERP › contrato</h3><p class="hint">Texto de ENTIDAD → ERP y contrato (corrige “RIBUTIVO”, “RATO”, “2026”).</p>${table('ec',[{h:'ENTIDAD',v:e=>`<small class="mono">${esc(e[0].length>48?e[0].slice(0,46)+'…':e[0])}</small>`},{h:'ERP',v:e=>e[1]},{h:'Contrato',v:e=>e[2]}],ENTIDADES,null,{per:8})}</div></div>`};
 
-/* ---------- 06 Cargue e informes ---------- */
-const COLS_EXCEL=['INGRESO','FECHA ING.','USUARIO','ESTADO','INGRESO POR','TIPO ING.','EGRESO','FECHA EGR.','USUARIO EGRESO','AREA','SUB GRUPO','CAMA','TIPO ID','DOCUMENTO','PACIENTE','EDAD (AÑOS)','ENTIDAD','RESPONSABLE','OBSERVACIONES','VALOR','PLAN BENEFICIO','NOMBRE PLAN','DIAG EGRESO'];
-V.carga=()=>{
-  if(!can('carga')) return locked();
-  return head('06 · Cargue e informes','Cargar ingresos abiertos','Solo el administrador carga el archivo. Cada carga queda como fotografía para comparar cambios y alimentar los casos especiales.')+subtabs()+
-  `<div class="grid g-2">
-    <div class="card"><h3>Nuevo archivo</h3><p class="hint">Excel exportado del sistema de información, con las 23 columnas. Se leen por nombre de encabezado, no por letra.</p>
-      <div class="drop-zone" id="dz"><b>Arrastra el archivo aquí</b><br>o<br><label class="btn ghost sm" style="display:inline-block;margin-top:8px">Elegir archivo<input type="file" id="fileIn" accept=".xlsx,.xls,.csv" hidden ${can('carga',2)?'':'disabled'}></label>
-      <p class="hint" style="margin-top:10px">En este prototipo solo se valida el nombre del archivo; no se leen datos reales.</p></div>
-      <div id="valid" style="margin-top:12px"></div>
-    </div>
-    <div class="card"><h3>Columnas esperadas</h3><p class="hint">Las marcadas son obligatorias para el análisis.</p>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">${COLS_EXCEL.map(c=>`<span class="pill ${['INGRESO','FECHA ING.','AREA','CAMA','DOCUMENTO','ENTIDAD','EGRESO','VALOR'].includes(c)?'p-acc':'p-mut'}">${c}</span>`).join('')}</div></div>
-  </div>
-  <div class="card" style="margin-top:14px"><h3>Historial de cargas</h3>
-  <div class="tbl-wrap"><table><thead><tr><th>Fecha</th><th>Archivo</th><th>Cargado por</th><th>Filas</th><th>Nuevos</th><th>Salieron</th></tr></thead><tbody>
-  ${CARGAS.map(c=>`<tr><td>${fmtDT(c.f)}</td><td class="mono">${c.arch}</td><td>${esc(c.u)}</td><td class="num">${c.filas}</td><td class="num" style="color:var(--ok)">+${c.nuevos}</td><td class="num" style="color:var(--crit)">−${c.salieron}</td></tr>`).join('')}
-  </tbody></table></div></div>`;
-};
-V.carga.after=()=>{
-  const dz=$('#dz'), fi=$('#fileIn'); if(!dz)return;
-  const handle=file=>{if(!file)return;const ok=/\.(xlsx|xls|csv)$/i.test(file.name);
-    $('#valid').innerHTML=ok?`<div class="alert info"><span class="sev"></span><div><div class="t">${esc(file.name)} recibido</div><div class="d">En la aplicación real aquí se validan las columnas, se compara con la carga anterior y se generan alertas de los casos que salieron. Este prototipo no procesa el archivo.</div></div><span></span></div>`:`<div class="alert crit"><span class="sev"></span><div><div class="t">Formato no válido</div><div class="d">Sube un archivo .xlsx, .xls o .csv.</div></div><span></span></div>`};
-  ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('over')}));
-  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('over')}));
-  dz.addEventListener('drop',e=>handle(e.dataTransfer.files[0])); fi.addEventListener('change',()=>handle(fi.files[0]));
-};
-V['carga-inf']=()=>{
-  if(!can('carga')) return locked();
-  const inf=[
-    ['Informe gerencial de ingresos abiertos','Semanal · PDF y Word',['Resumen ejecutivo con nivel de riesgo y 3 decisiones sugeridas','Indicadores clave vs. carga anterior (tendencia)','Concentración por ERP › contrato, y por área › pabellón','Hospitalizados, consulta externa fuera de plazo y egresados sin cerrar','Cruce con autorizaciones pendientes que bloquean la facturación','Plan de acción con responsable, fecha y indicador','Anexo metodológico: fuente, corte y reglas de cálculo']],
-    ['Informe de oportunidad en autorizaciones','Mensual · PDF y Excel',['Tiempo promedio, mediana y percentil 90 por ERP','Cumplimiento de la meta por autorizador y por área','Negaciones y causas','Tendencia semanal de solicitudes vs. respuestas','Top 15 trámites más antiguos con documento del paciente']],
-    ['Informe de casos especiales','Quincenal · PDF y Excel',['SOAT: sin documentos, definidos, pasaron a aseguradora','Sin seguridad social y neonatos: afiliados, facturados, pendientes','Casos que salieron de abiertos sin cierre (con gestor responsable)','Bitácora resumida por caso','Valor en riesgo de no cobro']],
-    ['Detalle operativo en Excel','A demanda · .xlsx',['Una hoja por agrupación: ERP, contrato, área, pabellón, usuario','Encabezados fijos, filtros y totales','Documento del paciente en todas las hojas de detalle']],
-  ];
-  return head('06 · Cargue e informes','Informes','Estructura propuesta para cada informe. Todos indican la fecha de corte y la fuente de cada cifra.')+subtabs()+
-  `<div class="grid g-2">${inf.map(i=>`<div class="card"><h3>${i[0]}</h3><p class="hint">${i[1]}</p><ol class="prose" style="padding-left:18px;margin:0 0 12px">${i[2].map(x=>`<li>${x}</li>`).join('')}</ol>
-    <button class="btn sm" data-gen="${esc(i[0])}">Generar</button></div>`).join('')}</div>`;
-};
-document.addEventListener('click',e=>{const g=e.target.closest('[data-gen]');if(g)toast('En la aplicación real se genera «'+g.dataset.gen+'» y se descarga. En el prototipo no se crea el archivo.')});
+/* ---------- Revisión ---------- */
+V.rev=()=>{const R=[
+  ['Casos especiales: diferenciar SOAT definido, los que siguen hospitalizados (cama sin egreso) y los de consulta externa','Chips de situación dentro de cada bandeja','casos'],
+  ['Consulta externa: no lleva egreso pero se controla su cierre','Vista propia con plazo y alerta','ing-ce'],
+  ['Filtro por área de ingreso','En todos los listados (con área inferida cuando viene vacía)','ing'],
+  ['Si el caso ya no aparece en ingresos abiertos y no tiene cierre: alertar al gestor para que cargue y cierre','Estado “Salió sin cierre” + alerta + bandeja propia','casos-salio'],
+  ['Módulo 1: gestión de autorizaciones pendientes, como estaba, con alertas por usuario','Bandeja, Mis trámites, alertas en Inicio','aut'],
+  ['Módulo 2: listado de ingresos con filtros, hospitalizados, observaciones y si hay autorizaciones pendientes; ver qué casos cambiaron de estado; sin opción de carga','Listado, Hospitalizados, Cambios entre cargas','ing'],
+  ['Módulo 3: SOAT y SOAT sin documentos, cuáles pasaron a pagador asignado, seguimiento estricto','Bandejas con lista de chequeo, gestor y compromiso','casos-sindoc'],
+  ['Módulo 4: sin seguridad social y neonatos; cuáles pasaron a pagador; si ya no están es porque se facturaron; bitácoras','Bandeja con filtro de neonatos y bitácora','casos-sss'],
+  ['Módulo de medición para el administrador','Medición con 5 secciones','med'],
+  ['Módulo de cargue e informes, con informes mejorados','Cargue, calidad del dato, informes','carga'],
+  ['Módulo de administración: modificaciones, permisos, creaciones','Usuarios, permisos por rol, reglas y catálogos','admin'],
+  ['Agrupar por ERP y contrato (CAPRESOCA 101 / sin contrato); por área y pabellones (4 piso)','Concentración con subtotales','ing-conc'],
+  ['Documento del paciente en reportes y tablas','Todas las tablas de detalle','ing'],
+  ['Roles: administrador y coordinador general ven todo; coordinador de área su área; autorizadores el proceso','Permisos por rol + “Ver como”','admin-perm'],
+  ['Diseño moderno, módulos arriba en cascada, interactivo y animado','Toda la interfaz','inicio'],
+  ['Análisis más veraz','Tiempos desde la solicitud, códigos de RESPONSABLE, ERP unificadas, área inferida','carga-cal']];
+  return head('Revisión','Lo que pediste','Cada pedido de la conversación original y dónde quedó en este prototipo.')+subtabs()+
+  table('ped',[{h:'Pedido',v:r=>r[0]},{h:'Cómo quedó',v:r=>r[1]},{h:'',v:r=>`<button class="btn ghost sm" data-go="${r[2]}">Ver</button>`}],R,null,{per:20})};
+V['rev-an']=()=>{const A=[
+   ['Dashboard','KPIs de tiempo: promedio, mediana, P90, % en meta','Comparación con el periodo anterior; tiempo desde la solicitud real','med'],
+   ['Dashboard','EPS que más demoran · EPS con más pendientes · Pareto','Clic en barra filtra; variantes de ERP unificadas','med-erp'],
+   ['Dashboard','Mapa de calor EPS × área','Clic en celda abre la bandeja filtrada','med-erp'],
+   ['Dashboard','Áreas con más pendientes · servicios que más demoran','Separado por nivel de demora','med-areas'],
+   ['Dashboard','Autorizadores: volumen, tiempo, mediana, P90, % meta','Sin gráfica de dos ejes; se agregan gestores de casos','med-gest'],
+   ['Dashboard','Patrones por día de la semana y por hora','Con los mismos filtros','med-patron'],
+   ['Dashboard','Tendencia · distribución por estado · pendientes más antiguos','Tendencia semanal de 10 semanas','med'],
+   ['Ingresos abiertos','Valor abierto, antigüedad, concentración por entidad, área, responsable y usuario','Una sola tabla con subtotales y filtros','ing-conc'],
+   ['Ingresos abiertos','ERP › contrato, área › pabellón, área × ERP, usuario × área','Catálogo corregido','ing-conc'],
+   ['Ingresos abiertos','Hallazgos: egresados abiertos, sin diagnóstico, 30+ días, varios ingresos, valor cero','Más: egresado con cama, área inferida, consulta externa fuera de plazo','ing-hall'],
+   ['Ingresos abiertos','Posibles hospitalizados · consulta externa con plazo','Vistas propias con filtros','ing-hosp'],
+   ['Ingresos abiertos','Cruce con autorizaciones pendientes','Lee también los códigos de RESPONSABLE (antes daba 0)','ing'],
+   ['Ingresos abiertos','Evolución entre cargas','Una fotografía por día; cambios de regla con fecha','ing-cambios'],
+   ['Casos especiales','Bandejas y bitácora de gestiones','Gestor, compromiso, lista de chequeo; no se cierran solos','casos'],
+   ['Informes','Informe profesional PDF/Word, reportes Excel, asistente IA','Secciones nuevas e informe de casos especiales','carga-inf']];
+  return head('Revisión','Análisis que se conservan','Ningún análisis se elimina ni cambia de lógica. Cada fila dice qué se mejora.')+subtabs()+
+  table('inv',[{h:'Módulo',v:r=>r[0]},{h:'Análisis actual',v:r=>r[1]},{h:'',v:()=>'<span class="pill p-ok">Se conserva</span>'},{h:'Mejora',v:r=>r[2]},{h:'',v:r=>`<button class="btn ghost sm" data-go="${r[3]}">Ver</button>`}],A,null,{per:20})};
+V['rev-hall']=()=>{const F=(s,t,d)=>`<div class="find"><span class="pill ${s==='Alta'?'p-crit':s==='Media'?'p-warn':'p-info'}">${s}</span><div><b>${t}</b><p>${d}</p></div></div>`;
+  return head('Revisión','Hallazgos en tu hoja','Encontrados al revisar la hoja SEGUIMIENTO AUTORIZACIONES COMPLETO OK.')+subtabs()+
+  `<div class="card">${F('Alta','La hoja está compartida con “cualquier persona con el enlace”','Tiene nombres y documentos de pacientes. Cambiar a Restringido.')}
+  ${F('Alta','El módulo de autorizaciones casi no se usa','2 registros. Las pendientes están como códigos en RESPONSABLE (AUTO.PEND, AUT.PEMD, PEND.AUTO, AUTO.PEN). Por eso el cruce y la medición dan 0.')}
+  ${F('Alta','140 casos se cerraron solos como “CERRADO EN DINÁMICA”','Se pidió alertar al gestor y cerrar con soporte.')}
+  ${F('Alta','586 de 595 casos especiales sin gestor ni fecha de compromiso','815 de 833 gestiones son automáticas.')}
+  ${F('Media','63% de ingresos sin AREA','Casi todos de consulta externa y urgencias ambulatorias. Se infiere de INGRESO POR.')}
+  ${F('Media','Contratos mal separados','“RIBUTIVO”, “RATO”, años como contrato; 8 variantes de CAPRESOCA, 6 de NUEVA EPS.')}
+  ${F('Media','“Más de 30 días” cambió de regla (840 → 37) sin registro','La serie histórica no se puede comparar.')}
+  ${F('Media','VALOR llega como texto','Formato “1.234.567,89”; se convierte al cargar.')}
+  ${F('Baja','Dos tablas de usuarios y dos de auditoría; pestañas vacías','USUARIOS/SEG_Usuarios, HISTORICO/SEG_Auditoria; Hoja 1, SERVICIOS, ESTANCIAS, PROCEDIMIENTOS, ALERTAS.')}</div>`};
 
-/* ---------- 07 Administración ---------- */
-V.admin=()=>{
-  if(!can('admin')) return locked();
-  return head('07 · Administración','Usuarios','Aprobación de registros, rol y área de cada persona. El área limita lo que ve un coordinador de área.')+subtabs()+
-  `<div class="tbl-wrap"><table><thead><tr><th>Nombre</th><th>Rol</th><th>Área</th><th>Estado</th><th></th></tr></thead><tbody>
-  ${USERS.map(u=>`<tr><td>${esc(u.nombre)}</td>
-    <td><select data-urol="${u.id}" aria-label="Rol de ${esc(u.nombre)}" style="padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--surface)">${(u.rol==='PENDIENTE'?['PENDIENTE',...ROLES]:ROLES).map(r=>`<option value="${r}" ${u.rol===r?'selected':''}>${ROL_LBL[r]}</option>`).join('')}</select></td>
-    <td><select data-uarea="${u.id}" aria-label="Área de ${esc(u.nombre)}" style="padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--surface)"><option value="*">Todas</option>${AREAS.map(a=>`<option ${u.area===a.n?'selected':''}>${a.n}</option>`).join('')}</select></td>
-    <td>${u.rol==='PENDIENTE'?'<span class="pill p-warn">Pendiente</span>':'<span class="pill p-ok">Activo</span>'}</td>
-    <td>${u.rol==='PENDIENTE'?`<button class="btn sm" data-aprob="${u.id}">Aprobar como autorizador</button>`:''}</td></tr>`).join('')}
-  </tbody></table></div>`;
-};
-document.addEventListener('change',e=>{
-  const r=e.target.closest('[data-urol]'); if(r){const u=USERS.find(x=>x.id===r.dataset.urol);u.rol=r.value;toast(u.nombre+' ahora es '+ROL_LBL[u.rol]);renderUserSel();render(false)}
-  const a=e.target.closest('[data-uarea]'); if(a){const u=USERS.find(x=>x.id===a.dataset.uarea);u.area=a.value;toast('Área de '+u.nombre+': '+(u.area==='*'?'todas':u.area))}
-  const p=e.target.closest('[data-perm]'); if(p){const [m,rol]=p.dataset.perm.split(':');PERM[m][rol]=+p.value;toast('Permiso actualizado: '+ROL_LBL[rol]+' › '+MODULOS.find(x=>x.id===m).t+' = '+PERM_LBL[+p.value]);renderNav()}
-  const pr=e.target.closest('[data-param]'); if(pr){PARAM[pr.dataset.param]=Math.max(1,+pr.value||1);toast('Parámetro actualizado. Las alertas se recalcularon.');renderNav()}
-});
-document.addEventListener('click',e=>{const a=e.target.closest('[data-aprob]');if(a){const u=USERS.find(x=>x.id===a.dataset.aprob);u.rol='AUTORIZADOR';toast(u.nombre+' aprobado como autorizador');renderUserSel();render(false)}});
-V['admin-perm']=()=>{
-  if(!can('admin')) return locked();
-  return head('07 · Administración','Permisos por rol','Cambia el nivel de acceso de cada rol a cada módulo. El menú se actualiza al instante; prueba con “Ver como”.')+subtabs()+
-  `<div class="tbl-wrap"><table class="matrix"><thead><tr><th>Módulo</th>${ROLES.map(r=>`<th>${ROL_LBL[r]}</th>`).join('')}</tr></thead><tbody>
-  ${MODULOS.filter(m=>m.id!=='inicio').map(m=>`<tr><td><b>${m.n}</b> ${m.t}</td>${ROLES.map(r=>`<td><select data-perm="${m.id}:${r}" aria-label="${m.t} para ${ROL_LBL[r]}" ${m.id==='admin'&&r==='ADMIN'?'disabled':''} style="padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--surface)">${PERM_LBL.map((l,i)=>`<option value="${i}" ${PERM[m.id][r]===i?'selected':''}>${l}</option>`).join('')}</select></td>`).join('')}</tr>`).join('')}
-  </tbody></table></div>`;
-};
-V['admin-param']=()=>{
-  if(!can('admin')) return locked();
-  const p=(k,l,u)=>`<label style="display:grid;gap:4px"><span>${l}</span><span style="display:flex;gap:6px;align-items:center"><input type="number" min="1" data-param="${k}" value="${PARAM[k]}" style="width:90px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"> ${u}</span></label>`;
-  const alias=[['HOSPITALIZACION 4 PISO','Internación 4 piso · HOSP 4P · PISO 4'],['CONSULTA EXTERNA','CE · C. EXTERNA · CONSULTORIOS'],['UCI ADULTOS','UCI · CUIDADO INTENSIVO']];
-  const erpAlias=[['CAPRESOCA 101','CAPRESOCA','101'],['CAPRESOCA EPS SUBSIDIADO','CAPRESOCA','SIN CONTRATO'],['NUEVA EPS S.A. 201','NUEVA EPS','201'],['SANITAS EPS - 301','SANITAS','301']];
-  return head('07 · Administración','Parámetros y catálogos','Reglas que usan las alertas y los catálogos que unifican nombres entre el Excel y la aplicación.')+subtabs()+
-  `<div class="grid g-3">
-    <div class="card"><h3>Umbrales</h3><p class="hint">Afectan alertas, colores y medición.</p><div style="display:grid;gap:10px">
-      ${p('slaHoras','Meta de autorización','horas')}${p('critHoras','Autorización crítica desde','horas')}${p('diasCE','Plazo de cierre consulta externa','días')}${p('diasSoatDoc','SOAT sin documentos, alerta desde','días')}${p('diasProlongado','Ingreso prolongado desde','días')}</div></div>
-    <div class="card"><h3>Catálogo de áreas</h3><p class="hint">Un nombre oficial y sus variantes. Así “Internación 4 piso” y “HOSPITALIZACION 4 PISO” cuentan como la misma área.</p>
-      <div class="tbl-wrap"><table><thead><tr><th>Área oficial</th><th>Variantes</th></tr></thead><tbody>${alias.map(a=>`<tr><td>${a[0]}</td><td style="color:var(--muted)">${a[1]}</td></tr>`).join('')}</tbody></table></div></div>
-    <div class="card"><h3>Catálogo ERP › contrato</h3><p class="hint">Texto del Excel → ERP y contrato. Se propone solo y el administrador lo corrige.</p>
-      <div class="tbl-wrap"><table><thead><tr><th>Texto en ENTIDAD</th><th>ERP</th><th>Contrato</th></tr></thead><tbody>${erpAlias.map(a=>`<tr><td class="mono">${a[0]}</td><td>${a[1]}</td><td>${a[2]}</td></tr>`).join('')}</tbody></table></div></div>
-  </div>`;
-};
-
-/* ---------- Revisión del proyecto ---------- */
-V.rev=()=>{
-  const F=(sev,t,d)=>`<div class="find"><span class="pill ${sev==='Alta'?'p-crit':sev==='Media'?'p-warn':'p-info'}">${sev}</span><div><b>${t}</b><p>${d}</p></div></div>`;
-  return head('Revisión','Diagnóstico del proyecto actual','Revisión hecha a partir de la conversación compartida. Los archivos de código no se ven en el enlace, así que los hallazgos salen de lo que se pidió, se entregó y se reportó como probado.')+
-  `<div class="grid g-2">
-  <div class="card"><h3>Hallazgos</h3>
-    ${F('Alta','Nunca se probó en Apps Script real','Cada entrega dice “no lo ejecuté en Apps Script”. El error “no se pudo guardar el proyecto” quedó sin causa. Lo primero es instalar la versión fuente (no la ofuscada) y corregir hasta que guarde y ejecute inicializarSistema.')}
-    ${F('Alta','La versión ofuscada estorba más de lo que protege','Hace imposible depurar y es una causa probable del error al guardar (archivos muy grandes o sintaxis que el editor rechaza). El código del servidor (.gs) ya es invisible para los usuarios; basta con no compartir el proyecto ni la hoja.')}
-    ${F('Alta','Datos de salud en una hoja de cálculo con acceso “Cualquier persona”','Con usuario y contraseña propios, la seguridad depende del código casero (PBKDF2 en Apps Script, sesiones en caché). Conviene publicar solo para el dominio de Google Workspace de la institución y usar la cuenta de Google como identidad.')}
-    ${F('Media','El tiempo de autorización no es veraz','Se mide desde que se crea el registro hasta su última actualización. Falta guardar fecha de solicitud, de radicación ante la EPS y de respuesta, como campos propios.')}
-    ${F('Media','Nombres de área y ERP distintos entre módulos','“Internación 4 piso” vs. “HOSPITALIZACION 4 PISO”, “CAPRESOCA 101” vs. “CAPRESOCA”. Se resolvió con parches (escribir ambos nombres con “;”). Hace falta un catálogo maestro con variantes.')}
-    ${F('Media','“Salió de ingresos abiertos” se asume como facturado','Es una presunción. Debe quedar como “presunto facturado” hasta que el gestor cargue el soporte, y generar alerta si el caso especial no se cierra.')}
-    ${F('Media','Roles cambiaron de nombre varias veces','OPERADOR → AUTORIZADOR, RESPONSABLE_AREA → COORDINADOR_AREA, y se agregó GESTOR. Una matriz de permisos por módulo evita reglas sueltas en el código.')}
-    ${F('Baja','La última petición quedó a medias','Los 7 módulos (pendientes con alertas por usuario, ingresos, SOAT, sin seguridad social, medición, cargue e informes, administración) no se terminaron. Este prototipo los define.')}
-  </div>
-  <div class="card"><h3>Modelo de datos propuesto</h3><p class="hint">Una hoja por entidad. Las claves unen todo por ingreso y documento.</p>
-<pre class="mermaid">erDiagram
-  CARGA ||--o{ INGRESO_FOTO : contiene
-  INGRESO_FOTO }o--|| AREA : "area oficial"
-  INGRESO_FOTO }o--|| CONTRATO : pagador
-  ERP ||--o{ CONTRATO : tiene
-  INGRESO_FOTO ||--o{ AUTORIZACION : genera
-  AUTORIZACION ||--o{ EVENTO_AUT : bitacora
-  INGRESO_FOTO ||--o| CASO_ESPECIAL : "SOAT / sin SS / neonato"
-  CASO_ESPECIAL ||--o{ EVENTO_CASO : bitacora
-  CASO_ESPECIAL ||--o{ DOCUMENTO_CASO : checklist
-  USUARIO }o--|| ROL : tiene
-  USUARIO ||--o{ ALERTA : recibe
-  AREA ||--o{ AREA_ALIAS : variantes
-</pre></div>
-  </div>
-  <div class="grid g-2" style="margin-top:14px">
-    <div class="card"><h3>Estados de una autorización</h3>
-<pre class="mermaid">stateDiagram-v2
-  [*] --> SOLICITADA
-  SOLICITADA --> RADICADA : radicado EPS
-  RADICADA --> EN_TRAMITE : EPS pide soportes
-  RADICADA --> AUTORIZADA
-  EN_TRAMITE --> AUTORIZADA
-  RADICADA --> NEGADA
-  EN_TRAMITE --> NEGADA
-  AUTORIZADA --> [*]
-  NEGADA --> [*]
-</pre></div>
-    <div class="card"><h3>Estados de un caso especial</h3>
-<pre class="mermaid">stateDiagram-v2
-  [*] --> EN_GESTION : carga detecta SOAT sin doc / sin SS / neonato
-  EN_GESTION --> PAGADOR_ASIGNADO : carga detecta nuevo pagador
-  EN_GESTION --> SALIO_SIN_CIERRE : ya no está en abiertos
-  PAGADOR_ASIGNADO --> SALIO_SIN_CIERRE : ya no está en abiertos
-  SALIO_SIN_CIERRE --> CERRADO : gestor carga soporte
-  PAGADOR_ASIGNADO --> CERRADO
-  CERRADO --> [*]
-</pre></div>
-  </div>`;
-};
-V.rev.after=()=>{try{window.mermaid&&window.mermaid.run&&window.mermaid.run()}catch(e){}};
-
-/* =========================================================
-   RENDER
-   ========================================================= */
-function render(anim=true){
-  renderNav();
-  const fn=V[S.view]||V.inicio;
-  const m=$('#main'); m.innerHTML=`<div class="${anim?'view':''}">${fn()}</div>`;
-  countUp(m);
-  if(fn.after && can(modOf(S.view).id)) fn.after();
-}
-renderUserSel();
-const h0=location.hash.slice(1); if(h0&&V[h0])S.view=h0;
-render();
+/* ===================== RENDER ===================== */
+function render(anim=true){renderNav();const fn=V[S.view]||V.inicio,m=$('#main');m.innerHTML=`<div class="${anim?'view':''}">${fn()}</div>`;countUp(m);if(fn.after&&can(modOf(S.view).id))fn.after()}
+renderUserSel();const h0=location.hash.slice(1);if(V[h0])S.view=h0;render();
 </script>
