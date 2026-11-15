@@ -2,12 +2,15 @@ ASISTENTE ZAJUNA - CÓMO INSTALARLO Y USARLO
 ============================================
 
 INSTALAR (una sola vez, 10 a 20 minutos)
-1. Descomprime esta carpeta en un lugar fijo, por ejemplo "Documentos\Asistente Zajuna".
-   (Clic derecho sobre el .zip > "Extraer todo").
+1. ANTES de descomprimir: clic derecho sobre el .zip > Propiedades > marca "Desbloquear" > Aceptar.
+   (Así Windows no bloquea los archivos por venir de internet.)
+   Luego clic derecho sobre el .zip > "Extraer todo" en un lugar fijo, por ejemplo Documentos.
 2. Abre la carpeta y haz doble clic en  INSTALAR.bat
    - Si Windows muestra "Windows protegió su PC": clic en "Más información" > "Ejecutar de todas formas".
    - Si no tienes Python, el instalador lo descarga e instala solo.
-   - Al terminar crea dos accesos directos en el escritorio.
+   - Al terminar crea accesos directos en el Escritorio y en el menú Inicio.
+   - Si no aparecen: doble clic en "CREAR ACCESOS DIRECTOS.bat", o abre directamente
+     "Asistente Zajuna.bat" dentro de la carpeta.
 
 USAR
 1. Doble clic en "Asistente Zajuna" (escritorio).

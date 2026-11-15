@@ -7,6 +7,9 @@ echo   Asistente Zajuna - Instalacion (solo se hace una vez)
 echo ==========================================================
 echo.
 
+rem ---------- 0. Quitar el bloqueo de "archivo de internet" ----------
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem -LiteralPath '%~dp0.' -Recurse -File | Unblock-File" >nul 2>nul
+
 rem ---------- 1. Buscar Python 3.10 o superior ----------
 set "PY="
 for %%P in ("%LocalAppData%\Programs\Python\Python313\python.exe" "%LocalAppData%\Programs\Python\Python312\python.exe" "%LocalAppData%\Programs\Python\Python311\python.exe" "%LocalAppData%\Programs\Python\Python310\python.exe") do (
@@ -69,12 +72,13 @@ if errorlevel 1 (
 echo ok> ".venv\instalado.txt"
 echo [3/4] Librerias listas.
 
-rem ---------- 4. Accesos directos en el escritorio ----------
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=New-Object -ComObject WScript.Shell; $d=[Environment]::GetFolderPath('Desktop'); foreach($n in @('Asistente Zajuna','Asistente Zajuna - solo actividades')){ $l=$s.CreateShortcut((Join-Path $d ($n+'.lnk'))); $l.TargetPath=(Join-Path '%~dp0' ($n+'.bat')); $l.WorkingDirectory='%~dp0'; $l.IconLocation='shell32.dll,13'; $l.Save() }"
-echo [4/4] Accesos directos creados en el escritorio.
+rem ---------- 4. Accesos directos en el escritorio y menu Inicio ----------
+echo [4/4] Creando accesos directos...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0crear_accesos.ps1"
 
 echo.
 echo ==========================================================
-echo   LISTO. Abre "Asistente Zajuna" desde el escritorio.
+echo   LISTO. Abre "Asistente Zajuna" desde el escritorio o el menu Inicio.
+echo   Si no aparece, abre "Asistente Zajuna.bat" en esta carpeta.
 echo ==========================================================
 pause
