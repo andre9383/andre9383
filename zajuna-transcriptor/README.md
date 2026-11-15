@@ -74,6 +74,8 @@ no tendrás que volver a escribir la contraseña. El programa **nunca guarda ni 
 | `iniciar.bat --max 3` | Procesa como máximo 3 grabaciones nuevas en esta ejecución |
 | `iniciar.bat --modelo-whisper medium` | Transcripción más precisa pero más lenta (`tiny`, `base`, `small` *por defecto*, `medium`, `large-v3`) |
 | `iniciar.bat --conservar-videos` | No borra los videos después de transcribirlos |
+| `iniciar.bat --desde 01/10/2026` | Solo grabaciones cuyo título tenga fecha desde ese día (Zajuna pone la fecha en el título) |
+| `iniciar.bat --excluir ingles` | Omite las grabaciones cuyo título contenga esas palabras (separadas por coma) |
 | `iniciar.bat --solo-actividades` | Solo revisa actividades y arma borradores (sin grabaciones) |
 | `iniciar.bat --solo-grabaciones` | Solo grabaciones, sin revisar actividades |
 | `iniciar.bat --rehacer-borradores` | Vuelve a armar los borradores (por ejemplo, después de llenar `mi_proyecto.md`) |
@@ -100,6 +102,9 @@ próxima vez que lo abras.
   `error_descarga`. En ese caso descárgala a mano y ponla en `videos_manuales/`.
 - **BigBlueButton, Zoom y carpetas de Drive** no se descargan solas. Quedan listadas en el índice para
   abrirlas a mano.
+- Las sesiones de **inglés** se transcriben detectando el idioma automáticamente.
+- Los **cuestionarios** aparecen en `ACTIVIDADES.md` para que no se te pasen, pero se resuelven
+  directamente en Zajuna (no se arma borrador).
 - La transcripción automática puede tener errores con nombres propios o códigos. El resumen intenta
   corregirlos y marca lo que no es claro en **"Pendiente por aclarar"**.
 - **Los borradores son un punto de partida, no un trabajo para copiar y entregar.** Revísalos,

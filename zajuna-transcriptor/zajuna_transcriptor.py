@@ -63,6 +63,25 @@ def nombre_seguro(texto: str, max_len: int = 90) -> str:
     return (texto[:max_len].rstrip(" .") or "sin_titulo")
 
 
+def limpiar_titulo(t: str) -> str:
+    """Quita los rótulos ocultos de Moodle ("Página", "URL", "Archivo"…) y espacios sobrantes."""
+    t = re.sub(r"\s+", " ", t or "").strip()
+    return re.sub(r"\s+(Página|Pagina|URL|Archivo|Tarea|Carpeta|Foro|Libro|Cuestionario|Page|File|Assignment|Folder|Quiz)$", "", t).strip()
+
+
+def fecha_en(texto: str) -> dt.date | None:
+    """Busca una fecha dd/mm/aaaa o dd/mm/aa en el texto (los títulos de Zajuna la traen)."""
+    m = re.search(r"(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})", texto or "")
+    if not m:
+        return None
+    d, mes, a = (int(x) for x in m.groups())
+    a = a + 2000 if a < 100 else a
+    try:
+        return dt.date(a, mes, d)
+    except ValueError:
+        return None
+
+
 def hhmmss(segundos: float) -> str:
     s = int(segundos)
     return f"{s // 3600:02d}:{s % 3600 // 60:02d}:{s % 60:02d}"
@@ -321,9 +340,15 @@ class Zajuna:
                         continue
                     if "/pluginfile.php" in u and "forcedownload" not in u and u.split("?")[0].lower().endswith(EXT_MEDIA):
                         u = u + ("&" if "?" in u else "?") + "forcedownload=1"
-                    tipo = "moodle" if e.get("descarga") else clasificar(u, texto)
+                    if e.get("descarga"):  # el recurso descarga un archivo: solo cuenta si parece una sesión
+                        es_doc = re.search(r"gu[ií]a|material|documento|plantilla|formato|lectura|r[uú]brica", ctx_txt or "", re.I)
+                        tipo = None if es_doc else "moodle"
+                    else:
+                        tipo = clasificar(u, texto)
                     if tipo:
-                        self._agregar(encontradas, Grabacion(u, e["texto"] or e["contexto"] or ctx_txt, nombre, tipo, final))
+                        # Dentro de una página/recurso el enlace suele decir "clic aquí": se usa el nombre del recurso.
+                        titulo = ctx_txt if prof >= 1 and ctx_txt else (e["texto"] or e["contexto"] or ctx_txt)
+                        self._agregar(encontradas, Grabacion(u, titulo, nombre, tipo, final))
                         continue
                     if u.startswith(self.wwwroot) and prof < 2 and any(m in u for m in MODULOS_A_EXPLORAR):
                         # En foros solo se exploran los hilos (discuss.php) desde la vista del foro
@@ -334,6 +359,7 @@ class Zajuna:
 
     @staticmethod
     def _agregar(destino: dict, g: Grabacion) -> None:
+        g.titulo = limpiar_titulo(g.titulo)
         if g.clave() not in destino:
             destino[g.clave()] = g
             log(f"   🎥 {g.tipo:<11} {g.titulo[:70]}")
@@ -429,7 +455,7 @@ def tiene_audio(ruta: Path) -> bool:
 _MODELO = None
 
 
-def transcribir(ruta: Path, destino: Path, modelo: str) -> Path:
+def transcribir(ruta: Path, destino: Path, modelo: str, idioma: str | None = "es") -> Path:
     global _MODELO
     from faster_whisper import WhisperModel
 
@@ -437,7 +463,7 @@ def transcribir(ruta: Path, destino: Path, modelo: str) -> Path:
         log(f"Cargando modelo Whisper '{modelo}' (la primera vez se descarga, puede tardar)…")
         _MODELO = WhisperModel(modelo, device="auto", compute_type="int8")
     log(f"   Transcribiendo {ruta.name} …")
-    segmentos, info = _MODELO.transcribe(str(ruta), language="es", vad_filter=True, beam_size=5)
+    segmentos, info = _MODELO.transcribe(str(ruta), language=idioma, vad_filter=True, beam_size=5)
     duracion = info.duration or 0
     lineas, ultimo = [], 0.0
     for s in segmentos:
@@ -597,7 +623,8 @@ def procesar(g: Grabacion, archivo: Path | None, estado: Estado, salida: Path, a
                 archivo.unlink(missing_ok=True)
             estado.guardar()
             return
-        trans = transcribir(archivo, carpeta / f"{base} - transcripcion.txt", args.modelo_whisper)
+        idioma = None if re.search(r"ingl[eé]s|english", g.titulo, re.I) else "es"  # None = detectar idioma
+        trans = transcribir(archivo, carpeta / f"{base} - transcripcion.txt", args.modelo_whisper, idioma)
         d.update({"transcripcion": str(trans), "estado": "transcrita"})
         estado.guardar()
         if not args.conservar_videos and archivo.parent == salida / "_descargas":
@@ -639,6 +666,24 @@ def enlaces_txt() -> list[Grabacion]:
     return out
 
 
+def filtrar(grabaciones: list[Grabacion], args) -> list[Grabacion]:
+    desde = fecha_en(args.desde) if args.desde else None
+    hasta = fecha_en(args.hasta) if args.hasta else None
+    excluir = [w.strip().lower() for w in args.excluir.split(",") if w.strip()]
+    out = []
+    for g in grabaciones:
+        f = fecha_en(g.titulo)
+        if desde and f and f < desde or hasta and f and f > hasta:
+            continue
+        sin_tilde = g.titulo.lower().replace("é", "e").replace("í", "i").replace("á", "a").replace("ó", "o").replace("ú", "u")
+        if any(w in sin_tilde or w in g.titulo.lower() for w in excluir):
+            continue
+        out.append(g)
+    if len(out) != len(grabaciones):
+        log(f"Filtro aplicado: {len(out)} de {len(grabaciones)} grabaciones.")
+    return out
+
+
 def trabajar_actividades(zaj, cursos, estado: Estado, salida: Path, args, con_resumen: bool) -> None:
     import actividades as act
 
@@ -674,6 +719,9 @@ def main() -> None:
     ap.add_argument("--modelo-claude", default="claude-opus-5-5", help="modelo de Claude para los resúmenes")
     ap.add_argument("--conservar-videos", action="store_true", help="no borrar los videos después de transcribir")
     ap.add_argument("--salida", default=str(RAIZ / "salida"), help="carpeta de resultados")
+    ap.add_argument("--desde", default="", help="solo grabaciones con fecha en el título desde DD/MM/AAAA")
+    ap.add_argument("--hasta", default="", help="solo grabaciones con fecha en el título hasta DD/MM/AAAA")
+    ap.add_argument("--excluir", default="", help="palabras separadas por coma; omite grabaciones cuyo título las tenga (ej: ingles)")
     ap.add_argument("--solo-grabaciones", action="store_true", help="no revisar actividades ni armar borradores")
     ap.add_argument("--solo-actividades", action="store_true", help="no procesar grabaciones; solo actividades y borradores")
     ap.add_argument("--rehacer-borradores", action="store_true", help="volver a armar borradores que ya existen")
@@ -709,7 +757,7 @@ def main() -> None:
             if not args.solo_actividades:
                 grabaciones = zaj.buscar_grabaciones(cursos, args.curso)
                 log(f"{len(grabaciones)} grabación(es) encontradas en Zajuna.")
-                trabajos += [(g, None) for g in grabaciones]
+                trabajos += [(g, None) for g in filtrar(grabaciones, args)]
 
         if args.solo_listar:
             for g, _ in trabajos:

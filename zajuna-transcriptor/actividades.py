@@ -19,7 +19,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from zajuna_transcriptor import RAIZ, log, nombre_seguro
+from zajuna_transcriptor import RAIZ, limpiar_titulo, log, nombre_seguro
 
 CODIGO_EV = re.compile(r"GA\d+-\d{6,}-AA\d+-EV\d+", re.I)
 
@@ -56,9 +56,12 @@ class Actividad:
     calificacion: str = ""
     retroalimentacion: str = ""
     adjuntos: list = field(default_factory=list)  # [{"nombre", "ruta", "texto"}]
+    tipo: str = "tarea"  # tarea | cuestionario
 
     @property
     def pendiente(self) -> bool:
+        if self.tipo == "cuestionario":
+            return False  # los cuestionarios se resuelven en Zajuna; no se arma borrador
         e = (self.estado_entrega or "").lower()
         if not e:
             return True
@@ -95,6 +98,37 @@ def texto_de_archivo(ruta: Path, max_chars: int = 60_000) -> str:
     return ""
 
 
+def numero_guia(texto: str) -> str:
+    """'GA3-210101051-AA1-EV01' -> '3'; 'Guía de aprendizaje 3' -> '3'."""
+    m = re.search(r"\bGA(\d+)-", texto or "", re.I) or re.search(r"gu[ií]a de aprendizaje\s*(?:n[°ºo.]*\s*)?(\d+)", texto or "", re.I)
+    return m.group(1) if m else ""
+
+
+def texto_recurso(zaj, url: str, carpeta: Path, nombre: str) -> dict | None:
+    """Obtiene el texto de un recurso de Zajuna (archivo PDF/Word o página)."""
+    carpeta.mkdir(parents=True, exist_ok=True)
+    try:
+        if "/mod/resource/view.php" in url or "/pluginfile.php" in url:
+            destino = url + ("&" if "?" in url else "?") + ("redirect=1" if "/mod/resource/" in url else "forcedownload=1")
+            r = zaj.ctx.request.get(destino, timeout=120_000)
+            tipo = r.headers.get("content-type", "")
+            ext = ".pdf" if "pdf" in tipo else ".docx" if "word" in tipo or "officedocument" in tipo else ""
+            if r.ok and ext:
+                ruta = carpeta / f"{nombre_seguro(nombre, 80)}{ext}"
+                ruta.write_bytes(r.body())
+                return {"nombre": nombre, "ruta": str(ruta), "texto": texto_de_archivo(ruta)}
+        zaj.page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+        texto = zaj.page.evaluate("() => (document.querySelector('#region-main, [role=main]') || document.body).innerText")
+        # Una página que solo enlaza al PDF de la guía
+        pdf = zaj.page.evaluate("() => { const a = document.querySelector('#region-main a[href*=\"pluginfile.php\"]'); return a ? a.href : ''; }")
+        if pdf and len(texto) < 1500:
+            return texto_recurso(zaj, pdf, carpeta, nombre) or {"nombre": nombre, "ruta": url, "texto": texto}
+        return {"nombre": nombre, "ruta": url, "texto": texto[:60_000]}
+    except Exception as e:
+        log(f"   No se pudo leer el recurso {nombre}: {e}")
+        return None
+
+
 def revisar_actividades(zaj, cursos: list[tuple[str, str]], salida: Path, filtro: str = "") -> list[Actividad]:
     """Recorre las tareas de cada curso y devuelve su información."""
     carpeta_adj = salida / "actividades" / "_adjuntos"
@@ -104,13 +138,32 @@ def revisar_actividades(zaj, cursos: list[tuple[str, str]], salida: Path, filtro
             continue
         log(f"Actividades de: {nombre}")
         tareas: dict[str, str] = {}
+        cuestionarios: dict[str, str] = {}
+        guias_url: dict[str, tuple[str, str]] = {}  # número -> (url, nombre)
         cid = re.search(r"id=(\d+)", url_curso)
         # La página índice de tareas lista todas las del curso
-        for url in ([f"{zaj.wwwroot}/mod/assign/index.php?id={cid.group(1)}"] if cid else []) + [url_curso]:
+        for url in [url_curso] + ([f"{zaj.wwwroot}/mod/assign/index.php?id={cid.group(1)}"] if cid else []):
             _, enlaces = zaj._enlaces(url)
             for e in enlaces:
-                if "/mod/assign/view.php?id=" in e["url"]:
-                    tareas.setdefault(e["url"].split("#")[0].split("&")[0], e["texto"])
+                u = e["url"].split("#")[0].split("&")[0]
+                if "/mod/assign/view.php?id=" in u:
+                    tareas.setdefault(u, e["texto"])
+                elif "/mod/quiz/view.php?id=" in u:
+                    cuestionarios.setdefault(u, e["texto"])
+                elif re.search(r"/mod/(resource|page|url)/view.php", u) and re.search(r"gu[ií]a de aprendizaje", e["texto"], re.I):
+                    n = numero_guia(e["texto"])
+                    if n:
+                        guias_url.setdefault(n, (u, limpiar_titulo(e["texto"])))
+        guias: dict[str, dict] = {}
+        for n, (u, nom) in sorted(guias_url.items()):
+            g = texto_recurso(zaj, u, carpeta_adj, nom)
+            if g and g.get("texto"):
+                guias[n] = g
+                log(f"   📘 {nom[:60]} ({len(g['texto']):,} caracteres)")
+        for u, texto in cuestionarios.items():
+            m = CODIGO_EV.search(texto)
+            actividades.append(Actividad(url=u, curso=nombre, titulo=limpiar_titulo(texto),
+                                         codigo=m.group(0).upper() if m else "", tipo="cuestionario"))
         for url, texto in tareas.items():
             try:
                 zaj.page.goto(url, wait_until="domcontentloaded", timeout=60_000)
@@ -134,6 +187,9 @@ def revisar_actividades(zaj, cursos: list[tuple[str, str]], salida: Path, filtro
                                                 carpeta_adj, a.codigo or nombre_seguro(titulo, 40))
                 if ruta:
                     a.adjuntos.append({"nombre": adj["nombre"], "ruta": str(ruta), "texto": texto_de_archivo(ruta)})
+            n = numero_guia(a.codigo or titulo)
+            if n in guias:
+                a.adjuntos.append(guias[n])
             marca = "⏳ pendiente" if a.pendiente else "✅ entregada"
             log(f"   📝 {marca:<13} {titulo[:70]}")
             actividades.append(a)
@@ -317,7 +373,8 @@ def escribir_resumen_actividades(actividades: list[Actividad], salida: Path) -> 
         carpeta = salida / "actividades" / nombre_seguro(a.curso, 60)
         borr = sorted(carpeta.glob(f"*{glob.escape(nombre_seguro(a.titulo, 40))}*BORRADOR.docx")) if carpeta.exists() else []
         enlace = f"[docx](<{borr[0].relative_to(salida).as_posix()}>)" if borr else "—"
-        filas.append(f"| {'⏳ Pendiente' if a.pendiente else '✅ Entregada'} | {a.curso} | {a.titulo} | "
+        marca = "📋 Cuestionario" if a.tipo == "cuestionario" else "⏳ Pendiente" if a.pendiente else "✅ Entregada"
+        filas.append(f"| {marca} | {a.curso} | {a.titulo} | "
                      f"{a.fecha_entrega or '—'} | {a.calificacion or '—'} | {enlace} |")
     ruta = salida / "ACTIVIDADES.md"
     ruta.write_text("\n".join(filas) + "\n", encoding="utf-8")
