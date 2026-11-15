@@ -84,10 +84,36 @@ function api(token, accion, datos) {
   });
 }
 
+/**
+ * Lee una hoja de listas sin depender de que el encabezado esté en la fila 1:
+ * busca en las primeras 10 filas la que contiene un encabezado que coincida con `patron`
+ * y devuelve los valores de esa columna. Si no hay encabezado reconocible, usa la columna indicada.
+ */
+function columnaLista_(nombreHoja, patron, colPorDefecto) {
+  var sh = libro_().getSheetByName(nombreHoja);
+  if (!sh || sh.getLastRow() < 1) return [];
+  var v = sh.getRange(1, 1, sh.getLastRow(), Math.max(1, sh.getLastColumn())).getValues();
+  var fila = -1, col = -1;
+  for (var i = 0; i < Math.min(10, v.length) && fila < 0; i++) for (var j = 0; j < v[i].length; j++) if (patron.test(norm_(v[i][j]))) { fila = i; col = j; break; }
+  if (fila < 0) { fila = 0; col = colPorDefecto || 0; }
+  var out = {}, res = [];
+  for (var k = fila + 1; k < v.length; k++) { var x = txt_(v[k][col]); if (x && !out[norm_(x)]) { out[norm_(x)] = 1; res.push(x); } }
+  return res;
+}
+
+/** Listas del formulario de registro: funcionarios (PERSONAL) y áreas / servicios (LISTAS), con alternativas si están vacías. */
+function listasRegistro_() {
+  var personal = columnaLista_(H.PERSONAL, /^(NOMBRE|NOMBRES|NOMBRE COMPLETO|NOMBRES Y APELLIDOS|FUNCIONARIO|NOMBRE FUNCIONARIO|NOMBRE DEL FUNCIONARIO|EMPLEADO)$/, 1).sort(), fuenteP = 'PERSONAL';
+  if (!personal.length) { personal = objetos_(H.USUARIOS).filter(function (u) { return esSi_(u['ACTIVO']); }).map(function (u) { return txt_(u['NOMBRE']); }).filter(String).sort(); fuenteP = 'USUARIOS (la hoja PERSONAL está vacía o sin columna NOMBRE)'; }
+  var areas = columnaLista_(H.LISTAS, /AREA|SERVICIO/, 0), fuenteA = 'LISTAS';
+  if (!areas.length) { areas = areasParaRegistro_(); fuenteA = 'catálogo de áreas (la hoja LISTAS está vacía)'; }
+  return { personal: personal, areas: areas, servicios: areas, fuentePersonal: fuenteP, fuenteAreas: fuenteA };
+}
+
 function areasParaRegistro_() {
   var g = {};
   objetos_(H.AREAS).forEach(function (o) { if (txt_(o['GRUPO'])) g[txt_(o['GRUPO'])] = 1; });
-  objetos_(H.LISTAS).forEach(function (o) { var v = txt_(o[Object.keys(o).filter(function (k) { return k !== '_fila'; })[0]]); if (v) g[may_(v)] = 1; });
+  columnaLista_(H.LISTAS, /AREA|SERVICIO/, 0).forEach(function (v) { g[may_(v)] = 1; });
   g['CONSULTA EXTERNA'] = 1; g['URGENCIAS'] = 1;
   return Object.keys(g).sort();
 }
@@ -147,7 +173,6 @@ function datosApp_(s) {
     gestores: usuarios.filter(function (u) { return normRol_(u['ROL']) === 'GESTOR_CASOS' || normRol_(u['ROL']) === 'ADMINISTRADOR'; }).map(function (u) { return txt_(u['NOMBRE']); }),
     autorizadores: usuarios.filter(function (u) { return normRol_(u['ROL']) === 'AUTORIZADOR'; }).map(function (u) { return txt_(u['NOMBRE']); }),
     docsCaso: DOCS_CASO, iaActiva: !!prop_('ANTHROPIC_API_KEY'),
-    personal: (s.perm.aut || 0) >= 2 ? objetos_(H.PERSONAL).map(function (o) { return txt_(o['NOMBRE']); }).filter(String).sort() : [],
-    listas: (s.perm.aut || 0) >= 2 ? objetos_(H.LISTAS).map(function (o) { var k = Object.keys(o).filter(function (z) { return z !== '_fila'; })[0]; return txt_(o[k]); }).filter(String) : []
+    listasReg: (s.perm.aut || 0) >= 2 ? listasRegistro_() : null
   };
 }

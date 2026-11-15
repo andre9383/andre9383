@@ -137,6 +137,11 @@ t('recuperar admin existente desde la hoja (ACTIVO casilla, clave vieja)', () =>
 t('recuperar crea el administrador si no existe', () => { env.props.delete('RECUPERACION_ADMIN'); const logs = []; const orig = ctx.SpreadsheetApp.getUi; ctx.SpreadsheetApp.getUi = uiFalsa(['98765432', 'Andrey Admin'], logs); ctx.recuperarAccesoAdmin(); ctx.SpreadsheetApp.getUi = orig;
   const m = logs.join(' ').match(/Contraseña temporal: (\S+)/); if (!m) throw new Error('sin temporal: ' + logs); const l = pub('login', { usuario: '98765432', clave: m[1] }); api(l.token, 'cambiarClave', { actual: m[1], nueva: 'Nueva2027x' }); if (api(l.token, 'datos').yo.rol !== 'ADMINISTRADOR') throw new Error('rol'); });
 t('mensaje claro con clave anterior', () => { const r = ctx.publico('login', { usuario: '1000003', clave: 'x' }); });
+t('listas del formulario con título arriba y con hoja vacía', () => { const per = L.getSheetByName('PERSONAL'); per.data.unshift(['LISTADO DE FUNCIONARIOS'], []);
+  let d = api(adm, 'datos'); if (!d.listasReg.personal.includes('JORGE SILVA') || d.listasReg.fuentePersonal !== 'PERSONAL') throw new Error(JSON.stringify(d.listasReg));
+  if (!d.listasReg.areas.includes('Internación 4 piso')) throw new Error('áreas ' + d.listasReg.areas);
+  const lis = L.getSheetByName('LISTAS'); const copia = lis.data; lis.data = [lis.data[0]]; per.data = [['DOCUMENTO', 'NOMBRE']];
+  d = api(adm, 'datos'); lis.data = copia; if (!d.listasReg.personal.length || !/USUARIOS/.test(d.listasReg.fuentePersonal) || !d.listasReg.areas.length || !/catálogo/.test(d.listasReg.fuenteAreas)) throw new Error(JSON.stringify(d.listasReg)); });
 t('cerrar sesión', () => { api(adm, 'cerrarSesion'); const e = apiErr(adm, 'datos'); if (e !== 'SESION_EXPIRADA') throw new Error(e); });
 
 console.log(`\n${ok} pruebas correctas, ${fallos.length} fallidas · ${(Date.now() - T0)} ms · filas ${ing.length}`);

@@ -135,11 +135,13 @@ const MODALIDADES = ['Hospitalización general', 'Cuidado intermedio', 'Cuidado 
 const isoLocal = ms => { if (!ms) return ''; const d = new Date(ms); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
 function camposRegistro(a) {
   a = a || {}; const opt = (arr, v) => arr.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('');
-  const yo = S.D.yo.nombre, per = S.D.personal || [], lis = S.D.listas || [];
+  const L = S.D.listasReg || { personal: [], areas: [], servicios: [] };
+  const yo = S.D.yo.nombre, per = L.personal || [], lis = L.areas || [], serv = L.servicios || lis;
   const regPor = a.regPor || per.find(p => p.toUpperCase() === yo.toUpperCase()) || '';
-  return `<div class="sec-title" style="margin:4px 0 0">Quién registra</div>
+  const aviso = (L.fuentePersonal && L.fuentePersonal !== 'PERSONAL') || (L.fuenteAreas && L.fuenteAreas !== 'LISTAS') ? `<p class="muted" style="margin:0;font-size:12px">Funcionarios desde ${esc(L.fuentePersonal)} · áreas desde ${esc(L.fuenteAreas)}.</p>` : '';
+  return `<div class="sec-title" style="margin:4px 0 0">Quién registra</div>${aviso}
     <div class="form-grid"><div class="field"><label for="rgPor">Registrado por</label><select class="inp" id="rgPor"><option value="">Elige…</option>${opt(per, regPor)}${regPor && !per.includes(regPor) ? `<option selected>${esc(regPor)}</option>` : ''}</select></div>
-    <div class="field"><label for="rgServ">Servicio que registra</label><select class="inp" id="rgServ"><option value="">Elige…</option>${opt(lis, a.servReg)}</select></div>
+    <div class="field"><label for="rgServ">Servicio que registra</label><select class="inp" id="rgServ"><option value="">Elige…</option>${opt(serv, a.servReg)}${a.servReg && !serv.includes(a.servReg) ? `<option selected>${esc(a.servReg)}</option>` : ''}</select></div>
     <div class="field"><label for="rgArea">Área solicitante</label><select class="inp" id="rgArea"><option value="">Elige…</option>${opt(lis, a.area)}${a.area && !lis.includes(a.area) ? `<option selected>${esc(a.area)}</option>` : ''}</select></div></div>
     <div class="sec-title" style="margin:4px 0 0">Servicio a autorizar</div>
     <div class="form-grid"><div class="field"><label for="rgTipo">Tipo de servicio</label><select class="inp" id="rgTipo">${opt(TIPOS_SERV, a.tserv || 'Procedimiento')}</select></div>
