@@ -19,6 +19,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+import formato_apa
 from zajuna_transcriptor import RAIZ, limpiar_titulo, log, nombre_seguro
 
 CODIGO_EV = re.compile(r"GA\d+-\d{6,}-AA\d+-EV\d+", re.I)
@@ -243,8 +244,22 @@ Reglas:
   (nodos y ramas, bloques de la infografía, diapositiva por diapositiva) y una sugerencia breve de \
   herramienta y diseño.
 
+Formato del texto que se entrega (va dentro de la sección del borrador):
+- Normas APA 7.ª edición: citas en el texto (Autor, año) o Autor (año), y lista final "### Referencias" en orden \
+  alfabético con el formato APA 7 de cada tipo de fuente (página web, documento institucional, libro, artículo, ley).
+- Dentro del borrador usa ### para títulos de nivel 1 y #### para nivel 2 (nunca ## ni #).
+- Si el producto es un documento escrito, usa esta estructura: ### Introducción, ### Objetivos (#### Objetivo \
+  general, #### Objetivos específicos), las secciones de desarrollo que pida la guía, ### Conclusiones y \
+  ### Referencias. Sin tabla de contenido ni portada dentro del borrador (la portada se genera aparte).
+- Tablas en Markdown, precedidas de una línea "**Tabla N**" y otra con el título en cursiva "*Título*", \
+  y seguidas de una nota "*Nota.* Elaboración propia con base en …" cuando aplique.
+
 Responde en español, en Markdown, con estas secciones:
 # <Título de la evidencia>
+## Portada
+- **Título:** el nombre del producto en mayúsculas sostenidas (por ejemplo DOCUMENTO DESCRIPTIVO, INFORME, MAPA MENTAL)
+- **Subtítulo:** el tema concreto del trabajo (por ejemplo "Políticas de servicio: <empresa del aprendiz>")
+- **Componente formativo:** la fase y actividad de proyecto (por ejemplo "Fase 2 Planeación – Actividad de proyecto 3")
 ## Cómo presentar la entrega
 - **Producto:** qué se entrega (documento, mapa mental, infografía, presentación, video, foro, hoja de cálculo…)
 - **Formato de archivo:** extensión exacta (PDF, Word, PowerPoint, Excel, MP4, enlace…)
@@ -314,7 +329,12 @@ def generar_borrador(a: Actividad, estado: dict, salida: Path, modelo: str = "")
     base = nombre_seguro(f"{a.codigo} {a.titulo}" if a.codigo and a.codigo not in a.titulo else a.titulo, 90)
     (carpeta / f"{base} - BORRADOR.md").write_text(md + "\n", encoding="utf-8")
     ruta = carpeta / f"{base} - BORRADOR.docx"
-    markdown_a_docx(md, ruta, aviso=f"BORRADOR generado el {dt.date.today()} — revísalo y corrígelo antes de entregar.")
+    cuerpo = formato_apa.cuerpo_entrega(md)
+    if cuerpo:  # documento listo para trabajar: portada SENA + cuerpo APA 7
+        portada = {**formato_apa.datos_aprendiz(contexto_proyecto), **formato_apa.campos_portada(md)}
+        formato_apa.documento_apa(portada, cuerpo, ruta)
+    else:
+        markdown_a_docx(md, ruta, aviso=f"BORRADOR generado el {dt.date.today()} — revísalo y corrígelo antes de entregar.")
     log(f"   Borrador listo: {ruta.name}")
     return ruta
 
@@ -325,7 +345,9 @@ retroalimentación previa y el borrador.
 
 1. Evalúa el borrador criterio por criterio: cada requisito de la guía y cada indicación del instructor \
    (estructura, contenido, formato, extensión, normas APA, uso del caso del aprendiz, coherencia, ortografía).
-2. Corrige todo lo que no cumpla y mejora la claridad y la redacción: más concreta, más ligada al caso, \
+2. Revisa en especial las normas APA 7 (citas en el texto, lista de referencias, tablas) y que los títulos \
+   internos usen ### y ####.
+3. Corrige todo lo que no cumpla y mejora la claridad y la redacción: más concreta, más ligada al caso, \
    sin relleno ni frases genéricas. Conserva las fuentes reales con su URL; no agregues fuentes nuevas que \
    no estén en el borrador. Mantén los [COMPLETAR] y [FUENTE] que sigan pendientes.
 
@@ -333,6 +355,10 @@ Responde en español, en Markdown, con estas secciones:
 # <Título de la evidencia>
 ## Evaluación del borrador
 Tabla | Criterio | ¿Cumplía? | Qué se ajustó |
+## Portada
+- **Título:** el nombre del producto en mayúsculas sostenidas (por ejemplo DOCUMENTO DESCRIPTIVO, INFORME, MAPA MENTAL)
+- **Subtítulo:** el tema concreto del trabajo (por ejemplo "Políticas de servicio: <empresa del aprendiz>")
+- **Componente formativo:** la fase y actividad de proyecto (por ejemplo "Fase 2 Planeación – Actividad de proyecto 3")
 ## Cómo presentar la entrega
 - **Producto:** qué se entrega (documento, mapa mental, infografía, presentación, video, foro, hoja de cálculo…)
 - **Formato de archivo:** extensión exacta (PDF, Word, PowerPoint, Excel, MP4, enlace…)

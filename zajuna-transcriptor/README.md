@@ -28,6 +28,13 @@ Abre Zajuna en un navegador y, **apenas inicias sesión**, hace lo siguiente:
    (citadas en APA con su enlace) y hace una **segunda pasada de evaluación**: revisa el borrador
    criterio por criterio contra la guía y lo que pidió el instructor, y lo corrige.
 
+   El Word sale listo para trabajar: **portada con el esquema del SENA** (entidad, regional, centro,
+   título, subtítulo, presentado por, ficha, programa, instructor, componente formativo, ciudad y año)
+   y el cuerpo en **normas APA 7**: márgenes de 2,54 cm, Arial 11, interlineado doble, sangría de
+   1,27 cm, número de página, títulos por niveles, tablas APA y referencias con sangría francesa.
+   Los datos de la portada salen de `mi_proyecto.md` (nombre, ficha, programa, instructor, regional,
+   centro y ciudad).
+
    Cada borrador trae una **lista de verificación** con los requisitos y marca con `[COMPLETAR]` y
    `[FUENTE]` lo que debes poner tú. No inventa datos ni referencias.
    Todo queda resumido en `salida/ACTIVIDADES.md`.

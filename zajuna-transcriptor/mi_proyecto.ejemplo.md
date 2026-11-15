@@ -8,6 +8,9 @@ para hablar de TU empresa y no de ejemplos genéricos. Entre más concreto, mejo
 - Programa: Tecnólogo en Coordinación de Procesos Logísticos
 - Ficha:
 - Instructor líder:
+- Regional: (ej. Regional Antioquia)
+- Centro de formación: (ej. Centro de Formación en Diseño, Confección y Moda)
+- Ciudad para la portada: (ej. Yopal, Casanare)
 
 ## Empresa o caso que uso en mis evidencias
 - Nombre de la empresa:
