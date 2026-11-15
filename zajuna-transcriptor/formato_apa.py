@@ -259,10 +259,7 @@ def documento_apa(portada: dict, cuerpo_md: str, ruta: Path) -> None:
         if not s.strip() or s.strip() in ("---", "***"):
             continue
         p = doc.add_paragraph()
-        es_titulo_tabla = re.match(r"^\*[^*]", s.strip()) and n >= 2 and re.match(r"^\*\*(Tabla|Figura) \d+\*\*", lineas[n - 2].strip())
-        if es_titulo_tabla or s.strip().startswith("*Nota.*"):
-            pass  # título de tabla y nota: sin sangría
-        elif en_referencias:
+        if en_referencias:
             p.paragraph_format.left_indent = Cm(1.27)  # sangría francesa
             p.paragraph_format.first_line_indent = Cm(-1.27)
         else:
