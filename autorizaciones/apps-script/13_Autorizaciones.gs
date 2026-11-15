@@ -31,7 +31,8 @@ function autsRegistradas_() {
       obs: txt_(o['OBSERVACIONES']), mot: txt_(o['MOTIVO NEGACION']),
       regPor: txt_(o['REGISTRADO POR']), servReg: txt_(o['SERVICIO QUE REGISTRA']), tipoAt: txt_(o['TIPO ATENCION']),
       fserv: ms_(o['FECHA SERVICIO']), cobD: ms_(o['FECHA COBERTURA DESDE']), cobH: ms_(o['FECHA COBERTURA HASTA']),
-      modal: txt_(o['MODALIDAD ESTANCIA']), folio: txt_(o['FOLIO'])
+      modal: txt_(o['MODALIDAD ESTANCIA']), folio: txt_(o['FOLIO']),
+      creadoPor: txt_(o['CREADO POR']), fCrea: ms_(o['FECHA CREACION']), actPor: txt_(o['ACTUALIZADO POR']), fAct: ms_(o['ULTIMA ACTUALIZACION'])
     };
   });
 }
@@ -45,8 +46,9 @@ function listaAutorizaciones_(ingresos, registradas) {
   registradas.forEach(function (a) {
     if (a.cod) codigosRegistrados[a.ing + '|' + norm_(a.cod)] = true;   // ese código ya tiene trámite (abierto o cerrado)
     var x = porIng[a.ing];
-    if (x) { a.g = x.g; a.ala = x.ala; if (!a.pac) a.pac = x.pac; if (!a.doc) a.doc = x.doc; }
-    else a.g = a.g || txt_(a.area) || 'SIN ÁREA';
+    a.g = txt_(a.area) || (x ? x.g : '') || 'SIN ÁREA';          // el área es la que quedó en el registro (AREA SOLICITANTE)
+    a.ala = x ? x.ala : '';
+    if (x) { if (!a.pac) a.pac = x.pac; if (!a.doc) a.doc = x.doc; }
     if (AUT_ABIERTA[a.est]) abiertasPorIng[a.ing] = true;
   });
   var detectadas = ingresos.filter(function (x) { return x.rc === 'AUT_PEND' && !abiertasPorIng[x.i] && !codigosRegistrados[x.i + '|' + norm_(x.resp)]; }).map(function (x) {
@@ -75,34 +77,24 @@ function nota_(s, id, ingreso, texto) {
 }
 
 /**
- * Busca el paciente para registrar una autorización: primero en ingresos abiertos y luego en BASE_INGRESOS
+ * Busca el paciente para registrar una autorización en BASE_INGRESOS, la base principal de ingresos diarios
  * (como lo hacía la versión anterior). Busca por número de ingreso, documento o nombre.
  */
 function buscarIngresoReg_(s, d) {
   var q = norm_(d.q);
   if (q.length < 3) return [];
-  var out = [], vistos = {}, ctx = contextoCatalogos_();
-  var coincide = function (ing, doc, pac) { return ing === q || doc === q || norm_(ing).indexOf(q) === 0 || norm_(doc).indexOf(q) === 0 || q.split(' ').every(function (w) { return norm_(pac).indexOf(w) >= 0; }); };
-  objetos_(H.INGRESOS).some(function (o) {
+  var out = [], ctx = contextoCatalogos_();
+  var coincide = function (ing, doc, pac) { return norm_(ing).indexOf(q) === 0 || norm_(doc).indexOf(q) === 0 || q.split(' ').every(function (w) { return norm_(pac).indexOf(w) >= 0; }); };
+  // Fuente principal: BASE_INGRESOS (ingresos diarios: facturados, cerrados y abiertos)
+  objetos_(H.BASE).some(function (o) {
     var ing = txt_(o['INGRESO']);
     if (!ing || !coincide(ing, txt_(o['DOCUMENTO']), o['PACIENTE'])) return false;
-    var x = derivarIngreso_(o, ctx);
-    if (!veArea_(s, x.g, x.area)) return false;
-    vistos[ing] = 1;
-    out.push({ v: ing, l: ing + ' · ' + x.pac + ' · ' + x.doc + ' · abierto', fuente: 'ABIERTO', doc: x.doc, pac: x.pac, eps: x.ent, erp: x.erp, con: x.con, g: x.g, f: x.f, eg: x.eg, fe: x.fe, tipo: x.tipo, cama: x.cama });
+    var e = ctx.erp[norm_(o['EPS'])] || proponerErp_(o['EPS']);
+    out.push({ v: ing, l: ing + ' · ' + txt_(o['PACIENTE']) + ' · ' + txt_(o['DOCUMENTO']) + ' · ' + (txt_(o['ESTADO']) || '—'), fuente: 'BASE',
+      doc: txt_(o['DOCUMENTO']), pac: txt_(o['PACIENTE']), eps: txt_(o['EPS']), erp: e.erp, con: e.contrato, estado: txt_(o['ESTADO']),
+      g: may_(o['AMBITO']) || may_(o['INGRESO POR']), f: ms_(o['FECHA INGRESO']), cama: txt_(o['CAMA']), folio: txt_(o['FOLIO HC']) });
     return out.length >= 15;
   });
-  if (out.length < 15) {
-    objetos_(H.BASE).some(function (o) {
-      var ing = txt_(o['INGRESO']);
-      if (!ing || vistos[ing] || !coincide(ing, txt_(o['DOCUMENTO']), o['PACIENTE'])) return false;
-      var e = ctx.erp[norm_(o['EPS'])] || proponerErp_(o['EPS']);
-      out.push({ v: ing, l: ing + ' · ' + txt_(o['PACIENTE']) + ' · ' + txt_(o['DOCUMENTO']) + ' · ' + (txt_(o['ESTADO']) || 'base'), fuente: 'BASE',
-        doc: txt_(o['DOCUMENTO']), pac: txt_(o['PACIENTE']), eps: txt_(o['EPS']), erp: e.erp, con: e.contrato, g: txt_(o['AMBITO']) || txt_(o['INGRESO POR']),
-        f: ms_(o['FECHA INGRESO']), eg: false, fe: null, tipo: txt_(o['AMBITO']), cama: txt_(o['CAMA']), folio: txt_(o['FOLIO HC']) });
-      return out.length >= 15;
-    });
-  }
   return out;
 }
 
@@ -114,20 +106,24 @@ function crearAut_(s, d) {
   if (!txt_(d.servicio)) throw new Error('Escribe la descripción del servicio a autorizar.');
   if (!txt_(d.registradoPor)) throw new Error('Elige quién registra.');
   if (!txt_(d.servicioRegistra)) throw new Error('Elige el servicio que registra.');
+  if (!txt_(d.areaSolicitante)) throw new Error('Elige el área solicitante.');
   var esEstancia = /ESTANCIA/i.test(d.tipoServicio || '');
   var desde = aFecha_(d.coberturaDesde), hasta = aFecha_(d.coberturaHasta);
   if (esEstancia && (!desde || !hasta)) throw new Error('Para una estancia escribe la cobertura desde y hasta.');
   if (desde && hasta && hasta < desde) throw new Error('La cobertura "hasta" no puede ser anterior a "desde".');
   return conBloqueo_(function () {
     var ctx = contextoCatalogos_(), x;
-    var o = buscarFila_(H.INGRESOS, 'INGRESO', ing);
-    if (o) x = derivarIngreso_(o, ctx);
-    else {
-      var b = buscarFila_(H.BASE, 'INGRESO', ing);
-      if (!b) throw new Error('No encontré el ingreso ' + ing + ' ni en ingresos abiertos ni en BASE_INGRESOS.');
+    var b = buscarFila_(H.BASE, 'INGRESO', ing);
+    if (b) {
       var e = ctx.erp[norm_(b['EPS'])] || proponerErp_(b['EPS']);
       x = { i: ing, doc: txt_(b['DOCUMENTO']), pac: txt_(b['PACIENTE']), ent: txt_(b['EPS']), erp: e.erp, con: e.contrato,
-        f: ms_(b['FECHA INGRESO']), eg: /FACTURADO|CERRADO/i.test(txt_(b['ESTADO'])), fe: null, tipo: txt_(b['AMBITO']) || txt_(b['INGRESO POR']), g: txt_(d.areaSolicitante) || may_(b['AMBITO']) || may_(b['INGRESO POR']) || 'SIN ÁREA', area: '' };
+        f: ms_(b['FECHA INGRESO']), eg: /FACTURADO|CERRADO/i.test(txt_(b['ESTADO'])), fe: null, tipo: txt_(b['AMBITO']) || txt_(b['INGRESO POR']),
+        g: txt_(d.areaSolicitante) || may_(b['AMBITO']) || may_(b['INGRESO POR']) || 'SIN ÁREA', area: txt_(d.areaSolicitante) };
+    } else {
+      var o = buscarFila_(H.INGRESOS, 'INGRESO', ing);             // solo si el ingreso todavía no llegó a la base
+      if (!o) throw new Error('No encontré el ingreso ' + ing + ' en BASE_INGRESOS.');
+      x = derivarIngreso_(o, ctx);
+      if (txt_(d.areaSolicitante)) { x.g = txt_(d.areaSolicitante); x.area = x.g; }
     }
     if (!veArea_(s, x.g, x.area)) throw new Error('Ese ingreso no pertenece a tu área.');
     var personal = objetos_(H.PERSONAL).filter(function (p) { return txt_(p['NOMBRE']) === txt_(d.registradoPor); })[0];

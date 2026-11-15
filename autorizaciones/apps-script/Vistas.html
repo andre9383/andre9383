@@ -83,7 +83,7 @@ async function abrirAut(a) {
    <div class="kv"><div><small>Paciente</small><span>${esc(a.pac)}</span></div><div><small>Documento</small><span class="mono">${esc(a.doc)}</span></div><div><small>Ingreso</small><span class="mono">${esc(a.ing)}</span></div>
    <div><small>Área</small><span>${esc(a.g)}${a.ala ? ' · ' + esc(a.ala) : ''}</span></div><div><small>ERP</small><span>${esc(a.erp)}</span></div><div><small>Solicitada</small><span>${fmtDT(a.fs)}</span></div>
    <div><small>Tiempo</small><span>${slaPill(a)}</span></div><div><small>Autorizador</small><span>${esc(a.autz)}</span></div>${a.rad ? `<div><small>Radicado</small><span class="mono">${esc(a.rad)}</span></div>` : ''}${a.num ? `<div><small>N° autorización</small><span class="mono">${esc(a.num)}</span></div>` : ''}${a.cups ? `<div><small>CUPS</small><span class="mono">${esc(a.cups)}</span></div>` : ''}</div>
-   ${!detectada ? `<div class="kv">${[['Registrado por', a.regPor], ['Servicio que registra', a.servReg], ['Área solicitante', a.area], ['Tipo de servicio', a.tserv], ['Tipo de atención', a.tipoAt], ['Fecha del servicio', a.fserv ? fmtDT(a.fserv) : ''], ['Estancia', a.modal], ['Cobertura', a.cobD ? fmtD(a.cobD) + ' → ' + fmtD(a.cobH) : ''], ['Folio', a.folio], ['Prioridad', a.pri]].filter(z => z[1]).map(z => `<div><small>${z[0]}</small><span>${esc(z[1])}</span></div>`).join('')}</div>` : ''}
+   ${!detectada ? `<div class="kv">${[['Registrado por', a.regPor], ['Servicio que registra', a.servReg], ['Área solicitante', a.area], ['Tipo de servicio', a.tserv], ['Tipo de atención', a.tipoAt], ['Fecha del servicio', a.fserv ? fmtDT(a.fserv) : ''], ['Estancia', a.modal], ['Cobertura', a.cobD ? fmtD(a.cobD) + ' → ' + fmtD(a.cobH) : ''], ['Folio', a.folio], ['Prioridad', a.pri], ['Creado por', a.creadoPor ? a.creadoPor + ' · ' + fmtDT(a.fCrea) : ''], ['Última actualización', a.actPor ? a.actPor + ' · ' + fmtDT(a.fAct) : '']].filter(z => z[1]).map(z => `<div><small>${z[0]}</small><span>${esc(z[1])}</span></div>`).join('')}</div>` : ''}
    ${a.obs ? `<div class="card" style="background:var(--surface-2)"><small class="crumb">Observaciones del registro</small><div>${esc(a.obs)}</div></div>` : ''}
    ${a.mot ? `<div class="card" style="background:var(--surface-2)"><small class="crumb">Motivo de negación</small><div>${esc(a.mot)}</div></div>` : ''}
    ${!detectada && puedeGestionar && (abierta(a) || esAdmin) ? `<button class="btn ghost sm" data-editaut="${esc(a.id)}">Editar datos del registro</button>` : ''}
@@ -129,7 +129,7 @@ function camposRegistro(a) {
   return `<div class="sec-title" style="margin:4px 0 0">Quién registra</div>
     <div class="form-grid"><div class="field"><label for="rgPor">Registrado por</label><select class="inp" id="rgPor"><option value="">Elige…</option>${opt(per, regPor)}${regPor && !per.includes(regPor) ? `<option selected>${esc(regPor)}</option>` : ''}</select></div>
     <div class="field"><label for="rgServ">Servicio que registra</label><select class="inp" id="rgServ"><option value="">Elige…</option>${opt(lis, a.servReg)}</select></div>
-    <div class="field"><label for="rgArea">Área solicitante</label><select class="inp" id="rgArea"><option value="">Igual al área del ingreso</option>${opt(lis, a.area)}</select></div></div>
+    <div class="field"><label for="rgArea">Área solicitante</label><select class="inp" id="rgArea"><option value="">Elige…</option>${opt(lis, a.area)}${a.area && !lis.includes(a.area) ? `<option selected>${esc(a.area)}</option>` : ''}</select></div></div>
     <div class="sec-title" style="margin:4px 0 0">Servicio a autorizar</div>
     <div class="form-grid"><div class="field"><label for="rgTipo">Tipo de servicio</label><select class="inp" id="rgTipo">${opt(TIPOS_SERV, a.tserv || 'Procedimiento')}</select></div>
     <div class="field"><label for="rgFS">Fecha del servicio</label><input class="inp" id="rgFS" type="datetime-local" value="${isoLocal(a.fserv)}"></div>
@@ -154,8 +154,8 @@ function formNuevaAut(ing, cod) {
   const x = ing ? S.D.ingresos.find(z => z.i === ing) : null;
   drawer('Registrar autorización', 'Operación › Autorizaciones', `<form id="fNueva" class="grid" data-cod="${esc(cod || '')}">
     <div class="sec-title" style="margin:0">Paciente</div>
-    <div class="field"><label for="nIng">Ingreso, documento o nombre</label><input class="inp" id="nIng" placeholder="Busca en ingresos abiertos y en la base de ingresos" autocomplete="off" ${x ? `value="${esc(x.i + ' · ' + x.pac + ' · ' + x.doc)}" data-v="${esc(x.i)}"` : ''}></div>
-    <div id="nInfo" class="kv">${x ? fichaPaciente({ fuente: 'ABIERTO', doc: x.doc, pac: x.pac, erp: x.erp, con: x.con, g: x.g, f: x.f, cama: x.cama, eg: x.eg }) : ''}</div>
+    <div class="field"><label for="nIng">Ingreso, documento o nombre</label><input class="inp" id="nIng" placeholder="Busca en la base de ingresos (BASE_INGRESOS)" autocomplete="off" ${x ? `value="${esc(x.i + ' · ' + x.pac + ' · ' + x.doc)}" data-v="${esc(x.i)}"` : ''}></div>
+    <div id="nInfo" class="kv">${x ? fichaPaciente({ fuente: 'ABIERTO', estado: 'Abierto', doc: x.doc, pac: x.pac, erp: x.erp, con: x.con, g: x.g, f: x.f, cama: x.cama }) : ''}</div>
     ${camposRegistro({})}
     <div class="sec-title" style="margin:4px 0 0">Si ya está autorizada</div>
     <div class="form-grid"><div class="field"><label for="nNum">N° de autorización</label><input class="inp" id="nNum" placeholder="Déjalo vacío si está pendiente"></div>
@@ -166,7 +166,7 @@ function formNuevaAut(ing, cod) {
   autocompletar('nIng', v => API.call('buscarIngresoReg', { q: v }), o => { $('#nIng').dataset.v = o.v; $('#nInfo').innerHTML = fichaPaciente(o); });
   activarCups();
 }
-const fichaPaciente = o => `<div><small>Paciente</small><span>${esc(o.pac)}</span></div><div><small>Documento</small><span class="mono">${esc(o.doc)}</span></div><div><small>ERP · contrato</small><span>${esc(o.erp)} · ${esc(o.con)}</span></div><div><small>Área</small><span>${esc(o.g || '—')}${o.cama ? ' · cama ' + esc(o.cama) : ''}</span></div><div><small>Fecha ingreso</small><span>${fmtD(o.f)}</span></div><div><small>Origen</small><span>${o.fuente === 'BASE' ? 'Base de ingresos' : 'Ingresos abiertos'}${o.eg ? ' · egresado' : ''}</span></div>`;
+const fichaPaciente = o => `<div><small>Paciente</small><span>${esc(o.pac)}</span></div><div><small>Documento</small><span class="mono">${esc(o.doc)}</span></div><div><small>ERP · contrato</small><span>${esc(o.erp)} · ${esc(o.con)}</span></div><div><small>Área</small><span>${esc(o.g || '—')}${o.cama ? ' · cama ' + esc(o.cama) : ''}</span></div><div><small>Fecha ingreso</small><span>${fmtD(o.f)}</span></div><div><small>Estado en la base</small><span>${esc(o.estado || (o.fuente === 'BASE' ? '—' : 'Abierto'))}</span></div>`;
 
 document.addEventListener('click', e => { const b = e.target.closest('[data-editaut]'); if (!b) return; const a = S.D.auts.find(z => z.id === b.dataset.editaut); if (!a) return;
   const cerrada = !abierta(a);

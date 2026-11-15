@@ -56,7 +56,7 @@ t('gestiones automáticas con huella', () => { const g = L.getSheetByName('GESTI
 // 5. Autorizaciones
 if (!D) { console.log(fallos); process.exit(1); }
 const det = D.auts.find(a => a.id.startsWith('D-'));
-const REG = { registradoPor: 'JORGE SILVA', servicioRegistra: 'Urgencias', tipoServicio: 'Procedimiento' };
+const REG = { registradoPor: 'JORGE SILVA', servicioRegistra: 'Urgencias', areaSolicitante: 'Internación 4 piso', tipoServicio: 'Procedimiento' };
 t('registro exige quién registra', () => { const e = apiErr(adm, 'crearAut', { ingreso: det.ing, servicio: 'X' }); if (!/registra/.test(e)) throw new Error(e); });
 const nueva = t('crear desde código', () => api(adm, 'crearAut', Object.assign({ ingreso: det.ing, servicio: 'TOMOGRAFIA', cups: '879111', prioridad: 'alta', codigo: det.cod, folio: 'F-77', fechaServicio: new Date().toISOString() }, REG)).id);
 t('campos de la versión anterior guardados', () => { const sh = L.getSheetByName('REGISTROS_AUTORIZACIONES'), h = sh.data[0], r = sh.data.find(z => z[0] === nueva);
@@ -93,7 +93,9 @@ t('cierre con soporte', () => api(ges, 'cerrarCaso', { id: caso.id, soporte: 'FE
 t('otro gestor no edita caso ajeno', () => { const otro = D.casos.find(c => c.est !== 'CERRADO' && c.id !== caso.id); api(adm, 'actualizarCaso', { id: otro.id, gestor: 'LAURA MENDEZ' }); const e = apiErr(ges, 'gestionCaso', { id: otro.id, tipo: 'Otra', descripcion: 'x' }); if (!/gestiona/.test(e)) throw new Error(e); });
 t('gestiones del caso', () => { const g = api(ges, 'gestionesCaso', { id: caso.id }); if (g.length < 3) throw new Error(g.length); });
 const coord = t('coordinador de área', () => { const l = pub('login', { usuario: 'diana@x.com', clave: clv['1000004'] }); api(l.token, 'cambiarClave', { actual: clv['1000004'], nueva: 'Coord2026x' }); return l.token; });
-t('coordinador solo ve su área', () => { const d = api(coord, 'datos'); const gs = new Set(d.ingresos.map(x => x.g)); if (gs.size !== 1 || !gs.has('HOSPITALIZACION 4 PISO')) throw new Error([...gs]); if (d.auts.some(a => a.g !== 'HOSPITALIZACION 4 PISO')) throw new Error('auts fuera de área'); });
+t('coordinador solo ve su área', () => { const d = api(coord, 'datos'); const gs = new Set(d.ingresos.map(x => x.g)); if (gs.size !== 1 || !gs.has('HOSPITALIZACION 4 PISO')) throw new Error([...gs]); if (d.auts.some(a => a.g !== 'HOSPITALIZACION 4 PISO')) throw new Error('auts fuera de área: ' + [...new Set(d.auts.map(a => a.g))]); });
+t('trazabilidad en el registro', () => { const a = api(adm, 'datos').auts.find(z => z.id === nueva); if (!a.creadoPor || !a.fCrea || !a.actPor || !a.fAct || !a.regPor || !a.fs) throw new Error(JSON.stringify(a)); });
+t('registro sin área solicitante falla', () => { const e = apiErr(adm, 'crearAut', Object.assign({}, REG, { areaSolicitante: '', ingreso: '1900012', servicio: 'x' })); if (!/área solicitante/.test(e)) throw new Error(e); });
 
 // 7. Administración, parámetros y catálogos
 t('permiso', () => { api(adm, 'guardarPermiso', { modulo: 'med', rol: 'AUTORIZADOR', nivel: 1 }); const d = api(aut.token, 'datos'); if (d.yo.perm.med !== 1) throw new Error('no aplicó'); });

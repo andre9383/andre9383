@@ -47,12 +47,12 @@ const page_html = html.replace('<head>', '<head>' + shim);
   // autorizaciones: registrar desde código
   await p.evaluate(() => ir('aut/bandeja')); await p.waitForTimeout(500); await p.screenshot({ path: OUT + '/10-bandeja-aut.png' });
   await p.click('[data-qf="fuente|Solo código en RESPONSABLE"]'); await p.waitForTimeout(300); await p.click('tr.row'); await p.waitForTimeout(300); await p.click('[data-tomar]'); await p.waitForTimeout(300);
-  await p.selectOption('#rgPor', 'JORGE SILVA'); await p.selectOption('#rgServ', 'Urgencias'); await p.selectOption('#rgTipo', 'Estancia'); await p.fill('#rgCD', '2026-11-10'); await p.fill('#rgCH', '2026-11-12'); await p.selectOption('#rgMod', 'Cuidado intensivo');
+  await p.selectOption('#rgPor', 'JORGE SILVA'); await p.selectOption('#rgServ', 'Urgencias'); await p.selectOption('#rgArea', 'Urgencias'); await p.selectOption('#rgTipo', 'Estancia'); await p.fill('#rgCD', '2026-11-10'); await p.fill('#rgCH', '2026-11-12'); await p.selectOption('#rgMod', 'Cuidado intensivo');
   await p.fill('#rgCups', 'craneo'); await p.waitForTimeout(700); await p.screenshot({ path: OUT + '/11-nueva-solicitud.png', fullPage: true }); await p.keyboard.press('Enter'); await p.waitForTimeout(200);
   await p.click('#fNueva button[type=submit]'); await p.waitForTimeout(900); if (!(await p.textContent('#toasts')).includes('registrada')) errs.push('No se registró la solicitud: ' + await p.textContent('#toasts'));
   // registrar desde la base de ingresos y editar
   await p.evaluate(() => formNuevaAut()); await p.waitForTimeout(300); await p.fill('#nIng', '1900012'); await p.waitForTimeout(700); await p.keyboard.press('Enter'); await p.waitForTimeout(200);
-  await p.selectOption('#rgPor', 'MARTA RUIZ'); await p.selectOption('#rgServ', 'Consulta Externa'); await p.fill('#rgDesc', 'Resonancia de control'); await p.screenshot({ path: OUT + '/11b-registro-base.png' });
+  await p.selectOption('#rgPor', 'MARTA RUIZ'); await p.selectOption('#rgServ', 'Consulta Externa'); await p.selectOption('#rgArea', 'Consulta Externa'); await p.fill('#rgDesc', 'Resonancia de control'); await p.screenshot({ path: OUT + '/11b-registro-base.png' });
   await p.click('#fNueva button[type=submit]'); await p.waitForTimeout(900);
   await p.evaluate(() => { const a = S.D.auts.find(z => z.ing === '1900012'); abrirAut(a); }); await p.waitForTimeout(600); await p.screenshot({ path: OUT + '/11c-detalle-registro.png' });
   await p.click('[data-editaut]'); await p.waitForTimeout(300); await p.fill('#rgFolio', 'F-123'); await p.click('#fEditAut button[type=submit]'); await p.waitForTimeout(900);
