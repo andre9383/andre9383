@@ -10,8 +10,10 @@ El trabajo lo hace zajuna_transcriptor.py en segundo plano.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
+import re
 import queue
 import shutil
 import subprocess
@@ -43,6 +45,34 @@ def abrir(ruta: Path | str) -> None:
             subprocess.Popen(["xdg-open", ruta])
     except Exception as e:
         messagebox.showerror("No se pudo abrir", f"{ruta}\n\n{e}")
+
+
+MESES = {"enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6, "julio": 7, "agosto": 8,
+         "septiembre": 9, "setiembre": 9, "octubre": 10, "noviembre": 11, "diciembre": 12}
+
+
+def fecha_limite(texto: str) -> dt.date | None:
+    """'domingo, 27 de septiembre de 2026, 23:59' o '27/09/2026' -> fecha."""
+    t = (texto or "").lower()
+    m = re.search(r"(\d{1,2}) de ([a-záéíóú]+) de (\d{4})", t)
+    if m and m.group(2) in MESES:
+        try:
+            return dt.date(int(m.group(3)), MESES[m.group(2)], int(m.group(1)))
+        except ValueError:
+            return None
+    m = re.search(r"(\d{1,2})/(\d{1,2})/(\d{2,4})", t)
+    if m:
+        d, mes, a = (int(x) for x in m.groups())
+        try:
+            return dt.date(a + 2000 if a < 100 else a, mes, d)
+        except ValueError:
+            return None
+    return None
+
+
+def seccion_md(md: str, encabezado: str) -> str:
+    m = re.search(rf"^##\s*{re.escape(encabezado)}[^\n]*\n(.*?)(?=^## |\Z)", md, flags=re.S | re.M)
+    return m.group(1).strip() if m else ""
 
 
 def python_consola() -> str:
@@ -83,7 +113,7 @@ class App(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self._cerrar)
         self.refrescar_resultados()
         if not self._hay_clave():
-            self.after(600, lambda: self.tabs.select(2))
+            self.after(600, lambda: self.tabs.select(3))
 
     # ------------------------------------------------------------------ Inicio
     def _tab_inicio(self) -> None:
@@ -192,7 +222,7 @@ class App(tk.Tk):
         self.btn_detener.config(state="disabled")
         self.refrescar_resultados()
         if codigo == 0:
-            self.estado.set("Terminado ✔  Revisa la pestaña Resultados.")
+            self.estado.set("Terminado ✔  Revisa la pestaña Mis actividades.")
             self.tabs.select(1)
         else:
             self.estado.set(f"Se detuvo (código {codigo}). Lo avanzado quedó guardado; puedes volver a Iniciar.")
@@ -209,30 +239,48 @@ class App(tk.Tk):
             self.proc.terminate()
         self.destroy()
 
-    # -------------------------------------------------------------- Resultados
+    # ------------------------------------------------------- Mis actividades
     def _tab_resultados(self) -> None:
-        f = ttk.Frame(self.tabs, padding=12)
-        self.tabs.add(f, text="  Resultados  ")
+        f = ttk.Frame(self.tabs, padding=10)
+        self.tabs.add(f, text="  Mis actividades  ")
         barra = ttk.Frame(f)
         barra.pack(fill="x")
-        ttk.Label(barra, text="Doble clic para abrir el borrador o el resumen.").pack(side="left")
+        ttk.Label(barra, text="Ordenadas por urgencia. Selecciona una para ver cómo presentarla y qué modificar.").pack(side="left")
         ttk.Button(barra, text="Actualizar", command=self.refrescar_resultados).pack(side="right")
 
-        ttk.Label(f, text="Actividades y evidencias", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(10, 2))
-        self.t_act = self._tabla(f, ("estado", "evidencia", "fecha", "borrador"),
-                                 ("Estado", "Evidencia", "Fecha de entrega", "Borrador"), (110, 430, 200, 120))
-        self.t_act.bind("<Double-1>", self._abrir_actividad)
+        self.t_act = self._tabla(f, ("estado", "evidencia", "fecha", "faltan", "paso"),
+                                 ("Estado", "Evidencia", "Fecha límite", "Faltan", "Paso"),
+                                 (105, 400, 150, 90, 150), alto=9)
+        self.t_act.tag_configure("vencida", foreground="#C0392B")
+        self.t_act.tag_configure("urgente", foreground="#D35400")
+        self.t_act.tag_configure("lista", foreground="#555555")
+        self.t_act.bind("<<TreeviewSelect>>", self._detalle_actividad)
+        self.t_act.bind("<Double-1>", lambda _e: self._abrir_borrador())
 
-        ttk.Label(f, text="Clases grabadas", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(10, 2))
-        self.t_cla = self._tabla(f, ("sesion", "estado", "resumen"),
-                                 ("Sesión", "Estado", "Resumen"), (560, 160, 140))
+        acciones = ttk.Frame(f)
+        acciones.pack(fill="x", pady=6)
+        ttk.Button(acciones, text="📝 Abrir borrador (Word)", command=self._abrir_borrador).pack(side="left")
+        ttk.Button(acciones, text="🌐 Abrir en Zajuna para entregar", command=self._abrir_zajuna).pack(side="left", padx=6)
+        ttk.Button(acciones, text="✔ Ya lo revisé y modifiqué", command=lambda: self._marcar("revisado")).pack(side="left")
+        ttk.Button(acciones, text="📤 Ya lo entregué", command=lambda: self._marcar("entregado")).pack(side="left", padx=6)
+        ttk.Button(acciones, text="↺ Quitar marca", command=lambda: self._marcar("")).pack(side="left")
+
+        self.detalle = ScrolledText(f, height=13, font=("Segoe UI", 9), wrap="word", state="disabled")
+        self.detalle.tag_configure("h", font=("Segoe UI", 10, "bold"), foreground=VERDE)
+        self.detalle.tag_configure("alerta", foreground="#C0392B", font=("Segoe UI", 9, "bold"))
+        self.detalle.pack(fill="both", expand=True)
+
+        g = ttk.Frame(self.tabs, padding=10)
+        self.tabs.add(g, text="  Clases  ")
+        ttk.Label(g, text="Clases grabadas. Doble clic para abrir el resumen (lo que explicó y pidió el instructor).").pack(anchor="w")
+        self.t_cla = self._tabla(g, ("sesion", "estado", "resumen"), ("Sesión", "Estado", "Resumen"), (600, 160, 140))
         self.t_cla.bind("<Double-1>", self._abrir_clase)
 
     @staticmethod
-    def _tabla(padre, columnas, titulos, anchos) -> ttk.Treeview:
+    def _tabla(padre, columnas, titulos, anchos, alto=12) -> ttk.Treeview:
         marco = ttk.Frame(padre)
         marco.pack(fill="both", expand=True)
-        t = ttk.Treeview(marco, columns=columnas, show="headings", height=8)
+        t = ttk.Treeview(marco, columns=columnas, show="headings", height=alto)
         for c, ti, an in zip(columnas, titulos, anchos):
             t.heading(c, text=ti)
             t.column(c, width=an, anchor="w")
@@ -242,26 +290,73 @@ class App(tk.Tk):
         sb.pack(side="right", fill="y")
         return t
 
-    def refrescar_resultados(self) -> None:
-        self._rutas_act: dict[str, str] = {}
+    # --- seguimiento (lo que marcas tú) ---
+    def _seguimiento(self) -> dict:
+        p = SALIDA / "seguimiento.json"
+        try:
+            return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        except json.JSONDecodeError:
+            return {}
+
+    def _marcar(self, paso: str) -> None:
+        sel = self.t_act.selection()
+        if not sel:
+            messagebox.showinfo("Mis actividades", "Primero selecciona una actividad de la lista.")
+            return
+        a = self._acts[sel[0]]
+        datos = self._seguimiento()
+        if paso:
+            datos[a.get("url", a.get("titulo", ""))] = {"paso": paso, "fecha": dt.date.today().isoformat()}
+        else:
+            datos.pop(a.get("url", a.get("titulo", "")), None)
+        SALIDA.mkdir(exist_ok=True)
+        (SALIDA / "seguimiento.json").write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
+        self.refrescar_resultados(seleccionar=sel[0])
+
+    def refrescar_resultados(self, seleccionar: str = "") -> None:
+        self._acts: dict[str, dict] = {}
         self._rutas_cla: dict[str, str] = {}
         for t in (self.t_act, self.t_cla):
             t.delete(*t.get_children())
+        seg = self._seguimiento()
+        hoy = dt.date.today()
         ruta = SALIDA / "actividades" / "actividades.json"
+        acts = []
         if ruta.exists():
             try:
                 acts = json.loads(ruta.read_text(encoding="utf-8"))
             except json.JSONDecodeError:
                 acts = []
-            for i, a in enumerate(sorted(acts, key=lambda x: (x.get("tipo") != "tarea", x.get("titulo", "")))):
-                borr = self._buscar_borrador(a)
-                estado = "📋 Cuestionario" if a.get("tipo") == "cuestionario" else (
-                    "⏳ Pendiente" if self._pendiente(a) else "✅ Entregada")
-                iid = f"a{i}"
-                self.t_act.insert("", "end", iid=iid, values=(
-                    estado, a.get("titulo", ""), a.get("fecha_entrega", "") or "—",
-                    "Abrir Word" if borr else ("Pegar en IA" if self._buscar_borrador(a, "pegar") else "—")))
-                self._rutas_act[iid] = borr or self._buscar_borrador(a, "pegar") or a.get("url", "")
+        filas = []
+        for a in acts:
+            marca = seg.get(a.get("url", a.get("titulo", "")), {}).get("paso", "")
+            borr = self._buscar_borrador(a)
+            if a.get("tipo") == "cuestionario":
+                estado, paso = "📋 Cuestionario", "Resolver en Zajuna"
+            elif marca == "entregado" or not self._pendiente(a):
+                estado, paso = "✅ Entregada", "Entregado"
+            else:
+                estado = "⏳ Pendiente"
+                paso = {"revisado": "✔ Revisado: entregar"}.get(marca) or ("Borrador listo: revisar" if borr
+                                                                        else "Sin borrador aún")
+            fecha = fecha_limite(a.get("fecha_entrega", ""))
+            faltan = (fecha - hoy).days if fecha else None
+            a["_borrador"], a["_fecha"], a["_faltan"], a["_paso"] = borr, fecha, faltan, paso
+            terminado = estado.startswith(("✅", "📋"))
+            orden = (terminado, faltan if faltan is not None else 9999)
+            filas.append((orden, a, estado, paso))
+        for i, (_, a, estado, paso) in enumerate(sorted(filas, key=lambda x: x[0])):
+            iid = f"a{i}"
+            faltan = a["_faltan"]
+            txt_faltan = "—" if faltan is None or estado.startswith(("✅", "📋")) else ("vencida" if faltan < 0 else "hoy" if faltan == 0 else f"{faltan} días")
+            tag = "lista" if estado.startswith(("✅", "📋")) else (
+                "vencida" if faltan is not None and faltan < 0 else "urgente" if faltan is not None and faltan <= 3 else "")
+            self.t_act.insert("", "end", iid=iid, tags=(tag,), values=(
+                estado, a.get("titulo", ""), a["_fecha"].strftime("%d/%m/%Y") if a["_fecha"] else (a.get("fecha_entrega") or "—"),
+                txt_faltan, paso))
+            self._acts[iid] = a
+        if seleccionar and seleccionar in self._acts:
+            self.t_act.selection_set(seleccionar)
         ruta = SALIDA / "estado.json"
         if ruta.exists():
             try:
@@ -276,6 +371,64 @@ class App(tk.Tk):
                     "Abrir" if d.get("resumen") else ("Pegar en IA" if d.get("prompt_manual") else "—")))
                 self._rutas_cla[iid] = archivo or d.get("url", "")
 
+    def _detalle_actividad(self, _e=None) -> None:
+        sel = self.t_act.selection()
+        if not sel:
+            return
+        a = self._acts[sel[0]]
+        md = ""
+        if a.get("_borrador"):
+            p = Path(a["_borrador"]).with_suffix(".md")
+            md = p.read_text(encoding="utf-8") if p.exists() else ""
+        t = self.detalle
+        t.config(state="normal")
+        t.delete("1.0", "end")
+        t.insert("end", a.get("titulo", "") + "\n", "h")
+        faltan = a.get("_faltan")
+        if faltan is not None and a["_paso"] not in ("Entregado", "Resolver en Zajuna"):
+            aviso = ("⚠ VENCIDA hace %d días: entrégala cuanto antes y avisa al instructor." % -faltan if faltan < 0
+                     else "⚠ Se vence HOY." if faltan == 0 else f"Faltan {faltan} días para la fecha límite.")
+            t.insert("end", aviso + "\n", "alerta" if faltan <= 3 else "")
+        t.insert("end", f"Paso actual: {a['_paso']}\n\n")
+        if a.get("tipo") == "cuestionario":
+            t.insert("end", "Es un cuestionario: se responde directamente en Zajuna. Repasa los resúmenes de las clases antes de empezar.\n")
+        elif not md:
+            t.insert("end", "Todavía no hay borrador. Pulsa Iniciar en la pestaña Inicio (opción 'Solo actividades') para que lo arme.\n")
+            if a.get("instrucciones"):
+                t.insert("end", "\nInstrucciones en Zajuna:\n", "h")
+                t.insert("end", a["instrucciones"][:3000] + "\n")
+        else:
+            for titulo, clave in (("CÓMO PRESENTARLA", "Cómo presentar la entrega"),
+                                  ("QUÉ DEBES MODIFICAR O COMPLETAR TÚ", "Qué debes completar o verificar tú"),
+                                  ("ANTES DE ENTREGAR (lista de verificación)", "Antes de entregar")):
+                cuerpo = seccion_md(md, clave)
+                if cuerpo:
+                    t.insert("end", titulo + "\n", "h")
+                    t.insert("end", cuerpo.replace("**", "") + "\n\n")
+            pendientes = md.count("[COMPLETAR") + md.count("[FUENTE")
+            if pendientes:
+                t.insert("end", f"El borrador tiene {pendientes} partes marcadas [COMPLETAR]/[FUENTE] que debes llenar tú.\n", "alerta")
+        if a.get("retroalimentacion"):
+            t.insert("end", "\nRETROALIMENTACIÓN DEL INSTRUCTOR (corrige esto)\n", "h")
+            t.insert("end", a["retroalimentacion"] + "\n")
+        t.config(state="disabled")
+
+    def _abrir_borrador(self) -> None:
+        sel = self.t_act.selection()
+        if not sel:
+            return
+        a = self._acts[sel[0]]
+        if a.get("_borrador"):
+            abrir(a["_borrador"])
+        else:
+            manual = self._buscar_borrador(a, "pegar")
+            abrir(manual) if manual else messagebox.showinfo("Sin borrador", "Esta actividad todavía no tiene borrador.")
+
+    def _abrir_zajuna(self) -> None:
+        sel = self.t_act.selection()
+        if sel and self._acts[sel[0]].get("url", "").startswith("http"):
+            webbrowser.open(self._acts[sel[0]]["url"])
+
     @staticmethod
     def _pendiente(a: dict) -> bool:
         e = (a.get("estado_entrega") or "").lower()
@@ -286,23 +439,17 @@ class App(tk.Tk):
 
     @staticmethod
     def _buscar_borrador(a: dict, tipo: str = "BORRADOR") -> str:
+        from zajuna_transcriptor import nombre_seguro
+
         carpeta = SALIDA / "actividades"
         if not carpeta.exists():
             return ""
-        from zajuna_transcriptor import nombre_seguro
-
         clave = (a.get("codigo") or nombre_seguro(a.get("titulo", ""), 30)).lower()
         sufijo = "BORRADOR.docx" if tipo == "BORRADOR" else "pegar_en_claude.txt"
         for p in carpeta.rglob(f"*{sufijo}"):
             if clave and clave in p.name.lower():
                 return str(p)
         return ""
-
-    def _abrir_actividad(self, _e=None) -> None:
-        sel = self.t_act.selection()
-        if sel and self._rutas_act.get(sel[0]):
-            r = self._rutas_act[sel[0]]
-            webbrowser.open(r) if r.startswith("http") else abrir(r)
 
     def _abrir_clase(self, _e=None) -> None:
         sel = self.t_cla.selection()

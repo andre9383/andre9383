@@ -19,9 +19,16 @@ USAR
      Abajo ves en vivo en qué está trabajando y una barra que se mueve mientras trabaja.
    - Se abre un navegador: INICIA SESIÓN EN ZAJUNA y no cierres esa ventana.
      Si te pide entrar a Google o a Microsoft (para bajar las grabaciones), entra ahí mismo.
-   - Pestaña RESULTADOS: la lista de tus actividades (pendiente / entregada / cuestionario) con su
-     fecha y el botón para abrir el borrador en Word, y la lista de clases con su resumen.
-     Doble clic en una fila para abrirla.
+   - Pestaña MIS ACTIVIDADES: tus actividades ordenadas por urgencia (en rojo las vencidas, en
+     naranja las que vencen en 3 días o menos), con fecha límite, días que faltan y el paso en que
+     vas. Al seleccionar una ves:
+       * CÓMO PRESENTARLA: producto, formato de archivo, extensión, normas, nombre del archivo,
+         herramienta y dónde se sube.
+       * QUÉ DEBES MODIFICAR O COMPLETAR TÚ, la lista de verificación y la retroalimentación del
+         instructor si te la devolvió.
+     Botones: Abrir borrador (Word), Abrir en Zajuna para entregar, "Ya lo revisé y modifiqué",
+     "Ya lo entregué".
+   - Pestaña CLASES: cada clase grabada con su resumen (doble clic para abrir).
    - Pestaña CONFIGURACIÓN: pegas la clave de Gemini o Claude y editas tu proyecto.
 2. Transcribir una clase de 1 hora tarda de 10 a 25 minutos. Si lo detienes, la próxima vez
    continúa donde iba.

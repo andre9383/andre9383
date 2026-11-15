@@ -245,6 +245,16 @@ Reglas:
 
 Responde en español, en Markdown, con estas secciones:
 # <Título de la evidencia>
+## Cómo presentar la entrega
+- **Producto:** qué se entrega (documento, mapa mental, infografía, presentación, video, foro, hoja de cálculo…)
+- **Formato de archivo:** extensión exacta (PDF, Word, PowerPoint, Excel, MP4, enlace…)
+- **Extensión:** páginas, diapositivas, palabras o minutos
+- **Normas y presentación:** APA 7, portada, tipo de letra, interlineado, etc. (solo lo que pida la guía o el instructor)
+- **Nombre del archivo:** el que pida la guía; si no dice, Apellido_Nombre_Código de la evidencia
+- **Herramienta sugerida:** con qué hacerlo (Word, Canva, PowerPoint, Excel, Genially…)
+- **Dónde y cómo se sube:** en qué actividad de Zajuna y si va como archivo o texto en línea
+- **Fecha límite:** la de la actividad
+Si un dato no aparece en la guía ni en lo que dijo el instructor, escribe "No lo indica la guía; confirmar con el instructor".
 ## Antes de entregar (lista de verificación)
 Viñetas con cada requisito de la guía y del instructor para marcar.
 ## Borrador
@@ -323,10 +333,21 @@ Responde en español, en Markdown, con estas secciones:
 # <Título de la evidencia>
 ## Evaluación del borrador
 Tabla | Criterio | ¿Cumplía? | Qué se ajustó |
+## Cómo presentar la entrega
+- **Producto:** qué se entrega (documento, mapa mental, infografía, presentación, video, foro, hoja de cálculo…)
+- **Formato de archivo:** extensión exacta (PDF, Word, PowerPoint, Excel, MP4, enlace…)
+- **Extensión:** páginas, diapositivas, palabras o minutos
+- **Normas y presentación:** APA 7, portada, tipo de letra, interlineado, etc. (solo lo que pida la guía o el instructor)
+- **Nombre del archivo:** el que pida la guía; si no dice, Apellido_Nombre_Código de la evidencia
+- **Herramienta sugerida:** con qué hacerlo (Word, Canva, PowerPoint, Excel, Genially…)
+- **Dónde y cómo se sube:** en qué actividad de Zajuna y si va como archivo o texto en línea
+- **Fecha límite:** la de la actividad
+Si un dato no aparece en la guía ni en lo que dijo el instructor, escribe "No lo indica la guía; confirmar con el instructor".
 ## Antes de entregar (lista de verificación)
 ## Borrador corregido
 La versión completa corregida.
-## Qué debes completar o verificar tú"""
+## Qué debes completar o verificar tú
+Viñetas concretas: cada [COMPLETAR] y [FUENTE] pendiente y qué dato real debe poner el aprendiz."""
 
 
 def _materiales_relevantes(a: Actividad, salida: Path, max_chars: int = 60_000) -> str:
