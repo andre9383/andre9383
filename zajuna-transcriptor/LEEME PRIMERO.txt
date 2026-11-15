@@ -1,0 +1,39 @@
+ASISTENTE ZAJUNA - CÓMO INSTALARLO Y USARLO
+============================================
+
+INSTALAR (una sola vez, 10 a 20 minutos)
+1. Descomprime esta carpeta en un lugar fijo, por ejemplo "Documentos\Asistente Zajuna".
+   (Clic derecho sobre el .zip > "Extraer todo").
+2. Abre la carpeta y haz doble clic en  INSTALAR.bat
+   - Si Windows muestra "Windows protegió su PC": clic en "Más información" > "Ejecutar de todas formas".
+   - Si no tienes Python, el instalador lo descarga e instala solo.
+   - Al terminar crea dos accesos directos en el escritorio.
+
+USAR
+1. Doble clic en "Asistente Zajuna" (escritorio).
+2. Responde las dos preguntas (desde qué fecha y si incluir inglés).
+3. Se abre un navegador: INICIA SESIÓN EN ZAJUNA. No cierres esa ventana.
+   Si te pide entrar a Google o a Microsoft (para bajar las grabaciones), entra en esa misma ventana.
+4. Deja que trabaje. Transcribir una clase de 1 hora tarda de 10 a 25 minutos.
+   Si lo cierras, la próxima vez continúa donde iba.
+5. Al final se abre la carpeta "salida":
+   - ACTIVIDADES.md: tus actividades, cuáles están pendientes y los borradores en Word.
+   - INDICE.md: el resumen de cada clase y lo que pide el instructor para cada evidencia.
+
+"Asistente Zajuna - solo actividades" revisa actividades, guías y materiales sin procesar videos.
+
+CLAVE DE CLAUDE (para que arme los trabajos solo)
+- Crea una clave en https://console.anthropic.com/ (se paga aparte de la suscripción de Claude).
+- Crea en esta carpeta un archivo llamado  clave_api.txt  y pega SOLO la clave adentro.
+- Sin clave también funciona: transcribe y deja archivos "pegar_en_claude.txt" que copias y pegas
+  en la app de Claude.
+
+TU PROYECTO
+- mi_proyecto.md tiene la empresa y el caso que usas en tus evidencias. Ábrelo con el Bloc de notas
+  y corrígelo si tu proyecto formativo es otro. Los borradores se basan en ese archivo.
+
+IMPORTANTE
+- Los borradores son tu punto de partida: revísalos, complétalos donde diga [COMPLETAR] y escríbelos
+  con tus palabras antes de entregar.
+- No compartas las carpetas "perfil_navegador" (tu sesión iniciada) ni el archivo clave_api.txt.
+- Si algo falla, toma una foto de la ventana negra y envíamela.

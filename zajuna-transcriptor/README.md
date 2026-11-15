@@ -55,7 +55,9 @@ problemas y propuestas. Así los borradores hablan de tu caso y no de ejemplos g
 
 ## Uso
 
-- **Windows:** doble clic en `iniciar.bat`
+- **Windows:** doble clic en **`INSTALAR.bat`** (una vez: instala Python si falta, las librerías, el
+  navegador y crea accesos directos en el escritorio). Después usa **"Asistente Zajuna"** del escritorio.
+  También funciona `iniciar.bat` desde una terminal para pasar opciones.
 - **Mac / Linux:** `./iniciar.sh` en la terminal
 
 La primera vez instala lo necesario y tarda unos minutos. Después:
