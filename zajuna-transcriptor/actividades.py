@@ -270,8 +270,8 @@ def _contexto_clases(actividad: Actividad, estado: dict) -> str:
     return "\n\n".join(trozos)[:80_000]
 
 
-def generar_borrador(a: Actividad, estado: dict, salida: Path, modelo: str) -> Path | None:
-    import anthropic
+def generar_borrador(a: Actividad, estado: dict, salida: Path, modelo: str = "") -> Path | None:
+    import ia
 
     proyecto = RAIZ / "mi_proyecto.md"
     contexto_proyecto = proyecto.read_text(encoding="utf-8") if proyecto.exists() else "(no hay mi_proyecto.md)"
@@ -287,21 +287,17 @@ def generar_borrador(a: Actividad, estado: dict, salida: Path, modelo: str) -> P
         f"<materiales_de_formacion>\n{_materiales_relevantes(a, salida)}\n</materiales_de_formacion>\n\n"
         f"<proyecto_del_aprendiz>\n{contexto_proyecto}\n</proyecto_del_aprendiz>"
     )
-    log(f"   Armando borrador (con investigación web): {a.titulo[:70]}")
-    client = anthropic.Anthropic()
+    import ia as _ia
+    log(f"   Armando borrador con {_ia.descripcion()} (con investigación web): {a.titulo[:70]}")
     try:
-        md = _llamar(client, modelo, SISTEMA_BORRADOR, contenido, con_web=True)
+        md = ia.generar(SISTEMA_BORRADOR, contenido, con_web=True)
         if not md:
             return None
         log("   Evaluando el borrador contra la guía y lo que pidió el instructor…")
-        revisado = _llamar(client, modelo, SISTEMA_REVISION,
-                           f"{contenido}\n\n<borrador_a_revisar>\n{md}\n</borrador_a_revisar>", con_web=False)
+        revisado = ia.generar(SISTEMA_REVISION, f"{contenido}\n\n<borrador_a_revisar>\n{md}\n</borrador_a_revisar>")
         md = revisado or md
-    except anthropic.APIStatusError as e:
-        log(f"   Error de la API ({e.status_code}): {e.message}")
-        return None
-    except anthropic.APIConnectionError as e:
-        log(f"   Sin conexión con la API de Claude: {e}")
+    except Exception as e:
+        log(f"   No se pudo armar el borrador ({type(e).__name__}: {str(e)[:150]})")
         return None
     carpeta = salida / "actividades" / nombre_seguro(a.curso, 60)
     carpeta.mkdir(parents=True, exist_ok=True)
@@ -331,33 +327,6 @@ Tabla | Criterio | ¿Cumplía? | Qué se ajustó |
 ## Borrador corregido
 La versión completa corregida.
 ## Qué debes completar o verificar tú"""
-
-
-def _llamar(client, modelo: str, sistema: str, contenido: str, con_web: bool) -> str:
-    """Llamada a Claude con streaming; con_web activa la búsqueda web y reanuda los pause_turn."""
-    herramientas = [{"type": "web_search_20260209", "name": "web_search", "max_uses": 8,
-                     "user_location": {"type": "approximate", "country": "CO"}}] if con_web else []
-    mensajes = [{"role": "user", "content": contenido}]
-    for _ in range(6):
-        params = dict(model=modelo, max_tokens=64000, system=sistema, messages=mensajes,
-                      betas=["server-side-fallback-2026-07-01"], fallbacks="default",
-                      thinking={"type": "adaptive"}, output_config={"effort": "high"})
-        if herramientas:
-            params["tools"] = herramientas
-        with client.beta.messages.stream(**params) as stream:
-            resp = stream.get_final_message()
-        if resp.stop_reason == "pause_turn":  # la búsqueda web sigue en curso: se reanuda igual
-            mensajes = [mensajes[0], {"role": "assistant", "content": resp.content}]
-            continue
-        if resp.stop_reason == "refusal":
-            log("   Claude no pudo completar esta parte.")
-            return ""
-        texto = "".join(b.text for b in resp.content if b.type == "text").strip()
-        if resp.stop_reason == "max_tokens":
-            texto += "\n\n> ⚠️ Quedó incompleto por longitud."
-        return texto
-    log("   La investigación tomó demasiados pasos; se usa lo obtenido.")
-    return ""
 
 
 def _materiales_relevantes(a: Actividad, salida: Path, max_chars: int = 60_000) -> str:

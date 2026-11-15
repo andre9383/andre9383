@@ -43,7 +43,11 @@ Abre Zajuna en un navegador y, **apenas inicias sesión**, hace lo siguiente:
 1. Instala **Python 3.10 o superior**: <https://www.python.org/downloads/>
    En Windows, marca la casilla **"Add python.exe to PATH"**.
 2. Descarga esta carpeta (`zajuna-transcriptor`) en tu computador.
-3. *(Opcional, recomendado)* Para los resúmenes automáticos, crea una clave de la API de Claude en
+3. *(Opcional, recomendado)* **Gemini gratis:** crea una clave en <https://aistudio.google.com/apikey> y
+   pégala sola en un archivo `clave_gemini.txt` dentro de esta carpeta. Si también tienes clave de Claude,
+   se usa Claude primero y Gemini cuando Claude falle (por ejemplo, sin saldo). `--ia gemini` o
+   `--ia claude` fuerzan uno.
+4. *(Opcional)* Para los resúmenes automáticos, crea una clave de la API de Claude en
    <https://console.anthropic.com/> y pégala sola en un archivo llamado `clave_api.txt` dentro de esta
    carpeta. **Sin clave también funciona**: transcribe y deja un archivo `… - pegar_en_claude.txt`
    que copias y pegas en la app de Claude para obtener el mismo resumen.

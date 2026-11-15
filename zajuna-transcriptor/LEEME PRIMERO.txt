@@ -22,11 +22,22 @@ USAR
 
 "Asistente Zajuna - solo actividades" revisa actividades, guías y materiales sin procesar videos.
 
-CLAVE DE CLAUDE (para que arme los trabajos solo)
-- Crea una clave en https://console.anthropic.com/ (se paga aparte de la suscripción de Claude).
-- Crea en esta carpeta un archivo llamado  clave_api.txt  y pega SOLO la clave adentro.
-- Sin clave también funciona: transcribe y deja archivos "pegar_en_claude.txt" que copias y pegas
-  en la app de Claude.
+CLAVES DE IA (para que resuma las clases y arme los trabajos solo)
+Puedes usar Claude, Gemini o las dos. Si pones las dos, usa Claude y, si Claude falla
+(por ejemplo, sin saldo), sigue automáticamente con Gemini.
+
+- GEMINI (tiene uso GRATUITO con límites):
+  1. Entra a https://aistudio.google.com/apikey con tu cuenta de Google.
+  2. Clic en "Create API key" y copia la clave.
+  3. Crea en esta carpeta un archivo llamado  clave_gemini.txt  y pega SOLO la clave adentro.
+- CLAUDE (de pago, aparte de la suscripción de Claude):
+  1. Crea una clave en https://console.anthropic.com/
+  2. Crea en esta carpeta un archivo llamado  clave_api.txt  y pega SOLO la clave adentro.
+- Sin ninguna clave también funciona: transcribe y deja archivos "pegar_en_claude.txt" que copias y
+  pegas en el chat de Claude o de Gemini.
+
+Para crear el archivo: clic derecho en la carpeta > Nuevo > Documento de texto, ponle el nombre
+exacto (por ejemplo clave_gemini.txt), ábrelo, pega la clave y guarda.
 
 TU PROYECTO
 - mi_proyecto.md tiene la empresa y el caso que usas en tus evidencias. Ábrelo con el Bloc de notas

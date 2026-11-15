@@ -517,45 +517,18 @@ Viñetas con fechas, plazos, próximas sesiones y avisos administrativos.
 Dudas o partes ambiguas que conviene preguntar al instructor."""
 
 
-def resumir(transcripcion: Path, destino: Path, titulo: str, curso: str, modelo: str) -> Path | None:
-    import anthropic
+def resumir(transcripcion: Path, destino: Path, titulo: str, curso: str, modelo: str = "") -> Path | None:
+    import ia
 
     texto = transcripcion.read_text(encoding="utf-8")
-    log(f"   Resumiendo con Claude ({len(texto):,} caracteres)…")
-    client = anthropic.Anthropic()
+    log(f"   Resumiendo con IA: {ia.descripcion()} ({len(texto):,} caracteres)…")
     try:
-        with client.beta.messages.stream(
-            model=modelo,
-            max_tokens=32000,
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
-            thinking={"type": "adaptive"},
-            output_config={"effort": "high"},
-            system=SISTEMA,
-            messages=[{
-                "role": "user",
-                "content": f"Curso: {curso}\nSesión: {titulo}\n\n<transcripcion>\n{texto}\n</transcripcion>",
-            }],
-        ) as stream:
-            resp = stream.get_final_message()
-    except anthropic.AuthenticationError:
-        log("   La clave ANTHROPIC_API_KEY no es válida. Se deja solo la transcripción.")
+        cuerpo = ia.generar(SISTEMA, f"Curso: {curso}\nSesión: {titulo}\n\n<transcripcion>\n{texto}\n</transcripcion>")
+    except Exception as e:
+        log(f"   No se pudo resumir ({type(e).__name__}: {str(e)[:150]}). Se deja la transcripción.")
         return None
-    except anthropic.RateLimitError:
-        log("   Límite de uso de la API alcanzado; se reintentará en la próxima ejecución.")
+    if not cuerpo:
         return None
-    except anthropic.APIStatusError as e:
-        log(f"   Error de la API ({e.status_code}): {e.message}")
-        return None
-    except anthropic.APIConnectionError as e:
-        log(f"   Sin conexión con la API de Claude: {e}")
-        return None
-    if resp.stop_reason == "refusal":
-        log("   Claude no pudo resumir esta transcripción (rechazo de seguridad).")
-        return None
-    cuerpo = "".join(b.text for b in resp.content if b.type == "text").strip()
-    if resp.stop_reason == "max_tokens":
-        cuerpo += "\n\n> ⚠️ El resumen quedó incompleto por longitud."
     destino.write_text(f"# {titulo}\n\n*Curso:* {curso}  \n*Generado:* {dt.date.today()}\n\n{cuerpo}\n",
                        encoding="utf-8")
     log(f"   Resumen listo: {destino.name}")
@@ -635,7 +608,9 @@ def procesar(g: Grabacion, archivo: Path | None, estado: Estado, salida: Path, a
         if not args.conservar_videos and archivo.parent == salida / "_descargas":
             archivo.unlink(missing_ok=True)
 
-    if os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"):
+    import ia
+
+    if ia.disponible():
         res = resumir(trans, carpeta / f"{base} - resumen.md", g.titulo, g.curso, args.modelo_claude)
         if res:
             d.update({"resumen": str(res), "estado": "resumida"})
@@ -722,6 +697,9 @@ def main() -> None:
     ap.add_argument("--max", type=int, default=0, help="máximo de grabaciones nuevas a procesar (0 = todas)")
     ap.add_argument("--modelo-whisper", default="small", help="tiny | base | small | medium | large-v3 (default: small)")
     ap.add_argument("--modelo-claude", default="claude-opus-5-5", help="modelo de Claude para los resúmenes")
+    ap.add_argument("--ia", choices=["auto", "claude", "gemini"], default="auto",
+                    help="auto = Claude si hay clave y, si falla, Gemini")
+    ap.add_argument("--modelo-gemini", default="", help="modelo de Gemini (vacío = el Flash estable más reciente)")
     ap.add_argument("--conservar-videos", action="store_true", help="no borrar los videos después de transcribir")
     ap.add_argument("--salida", default=str(RAIZ / "salida"), help="carpeta de resultados")
     ap.add_argument("--desde", default="", help="solo grabaciones con fecha en el título desde DD/MM/AAAA")
@@ -733,16 +711,18 @@ def main() -> None:
     ap.add_argument("--borradores-todas", action="store_true", help="armar borrador también de actividades ya entregadas")
     args = ap.parse_args()
 
-    clave = RAIZ / "clave_api.txt"
-    if not os.environ.get("ANTHROPIC_API_KEY") and clave.exists() and clave.read_text(encoding="utf-8").strip():
-        os.environ["ANTHROPIC_API_KEY"] = clave.read_text(encoding="utf-8").strip()
+    import ia
+
+    ia.configurar(args.ia, args.modelo_claude, args.modelo_gemini)
 
     salida = Path(args.salida).resolve()
     salida.mkdir(parents=True, exist_ok=True)
     estado = Estado.cargar(salida / "estado.json")
-    con_resumen = bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
-    if not con_resumen:
-        log("Sin ANTHROPIC_API_KEY: se harán las transcripciones y un texto listo para pegar en Claude.")
+    con_resumen = ia.disponible()
+    if con_resumen:
+        log(f"IA para resúmenes y borradores: {ia.descripcion()}")
+    else:
+        log("Sin clave de Claude ni de Gemini: se harán las transcripciones y textos listos para pegar en un chat de IA.")
 
     trabajos: list[tuple[Grabacion, Path | None]] = manuales(salida)
     trabajos += [(g, None) for g in enlaces_txt()]
