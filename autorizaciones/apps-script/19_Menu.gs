@@ -78,22 +78,35 @@ function migrarCasosCerradosAutomaticamente() {
  * La contraseña solo se muestra en la alerta de la hoja o en el Registro de ejecución.
  */
 function recuperarAccesoAdmin() {
+  var ui = null;
+  try { ui = SpreadsheetApp.getUi(); } catch (e) { /* desde el editor no hay ventana */ }
+  if (!ui) {
+    mostrar_('Esta opción debe ejecutarse desde la HOJA, no desde el editor: abre la hoja de cálculo, recárgala (F5) y usa el menú ' +
+      APP.NOMBRE + ' › Recuperar acceso de administrador. Ahí te pedirá tu número de documento.');
+    return;
+  }
   var ultima = +(prop_('RECUPERACION_ADMIN') || 0);
-  if (Date.now() - ultima < 2 * 60e3) { mostrar_('Espera dos minutos antes de volver a usar la recuperación.'); return; }
+  if (Date.now() - ultima < 60e3) { mostrar_('Espera un minuto antes de volver a usar la recuperación.'); return; }
+  var r = ui.prompt('Recuperar acceso de administrador', 'Escribe tu número de documento (sin puntos):', ui.ButtonSet.OK_CANCEL);
+  if (r.getSelectedButton() !== ui.Button.OK) return;
+  var doc = txt_(r.getResponseText()).replace(/[^\dA-Za-z]/g, '');
+  if (!/^[A-Za-z0-9]{5,15}$/.test(doc)) { mostrar_('Escribe un documento válido (5 a 15 caracteres).'); return; }
   prop_('RECUPERACION_ADMIN', Date.now());
-  var doc = '';
-  try {
-    var ui = SpreadsheetApp.getUi();
-    var r = ui.prompt('Recuperar acceso de administrador', 'Escribe el número de documento del administrador:', ui.ButtonSet.OK_CANCEL);
-    if (r.getSelectedButton() !== ui.Button.OK) return;
-    doc = txt_(r.getResponseText()).replace(/[^\dA-Za-z]/g, '');
-  } catch (e) { /* desde el editor: sin ventana */ }
-  var usuarios = objetos_(H.USUARIOS);
-  var u = doc ? usuarios.filter(function (o) { return txt_(o['DOCUMENTO']).replace(/[^\dA-Za-z]/g, '') === doc; })[0]
-              : usuarios.filter(function (o) { return normRol_(o['ROL']) === 'ADMINISTRADOR'; })[0];
-  if (!u) { mostrar_(doc ? 'No encontré el documento ' + doc + ' en USUARIOS.' : 'No hay ningún ADMINISTRADOR en USUARIOS. Usa la opción 2 (código de administrador inicial) y crea la cuenta.'); return; }
+  asegurarEncabezados_(H.USUARIOS);
+  var u = objetos_(H.USUARIOS).filter(function (o) { return txt_(o['DOCUMENTO']).replace(/[^\dA-Za-z]/g, '') === doc; })[0];
   var temporal = 'Adm' + Math.floor(100000 + Math.random() * 899999) + uuid_().slice(0, 3);
-  actualizarFila_(H.USUARIOS, u._fila, { 'ROL': 'ADMINISTRADOR', 'ACTIVO': 'SI', 'ESTADO REGISTRO': 'APROBADO', 'CLAVE HASH': hashClave_(temporal), 'CAMBIAR CLAVE': 'SI', 'INTENTOS': 0, 'BLOQUEADO HASTA': '' });
-  auditar_(null, 'RECUPERACIÓN DE ACCESO ADMINISTRADOR', txt_(u['DOCUMENTO']), '', '');
-  mostrar_('Usuario: ' + txt_(u['DOCUMENTO']) + ' (' + txt_(u['NOMBRE']) + ')\nContraseña temporal: ' + temporal + '\nEntra a la aplicación con ese documento y esa contraseña; te pedirá cambiarla.');
+  var datos = { 'ROL': 'ADMINISTRADOR', 'ACTIVO': 'SI', 'ESTADO REGISTRO': 'APROBADO', 'APROBADO POR': 'RECUPERACIÓN DESDE LA HOJA', 'FECHA APROBACION': ahora_(),
+    'CLAVE HASH': hashClave_(temporal), 'CAMBIAR CLAVE': 'SI', 'INTENTOS': 0, 'BLOQUEADO HASTA': '' };
+  var nombre;
+  if (u) { actualizarFila_(H.USUARIOS, u._fila, datos); nombre = txt_(u['NOMBRE']); }
+  else {
+    var rn = ui.prompt('Usuario nuevo', 'El documento ' + doc + ' no está en USUARIOS. Escribe tu nombre completo para crearlo como administrador:', ui.ButtonSet.OK_CANCEL);
+    if (rn.getSelectedButton() !== ui.Button.OK) return;
+    nombre = seguro_(rn.getResponseText()) || 'Administrador';
+    datos['DOCUMENTO'] = doc; datos['NOMBRE'] = nombre; datos['FECHA REGISTRO'] = ahora_();
+    appendFilas_(H.USUARIOS, [datos]);
+  }
+  auditar_(null, 'RECUPERACIÓN DE ACCESO ADMINISTRADOR', doc, '', u ? 'usuario existente' : 'usuario creado');
+  mostrar_('Listo.\nUsuario: ' + doc + ' (' + nombre + ')\nContraseña temporal: ' + temporal +
+    '\n\nEntra a la aplicación con ese documento y esa contraseña; te pedirá cambiarla.\nSi la aplicación no la reconoce, publica una nueva versión: Implementar › Administrar implementaciones › Editar › Nueva versión.');
 }
