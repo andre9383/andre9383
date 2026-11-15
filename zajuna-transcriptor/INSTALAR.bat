@@ -81,4 +81,6 @@ echo ==========================================================
 echo   LISTO. Abre "Asistente Zajuna" desde el escritorio o el menu Inicio.
 echo   Si no aparece, abre "Asistente Zajuna.bat" en esta carpeta.
 echo ==========================================================
+echo Abriendo el programa...
+start "" "%~dp0Asistente Zajuna.bat"
 pause

@@ -22,12 +22,8 @@ foreach ($d in $destinos) {
     Remove-Item -LiteralPath (Join-Path $d 'Asistente Zajuna - solo actividades.lnk') -ErrorAction SilentlyContinue
     try {
         $l = $ws.CreateShortcut((Join-Path $d 'Asistente Zajuna.lnk'))
-        if ((Test-Path -LiteralPath $pythonw) -and (Test-Path -LiteralPath $gui)) {
-            $l.TargetPath = $pythonw
-            $l.Arguments = '"' + $gui + '"'
-        } else {
-            $l.TargetPath = $bat
-        }
+        $l.TargetPath = $bat
+        $l.WindowStyle = 7   # la consola arranca minimizada; si hay un error queda en la barra de tareas
         $l.WorkingDirectory = $dir
         $l.IconLocation = "$env:SystemRoot\System32\shell32.dll,13"
         $l.Description = 'Asistente Zajuna - SENA'

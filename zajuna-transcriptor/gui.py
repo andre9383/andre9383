@@ -514,5 +514,27 @@ class App(tk.Tk):
         abrir(p)
 
 
+def _registrar_error() -> str:
+    import traceback
+
+    texto = traceback.format_exc()
+    try:
+        (RAIZ / "error_ventana.txt").write_text(texto, encoding="utf-8")
+    except OSError:
+        pass
+    return texto
+
+
 if __name__ == "__main__":
-    App().mainloop()
+    try:
+        App().mainloop()
+    except Exception:
+        detalle = _registrar_error()
+        try:
+            raiz = tk.Tk()
+            raiz.withdraw()
+            messagebox.showerror("Asistente Zajuna", "La ventana no pudo abrir. Envía una foto de este mensaje.\n\n"
+                                 + detalle[-1500:])
+        except Exception:
+            pass
+        sys.exit(1)
