@@ -13,17 +13,19 @@ INSTALAR (una sola vez, 10 a 20 minutos)
      "Asistente Zajuna.bat" dentro de la carpeta.
 
 USAR
-1. Doble clic en "Asistente Zajuna" (escritorio).
-2. Responde las dos preguntas (desde qué fecha y si incluir inglés).
-3. Se abre un navegador: INICIA SESIÓN EN ZAJUNA. No cierres esa ventana.
-   Si te pide entrar a Google o a Microsoft (para bajar las grabaciones), entra en esa misma ventana.
-4. Deja que trabaje. Transcribir una clase de 1 hora tarda de 10 a 25 minutos.
-   Si lo cierras, la próxima vez continúa donde iba.
-5. Al final se abre la carpeta "salida":
-   - ACTIVIDADES.md: tus actividades, cuáles están pendientes y los borradores en Word.
-   - INDICE.md: el resumen de cada clase y lo que pide el instructor para cada evidencia.
-
-"Asistente Zajuna - solo actividades" revisa actividades, guías y materiales sin procesar videos.
+1. Doble clic en "Asistente Zajuna" (Escritorio o menú Inicio). Se abre la VENTANA DEL PROGRAMA:
+   - Pestaña INICIO: eliges qué hacer (todo, solo actividades o solo clases), desde qué fecha
+     y si incluir inglés. Pulsa "Iniciar".
+     Abajo ves en vivo en qué está trabajando y una barra que se mueve mientras trabaja.
+   - Se abre un navegador: INICIA SESIÓN EN ZAJUNA y no cierres esa ventana.
+     Si te pide entrar a Google o a Microsoft (para bajar las grabaciones), entra ahí mismo.
+   - Pestaña RESULTADOS: la lista de tus actividades (pendiente / entregada / cuestionario) con su
+     fecha y el botón para abrir el borrador en Word, y la lista de clases con su resumen.
+     Doble clic en una fila para abrirla.
+   - Pestaña CONFIGURACIÓN: pegas la clave de Gemini o Claude y editas tu proyecto.
+2. Transcribir una clase de 1 hora tarda de 10 a 25 minutos. Si lo detienes, la próxima vez
+   continúa donde iba.
+3. Todo queda también en la carpeta "salida" (botón "Abrir carpeta de resultados").
 
 CLAVES DE IA (para que resuma las clases y arme los trabajos solo)
 Puedes usar Claude, Gemini o las dos. Si pones las dos, usa Claude y, si Claude falla
