@@ -15,6 +15,18 @@ Abre Zajuna en un navegador y, **apenas inicias sesión**, hace lo siguiente:
      criterios de evaluación, fecha y forma de entrega
    - Fechas y compromisos, y dudas para preguntar al instructor
 5. Arma `salida/INDICE.md` con todas las sesiones y **una sola lista de todas las evidencias pedidas**.
+6. **Revisa las actividades (tareas) de Zajuna:** lee las instrucciones, la fecha de entrega, si ya la
+   entregaste, la calificación y la retroalimentación, y descarga las guías adjuntas.
+7. Para cada evidencia **pendiente o devuelta** arma un **BORRADOR en Word** que tú corriges y
+   modificas antes de entregar. Para escribirlo usa:
+   - las instrucciones de la actividad y la guía,
+   - lo que dijo el instructor en las clases transcritas,
+   - la retroalimentación del instructor, si fue devuelta,
+   - los datos de **tu proyecto** (`mi_proyecto.md`).
+
+   Cada borrador trae una **lista de verificación** con los requisitos y marca con `[COMPLETAR]` y
+   `[FUENTE]` lo que debes poner tú. No inventa datos ni referencias.
+   Todo queda resumido en `salida/ACTIVIDADES.md`.
 
 > 📱 **No funciona en el celular.** Transcribir requiere un computador con Windows, Mac o Linux.
 > Los resultados quedan en archivos de texto que sí puedes leer en el celular, por ejemplo
@@ -31,6 +43,11 @@ Abre Zajuna en un navegador y, **apenas inicias sesión**, hace lo siguiente:
    <https://console.anthropic.com/> y pégala sola en un archivo llamado `clave_api.txt` dentro de esta
    carpeta. **Sin clave también funciona**: transcribe y deja un archivo `… - pegar_en_claude.txt`
    que copias y pegas en la app de Claude para obtener el mismo resumen.
+
+### Tu proyecto (recomendado)
+
+Copia `mi_proyecto.ejemplo.md` como **`mi_proyecto.md`** y llénalo con tu empresa, proceso, proveedores,
+problemas y propuestas. Así los borradores hablan de tu caso y no de ejemplos genéricos.
 
 ## Uso
 
@@ -57,6 +74,10 @@ no tendrás que volver a escribir la contraseña. El programa **nunca guarda ni 
 | `iniciar.bat --max 3` | Procesa como máximo 3 grabaciones nuevas en esta ejecución |
 | `iniciar.bat --modelo-whisper medium` | Transcripción más precisa pero más lenta (`tiny`, `base`, `small` *por defecto*, `medium`, `large-v3`) |
 | `iniciar.bat --conservar-videos` | No borra los videos después de transcribirlos |
+| `iniciar.bat --solo-actividades` | Solo revisa actividades y arma borradores (sin grabaciones) |
+| `iniciar.bat --solo-grabaciones` | Solo grabaciones, sin revisar actividades |
+| `iniciar.bat --rehacer-borradores` | Vuelve a armar los borradores (por ejemplo, después de llenar `mi_proyecto.md`) |
+| `iniciar.bat --borradores-todas` | Arma borradores también de las actividades ya entregadas |
 | `iniciar.bat --sin-navegador` | No abre Zajuna; solo procesa `videos_manuales/` y `enlaces.txt` |
 
 ### Grabaciones que no están en Zajuna
@@ -81,12 +102,16 @@ próxima vez que lo abras.
   abrirlas a mano.
 - La transcripción automática puede tener errores con nombres propios o códigos. El resumen intenta
   corregirlos y marca lo que no es claro en **"Pendiente por aclarar"**.
+- **Los borradores son un punto de partida, no un trabajo para copiar y entregar.** Revísalos,
+  escríbelos con tus palabras y completa los datos reales. El SENA evalúa tu aprendizaje y puede
+  detectar textos que no son tuyos.
 - **El resumen no reemplaza la guía de aprendizaje.** Revisa siempre la guía oficial y el cronograma en Zajuna.
 
 ## Privacidad
 
 - `perfil_navegador/` contiene tu sesión iniciada. **No lo compartas.**
 - `clave_api.txt` es tu clave de API. **No la compartas.**
+- `mi_proyecto.md` tiene datos de tu empresa. Está excluido de GitHub.
 - Los videos se transcriben en tu computador. Solo el **texto** de la transcripción se envía a Claude,
   y solo si configuraste la clave.
 - `.gitignore` excluye todo lo anterior y la carpeta `salida/` para que nunca se suba a GitHub.

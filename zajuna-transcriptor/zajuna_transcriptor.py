@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import glob
 import json
 import os
 import re
@@ -638,6 +639,31 @@ def enlaces_txt() -> list[Grabacion]:
     return out
 
 
+def trabajar_actividades(zaj, cursos, estado: Estado, salida: Path, args, con_resumen: bool) -> None:
+    import actividades as act
+
+    log("Revisando actividades y evidencias…")
+    lista = act.revisar_actividades(zaj, cursos, salida, args.curso)
+    objetivo = [a for a in lista if args.borradores_todas or a.pendiente]
+    log(f"{len(lista)} actividad(es); {sum(a.pendiente for a in lista)} pendiente(s).")
+    if not (RAIZ / "mi_proyecto.md").exists():
+        log("Consejo: llena mi_proyecto.md con los datos de tu proyecto para que los borradores sean sobre tu empresa.")
+    for a in objetivo:
+        carpeta = salida / "actividades" / nombre_seguro(a.curso, 60)
+        ya = list(carpeta.glob(f"*{glob.escape(nombre_seguro(a.titulo, 40))}*BORRADOR.docx")) if carpeta.exists() else []
+        if ya and not args.rehacer_borradores:
+            continue
+        try:
+            if con_resumen:
+                act.generar_borrador(a, estado.datos, salida, args.modelo_claude)
+            else:
+                act.prompt_borrador_manual(a, estado.datos, salida)
+        except Exception as e:  # un borrador con problemas no detiene los demás
+            log(f"   ❌ Error en el borrador de {a.titulo[:60]}: {e}")
+    ruta = act.escribir_resumen_actividades(lista, salida)
+    log(f"Actividades: {ruta}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Transcribe y resume las sesiones grabadas de Zajuna (SENA).")
     ap.add_argument("--solo-listar", action="store_true", help="solo lista las grabaciones encontradas")
@@ -648,6 +674,10 @@ def main() -> None:
     ap.add_argument("--modelo-claude", default="claude-opus-5-5", help="modelo de Claude para los resúmenes")
     ap.add_argument("--conservar-videos", action="store_true", help="no borrar los videos después de transcribir")
     ap.add_argument("--salida", default=str(RAIZ / "salida"), help="carpeta de resultados")
+    ap.add_argument("--solo-grabaciones", action="store_true", help="no revisar actividades ni armar borradores")
+    ap.add_argument("--solo-actividades", action="store_true", help="no procesar grabaciones; solo actividades y borradores")
+    ap.add_argument("--rehacer-borradores", action="store_true", help="volver a armar borradores que ya existen")
+    ap.add_argument("--borradores-todas", action="store_true", help="armar borrador también de actividades ya entregadas")
     args = ap.parse_args()
 
     clave = RAIZ / "clave_api.txt"
@@ -676,9 +706,10 @@ def main() -> None:
             zaj.esperar_ingreso()
             cursos = zaj.cursos()
             log(f"{len(cursos)} curso(s) encontrados.")
-            grabaciones = zaj.buscar_grabaciones(cursos, args.curso)
-            log(f"{len(grabaciones)} grabación(es) encontradas en Zajuna.")
-            trabajos += [(g, None) for g in grabaciones]
+            if not args.solo_actividades:
+                grabaciones = zaj.buscar_grabaciones(cursos, args.curso)
+                log(f"{len(grabaciones)} grabación(es) encontradas en Zajuna.")
+                trabajos += [(g, None) for g in grabaciones]
 
         if args.solo_listar:
             for g, _ in trabajos:
@@ -686,6 +717,8 @@ def main() -> None:
                 print(f"[{hecho}] {g.curso[:30]:<30} | {g.tipo:<11} | {g.titulo[:60]} | {g.url}")
             return
 
+        if args.solo_actividades:
+            trabajos = []
         nuevos = [(g, a) for g, a in trabajos if not estado.listo(g.clave(), con_resumen)]
         if args.max:
             nuevos = nuevos[: args.max]
@@ -715,6 +748,9 @@ def main() -> None:
                 log(f"   ❌ Error: {e}")
                 d["estado"] = f"error: {str(e)[:200]}"
                 estado.guardar()
+
+        if zaj and not args.solo_grabaciones:
+            trabajar_actividades(zaj, cursos, estado, salida, args, con_resumen)
     finally:
         indice = escribir_indice(estado, salida)
         log(f"Índice: {indice}")
