@@ -1,0 +1,9 @@
+# Datos personales: sesión del navegador, clave de API, videos y resultados
+perfil_navegador/
+clave_api.txt
+salida/
+videos_manuales/*
+!videos_manuales/LEEME.txt
+enlaces.txt
+.venv/
+__pycache__/

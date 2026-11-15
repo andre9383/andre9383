@@ -1,0 +1,2 @@
+Pon aquí cualquier grabación (.mp4, .m4a, .mp3, .webm...) que hayas descargado tú mismo.
+Al ejecutar el programa se transcribe y se resume igual que las de Zajuna.

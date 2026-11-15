@@ -1,0 +1,6 @@
+# Copia este archivo como "enlaces.txt" y agrega un enlace por línea.
+# Opcional: después del enlace, un espacio y el título de la sesión.
+# Sirve para grabaciones que el instructor comparte por correo o Drive y no están en Zajuna.
+#
+# https://drive.google.com/file/d/XXXXXXXXXXXX/view  Actividad de proyecto 2 - Evidencias técnicas 3
+# https://sena4-my.sharepoint.com/:v:/g/personal/...   Sesión sincrónica 12 de noviembre
