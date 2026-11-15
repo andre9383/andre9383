@@ -22,7 +22,9 @@ function respuesta_(fn) {
     var msg = (e && e.message) || String(e);
     if (e instanceof TypeError || e instanceof ReferenceError || e instanceof RangeError || e instanceof SyntaxError) {
       console.error(e && e.stack || e);                       // error de programación: queda en Ejecuciones
-      msg = 'Ocurrió un error interno. Si se repite, avisa al administrador (hora ' + fmtFecha_(ahora_(), 'HH:mm') + ').';
+      var donde = String((e && e.stack) || '').split('\n').filter(function (l) { return /\.gs:\d+/.test(l); })[0] || '';
+      msg = 'Ocurrió un error interno (hora ' + fmtFecha_(ahora_(), 'HH:mm') + '). Detalle para soporte: ' + e.name + ': ' + String(e.message).slice(0, 160) +
+        (donde ? ' · ' + donde.replace(/^\s*at\s*/, '').slice(0, 80) : '');
     }
     return { ok: false, error: msg };
   }
