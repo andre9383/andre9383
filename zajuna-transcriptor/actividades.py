@@ -133,6 +133,7 @@ def revisar_actividades(zaj, cursos: list[tuple[str, str]], salida: Path, filtro
     """Recorre las tareas de cada curso y devuelve su información."""
     carpeta_adj = salida / "actividades" / "_adjuntos"
     actividades: list[Actividad] = []
+    materiales: list[dict] = []
     for nombre, url_curso in cursos:
         if filtro and filtro.lower() not in nombre.lower():
             continue
@@ -154,6 +155,19 @@ def revisar_actividades(zaj, cursos: list[tuple[str, str]], salida: Path, filtro
                     n = numero_guia(e["texto"])
                     if n:
                         guias_url.setdefault(n, (u, limpiar_titulo(e["texto"])))
+        materiales_url: dict[str, str] = {}
+        for url in [url_curso]:
+            _, enlaces = zaj._enlaces(url)
+            for e in enlaces:
+                u = e["url"].split("#")[0].split("&")[0]
+                if re.search(r"/mod/(resource|page|book)/view.php", u) and re.search(r"material", f"{e.get('seccion', '')} {e.get('contexto', '')}", re.I) \
+                        and not re.search(r"gu[ií]a de aprendizaje", e["texto"], re.I):
+                    materiales_url.setdefault(u, limpiar_titulo(e["texto"]))
+        for u, nom in materiales_url.items():
+            m = texto_recurso(zaj, u, carpeta_adj / "materiales", nom)
+            if m and m.get("texto"):
+                materiales.append({"curso": nombre, **m})
+                log(f"   📚 {nom[:60]}")
         guias: dict[str, dict] = {}
         for n, (u, nom) in sorted(guias_url.items()):
             g = texto_recurso(zaj, u, carpeta_adj, nom)
@@ -194,6 +208,7 @@ def revisar_actividades(zaj, cursos: list[tuple[str, str]], salida: Path, filtro
             log(f"   📝 {marca:<13} {titulo[:70]}")
             actividades.append(a)
     (salida / "actividades").mkdir(parents=True, exist_ok=True)
+    (salida / "actividades" / "materiales.json").write_text(json.dumps(materiales, ensure_ascii=False), encoding="utf-8")
     (salida / "actividades" / "actividades.json").write_text(
         json.dumps([asdict(a) for a in actividades], ensure_ascii=False, indent=2), encoding="utf-8")
     return actividades
@@ -214,8 +229,16 @@ Reglas:
 - Si hay retroalimentación del instructor porque la evidencia fue devuelta o no cumplió, corrige \
   exactamente lo que pidió y explícalo al inicio.
 - Usa el contexto del proyecto del aprendiz (su empresa, su proceso) en lugar de ejemplos genéricos.
-- No inventes datos, cifras, fuentes ni citas. Donde falte información escribe [COMPLETAR: qué falta] \
-  y donde se necesite una referencia real escribe [FUENTE: qué tipo de fuente buscar].
+- Usa los materiales de formación del curso y busca en la web (herramienta web_search) fuentes reales y \
+  actuales para sustentar conceptos y cifras: preferiblemente fuentes colombianas u oficiales (DANE, \
+  MinComercio, SENA, ProColombia, Banco de la República, artículos académicos). Cita en APA 7 con la URL \
+  real que encontraste. Nunca inventes una fuente, cifra o cita; si no encuentras algo, escribe \
+  [FUENTE: qué buscar].
+- Lo que solo sabe el aprendiz (cifras internas de su empresa, su experiencia, fotos, nombres) márcalo \
+  [COMPLETAR: qué falta] en vez de suponerlo.
+- Redacción: español de Colombia, claro y directo, en primera persona del aprendiz cuando la evidencia lo \
+  pida. Frases concretas sobre su caso, ejemplos reales del proceso, párrafos de largo variado. Evita el \
+  relleno, las frases grandilocuentes y las conclusiones genéricas que servirían para cualquier empresa.
 - Si el producto es visual (mapa mental, infografía, presentación), entrega el contenido organizado \
   (nodos y ramas, bloques de la infografía, diapositiva por diapositiva) y una sugerencia breve de \
   herramienta y diseño.
@@ -261,29 +284,25 @@ def generar_borrador(a: Actividad, estado: dict, salida: Path, modelo: str) -> P
         f"<retroalimentacion_del_instructor>\n{a.retroalimentacion or '(ninguna)'}\n</retroalimentacion_del_instructor>\n\n"
         f"<guia_y_adjuntos>\n{guias or '(no hay adjuntos legibles)'}\n</guia_y_adjuntos>\n\n"
         f"<lo_que_dijo_el_instructor_en_clase>\n{clases}\n</lo_que_dijo_el_instructor_en_clase>\n\n"
+        f"<materiales_de_formacion>\n{_materiales_relevantes(a, salida)}\n</materiales_de_formacion>\n\n"
         f"<proyecto_del_aprendiz>\n{contexto_proyecto}\n</proyecto_del_aprendiz>"
     )
-    log(f"   Armando borrador: {a.titulo[:70]}")
+    log(f"   Armando borrador (con investigación web): {a.titulo[:70]}")
     client = anthropic.Anthropic()
     try:
-        with client.beta.messages.stream(
-            model=modelo, max_tokens=64000,
-            betas=["server-side-fallback-2026-07-01"], fallbacks="default",
-            thinking={"type": "adaptive"}, output_config={"effort": "high"},
-            system=SISTEMA_BORRADOR,
-            messages=[{"role": "user", "content": contenido}],
-        ) as stream:
-            resp = stream.get_final_message()
+        md = _llamar(client, modelo, SISTEMA_BORRADOR, contenido, con_web=True)
+        if not md:
+            return None
+        log("   Evaluando el borrador contra la guía y lo que pidió el instructor…")
+        revisado = _llamar(client, modelo, SISTEMA_REVISION,
+                           f"{contenido}\n\n<borrador_a_revisar>\n{md}\n</borrador_a_revisar>", con_web=False)
+        md = revisado or md
     except anthropic.APIStatusError as e:
         log(f"   Error de la API ({e.status_code}): {e.message}")
         return None
     except anthropic.APIConnectionError as e:
         log(f"   Sin conexión con la API de Claude: {e}")
         return None
-    if resp.stop_reason == "refusal":
-        log("   Claude no pudo armar este borrador.")
-        return None
-    md = "".join(b.text for b in resp.content if b.type == "text").strip()
     carpeta = salida / "actividades" / nombre_seguro(a.curso, 60)
     carpeta.mkdir(parents=True, exist_ok=True)
     base = nombre_seguro(f"{a.codigo} {a.titulo}" if a.codigo and a.codigo not in a.titulo else a.titulo, 90)
@@ -292,6 +311,71 @@ def generar_borrador(a: Actividad, estado: dict, salida: Path, modelo: str) -> P
     markdown_a_docx(md, ruta, aviso=f"BORRADOR generado el {dt.date.today()} — revísalo y corrígelo antes de entregar.")
     log(f"   Borrador listo: {ruta.name}")
     return ruta
+
+
+SISTEMA_REVISION = """Eres un instructor del SENA exigente que revisa el borrador de una evidencia antes de \
+que el aprendiz la entregue. Tienes las instrucciones, la guía, lo que dijo el instructor en clase, la \
+retroalimentación previa y el borrador.
+
+1. Evalúa el borrador criterio por criterio: cada requisito de la guía y cada indicación del instructor \
+   (estructura, contenido, formato, extensión, normas APA, uso del caso del aprendiz, coherencia, ortografía).
+2. Corrige todo lo que no cumpla y mejora la claridad y la redacción: más concreta, más ligada al caso, \
+   sin relleno ni frases genéricas. Conserva las fuentes reales con su URL; no agregues fuentes nuevas que \
+   no estén en el borrador. Mantén los [COMPLETAR] y [FUENTE] que sigan pendientes.
+
+Responde en español, en Markdown, con estas secciones:
+# <Título de la evidencia>
+## Evaluación del borrador
+Tabla | Criterio | ¿Cumplía? | Qué se ajustó |
+## Antes de entregar (lista de verificación)
+## Borrador corregido
+La versión completa corregida.
+## Qué debes completar o verificar tú"""
+
+
+def _llamar(client, modelo: str, sistema: str, contenido: str, con_web: bool) -> str:
+    """Llamada a Claude con streaming; con_web activa la búsqueda web y reanuda los pause_turn."""
+    herramientas = [{"type": "web_search_20260209", "name": "web_search", "max_uses": 8,
+                     "user_location": {"type": "approximate", "country": "CO"}}] if con_web else []
+    mensajes = [{"role": "user", "content": contenido}]
+    for _ in range(6):
+        params = dict(model=modelo, max_tokens=64000, system=sistema, messages=mensajes,
+                      betas=["server-side-fallback-2026-07-01"], fallbacks="default",
+                      thinking={"type": "adaptive"}, output_config={"effort": "high"})
+        if herramientas:
+            params["tools"] = herramientas
+        with client.beta.messages.stream(**params) as stream:
+            resp = stream.get_final_message()
+        if resp.stop_reason == "pause_turn":  # la búsqueda web sigue en curso: se reanuda igual
+            mensajes = [mensajes[0], {"role": "assistant", "content": resp.content}]
+            continue
+        if resp.stop_reason == "refusal":
+            log("   Claude no pudo completar esta parte.")
+            return ""
+        texto = "".join(b.text for b in resp.content if b.type == "text").strip()
+        if resp.stop_reason == "max_tokens":
+            texto += "\n\n> ⚠️ Quedó incompleto por longitud."
+        return texto
+    log("   La investigación tomó demasiados pasos; se usa lo obtenido.")
+    return ""
+
+
+def _materiales_relevantes(a: Actividad, salida: Path, max_chars: int = 60_000) -> str:
+    ruta = salida / "actividades" / "materiales.json"
+    if not ruta.exists():
+        return "(no se encontraron materiales de formación)"
+    materiales = [m for m in json.loads(ruta.read_text(encoding="utf-8")) if m.get("curso") == a.curso]
+    palabras = {w.lower() for w in re.findall(r"[A-Za-zÁÉÍÓÚáéíóúñÑ]{5,}", f"{a.titulo} {a.instrucciones[:500]}")}
+    def puntaje(m):
+        return sum(w in (m["nombre"] + " " + m["texto"][:3000]).lower() for w in palabras)
+    partes, total = [], 0
+    for m in sorted(materiales, key=puntaje, reverse=True):
+        trozo = f"### {m['nombre']}\n{m['texto'][:12_000]}"
+        if total + len(trozo) > max_chars:
+            break
+        partes.append(trozo)
+        total += len(trozo)
+    return "\n\n".join(partes) or "(no se encontraron materiales de formación)"
 
 
 def prompt_borrador_manual(a: Actividad, estado: dict, salida: Path) -> Path:

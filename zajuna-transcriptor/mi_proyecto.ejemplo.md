@@ -1,4 +1,4 @@
-# Mi proyecto formativo
+# Mi proyecto formativo en el SENA
 
 Copia este archivo como **mi_proyecto.md** y llénalo. Los borradores de las evidencias usarán estos datos
 para hablar de TU empresa y no de ejemplos genéricos. Entre más concreto, mejor el borrador.
@@ -9,7 +9,7 @@ para hablar de TU empresa y no de ejemplos genéricos. Entre más concreto, mejo
 - Ficha:
 - Instructor líder:
 
-## Empresa o caso del proyecto
+## Empresa o caso que uso en mis evidencias
 - Nombre de la empresa:
 - Sector y actividad:
 - Ciudad:

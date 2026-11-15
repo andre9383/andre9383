@@ -24,6 +24,10 @@ Abre Zajuna en un navegador y, **apenas inicias sesión**, hace lo siguiente:
    - la retroalimentación del instructor, si fue devuelta,
    - los datos de **tu proyecto** (`mi_proyecto.md`).
 
+   Además lee los **materiales de formación** del curso, **investiga en la web** fuentes reales
+   (citadas en APA con su enlace) y hace una **segunda pasada de evaluación**: revisa el borrador
+   criterio por criterio contra la guía y lo que pidió el instructor, y lo corrige.
+
    Cada borrador trae una **lista de verificación** con los requisitos y marca con `[COMPLETAR]` y
    `[FUENTE]` lo que debes poner tú. No inventa datos ni referencias.
    Todo queda resumido en `salida/ACTIVIDADES.md`.
@@ -44,7 +48,7 @@ Abre Zajuna en un navegador y, **apenas inicias sesión**, hace lo siguiente:
    carpeta. **Sin clave también funciona**: transcribe y deja un archivo `… - pegar_en_claude.txt`
    que copias y pegas en la app de Claude para obtener el mismo resumen.
 
-### Tu proyecto (recomendado)
+### Tu proyecto formativo (recomendado)
 
 Copia `mi_proyecto.ejemplo.md` como **`mi_proyecto.md`** y llénalo con tu empresa, proceso, proveedores,
 problemas y propuestas. Así los borradores hablan de tu caso y no de ejemplos genéricos.

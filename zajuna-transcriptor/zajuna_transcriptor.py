@@ -187,9 +187,14 @@ JS_ENLACES = """
     const h = s ? s.querySelector('h1,h2,h3,h4,.sectionname,.instancename') : null;
     return h ? h.innerText.trim().slice(0, 120) : '';
   };
+  const seccion = el => {
+    const s = el.closest('li.section, .course-section, section[data-for="section"], [data-for="section"]');
+    const h = s ? s.querySelector('.sectionname, h3, h4, [data-for="section_title"]') : null;
+    return h ? h.innerText.trim().slice(0, 120) : '';
+  };
   document.querySelectorAll('a[href]').forEach(a => out.push({
       url: a.href, texto: (a.innerText || a.title || a.getAttribute('aria-label') || '').trim().slice(0, 200),
-      contexto: contexto(a)}));
+      contexto: contexto(a), seccion: seccion(a)}));
   document.querySelectorAll('iframe[src], video[src], source[src], embed[src]').forEach(e => out.push({
       url: e.src, texto: (e.title || '').trim().slice(0, 200), contexto: contexto(e) || document.title}));
   return out;
