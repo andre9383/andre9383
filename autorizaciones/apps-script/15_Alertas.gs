@@ -58,7 +58,7 @@ function ejecutarAlertasProgramadas() {
   if (Date.now() - ultima < 20 * 36e5) return 'Ya se enviaron hoy.';
   prop_('ALERTAS_ULTIMO_ENVIO', Date.now());
   var p = parametros_();
-  var usuarios = objetos_(H.USUARIOS).filter(function (u) { return may_(u['ACTIVO']) === 'SI' && may_(u['ESTADO REGISTRO']) === 'APROBADO' && txt_(u['CORREO']); });
+  var usuarios = objetos_(H.USUARIOS).filter(function (u) { return esSi_(u['ACTIVO']) && may_(u['ESTADO REGISTRO']) === 'APROBADO' && txt_(u['CORREO']); });
   usuarios.forEach(function (u) {
     try {
       var rol = normRol_(u['ROL']);

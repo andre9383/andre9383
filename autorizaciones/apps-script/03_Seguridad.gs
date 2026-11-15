@@ -88,7 +88,7 @@ function sesion_(token) {
   if (Date.now() - s.inicio > APP.SESION_HORAS_MAX * 36e5) { cache.remove('ses_' + token); throw new Error('SESION_EXPIRADA'); }
   if (Date.now() - (s.verificado || 0) > 5 * 60e3) {           // cada 5 minutos revisa la hoja
     var u = buscarFila_(H.USUARIOS, 'DOCUMENTO', s.documento);
-    if (!u || may_(u['ACTIVO']) !== 'SI' || may_(u['ESTADO REGISTRO']) !== 'APROBADO') { cache.remove('ses_' + token); throw new Error('SESION_EXPIRADA'); }
+    if (!u || !esSi_(u['ACTIVO']) || may_(u['ESTADO REGISTRO']) !== 'APROBADO') { cache.remove('ses_' + token); throw new Error('SESION_EXPIRADA'); }
     s.rol = normRol_(u['ROL']);
     s.areas = ROLES_TODAS_AREAS.indexOf(s.rol) >= 0 ? ['*'] : areasDe_(u);
     s.verificado = Date.now();
@@ -117,13 +117,19 @@ function login_(datos) {
   var generico = 'Usuario o contraseña incorrectos.';
   if (!ident || !clave) throw new Error(generico);
   var d = leer_(H.USUARIOS), fila = -1, u = null;
+  var docN = function (v) { return norm_(v).replace(/[^0-9A-Z]/g, ''); };       // 1.000.001 = 1000001
   for (var i = 0; i < d.filas.length; i++) {
     var r = d.filas[i];
-    if (norm_(r[d.idx['DOCUMENTO']]) === ident || norm_(r[d.idx['CORREO']]) === ident) { fila = d.nums[i]; u = {}; d.enc.forEach(function (c, j) { u[c] = r[j]; }); break; }
+    if (docN(r[d.idx['DOCUMENTO']]) === docN(ident) || norm_(r[d.idx['CORREO']]) === ident) {
+      var cand = {}; d.enc.forEach(function (c, j) { cand[c] = r[j]; });
+      var esV3 = txt_(cand['CLAVE HASH']).indexOf('v3$') === 0;
+      if (!u || (esV3 && txt_(u['CLAVE HASH']).indexOf('v3$') !== 0)) { u = cand; fila = d.nums[i]; }   // si hay filas repetidas, prefiere la de esta versión
+    }
   }
   if (!u) { Utilities.sleep(400); throw new Error(generico); }
   var bloq = aFecha_(u['BLOQUEADO HASTA']);
   if (bloq && bloq > ahora_()) throw new Error('Cuenta bloqueada por intentos fallidos. Intenta después de las ' + fmtFecha_(bloq, 'HH:mm') + '.');
+  if (txt_(u['CLAVE HASH']).indexOf('v3$') !== 0) throw new Error('Tu contraseña es de la versión anterior. Pide al administrador que la restablezca. Si eres el administrador, usa en la hoja el menú Centro de Autorizaciones › Recuperar acceso de administrador.');
   if (!verificarClave_(clave, u['CLAVE HASH'])) {
     var n = (+u['INTENTOS'] || 0) + 1, cambios = { 'INTENTOS': n };
     if (n >= APP.INTENTOS_MAX) { cambios['BLOQUEADO HASTA'] = new Date(Date.now() + APP.BLOQUEO_MIN * 60e3); cambios['INTENTOS'] = 0; }
@@ -132,7 +138,7 @@ function login_(datos) {
     throw new Error(generico);
   }
   if (may_(u['ESTADO REGISTRO']) === 'PENDIENTE') throw new Error('Tu registro está pendiente de aprobación por el administrador.');
-  if (may_(u['ESTADO REGISTRO']) === 'RECHAZADO' || may_(u['ACTIVO']) !== 'SI') throw new Error('Tu cuenta no está activa. Comunícate con el administrador.');
+  if (may_(u['ESTADO REGISTRO']) === 'RECHAZADO' || !esSi_(u['ACTIVO'])) throw new Error('Tu cuenta no está activa. Comunícate con el administrador.');
   actualizarFila_(H.USUARIOS, fila, { 'INTENTOS': 0, 'BLOQUEADO HASTA': '', 'ULTIMO ACCESO': ahora_() });
   var r2 = crearSesion_(u);
   auditar_(r2.sesion, 'INICIO DE SESIÓN', '', '', '');
@@ -150,6 +156,7 @@ function registrar_(datos) {
   return conBloqueo_(function () {
     var esAdminInicial = codigo && codigo === prop_('CODIGO_ADMIN_INICIAL');
     var existente = buscarFila_(H.USUARIOS, 'DOCUMENTO', doc);
+    if (!existente) objetos_(H.USUARIOS).some(function (o) { if (txt_(o['DOCUMENTO']).replace(/[^\dA-Za-z]/g, '') === doc) { existente = o; return true; } return false; });
     if (existente && !esAdminInicial) throw new Error('Ya existe un usuario con ese documento. Si olvidaste la contraseña, pide al administrador que la restablezca.');
     var porCorreo = buscarFila_(H.USUARIOS, 'CORREO', correo);
     if (porCorreo && txt_(porCorreo['DOCUMENTO']) !== doc) throw new Error('Ese correo ya está registrado con otro documento.');
@@ -169,7 +176,7 @@ function registrar_(datos) {
     appendFilas_(H.USUARIOS, [fila]);
     auditar_(null, 'SOLICITUD DE REGISTRO', doc, '', nombre + ' · ' + area);
     try {
-      var admins = objetos_(H.USUARIOS).filter(function (u) { return normRol_(u['ROL']) === 'ADMINISTRADOR' && may_(u['ACTIVO']) === 'SI' && u['CORREO']; });
+      var admins = objetos_(H.USUARIOS).filter(function (u) { return normRol_(u['ROL']) === 'ADMINISTRADOR' && esSi_(u['ACTIVO']) && u['CORREO']; });
       if (admins.length) MailApp.sendEmail(admins.map(function (a) { return a['CORREO']; }).join(','), APP.NOMBRE + ': nueva solicitud de registro',
         nombre + ' (' + doc + ', ' + area + ') pidió acceso. Apruébalo o recházalo en Administración › Usuarios.');
     } catch (e) { console.warn('correo registro', e); }

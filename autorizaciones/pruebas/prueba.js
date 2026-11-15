@@ -17,7 +17,7 @@ t('login con clave vieja falla', () => { const r = ctx.publico('login', { usuari
 t('registro admin con código', () => pub('registro', { documento: '1000001', nombre: 'Laura Mendez', correo: 'admin@x.com', area: 'URGENCIAS', clave: 'Clave2026', aceptaDatos: true, codigoAdmin: codigo }));
 t('código de un solo uso', () => { if (env.props.get('CODIGO_ADMIN_INICIAL')) throw new Error('el código sigue activo'); });
 const adm = t('login admin', () => pub('login', { usuario: 'admin@x.com', clave: 'Clave2026' }).token);
-t('bloqueo por intentos', () => { for (let i = 0; i < 5; i++) ctx.publico('login', { usuario: '1000002', clave: 'malaClave1' }); const r = ctx.publico('login', { usuario: '1000002', clave: 'malaClave1' }); if (!/bloqueada/.test(r.error)) throw new Error(r.error); });
+t('bloqueo por intentos', () => { pub('registro', { documento: '2000077', nombre: 'Prueba Bloqueo', correo: 'b@x.com', area: 'URGENCIAS', clave: 'Clave2026', aceptaDatos: true }); for (let i = 0; i < 5; i++) ctx.publico('login', { usuario: '2000077', clave: 'malaClave1' }); const r = ctx.publico('login', { usuario: '2000077', clave: 'malaClave1' }); if (!/bloqueada/.test(r.error)) throw new Error(r.error); });
 t('token inválido', () => { const e = apiErr('x'.repeat(50), 'datos'); if (e !== 'SESION_EXPIRADA') throw new Error(e); });
 t('acción no válida', () => apiErr(adm, 'eval', {}));
 t('fórmula neutralizada', () => { pub('registro', { documento: '2000009', nombre: '=HYPERLINK("x")', correo: 'f@x.com', area: 'URGENCIAS', clave: 'Clave2026', aceptaDatos: true }); const u = L.getSheetByName('USUARIOS').data.find(r => r[0] === '2000009'); if (!String(u[1]).startsWith("'")) throw new Error(u[1]); });
@@ -128,6 +128,11 @@ t('informe word', () => { const r = api(adm, 'informe', { formato: 'docx' }); if
 // 9. Menú y alertas
 t('migrar casos legado', () => { ctx.migrarCasosCerradosAutomaticamente(); const e = L.getSheetByName('CASOS_ESPECIALES'); const i = e.data[0].indexOf('ESTADO'); if (e.data.slice(1).some(r => /DIN[ÁA]MICA/.test(r[i]))) throw new Error('quedó CERRADO EN DINÁMICA'); });
 t('alertas por correo', () => { env.mails.length = 0; ctx.ejecutarAlertasProgramadas(); if (env.mails.length < 2) throw new Error(env.mails.length); const n = env.mails.length; ctx.ejecutarAlertasProgramadas(); if (env.mails.length !== n) throw new Error('reenvió'); });
+t('recuperar acceso admin (editor) con ACTIVO como casilla', () => { const sh = L.getSheetByName('USUARIOS'), h = sh.data[0]; const r = sh.data.find(z => String(z[0]) === '1000001'); r[h.indexOf('ACTIVO')] = true; r[h.indexOf('CLAVE HASH')] = 'hash-viejo';
+  env.props.delete('RECUPERACION_ADMIN'); const logs = []; ctx.console.log = m => logs.push(String(m)); ctx.recuperarAccesoAdmin(); ctx.console.log = () => {};
+  const m = logs.join(' ').match(/Contraseña temporal: (\S+)/); if (!m) throw new Error('sin temporal: ' + logs);
+  const l = pub('login', { usuario: '1.000.001', clave: m[1] }); if (!l.cambiarClave) throw new Error('no pide cambio'); api(l.token, 'cambiarClave', { actual: m[1], nueva: 'Clave2027x' }); const d = api(l.token, 'datos'); if (d.yo.rol !== 'ADMINISTRADOR') throw new Error(d.yo.rol); });
+t('mensaje claro con clave anterior', () => { const r = ctx.publico('login', { usuario: '1000003', clave: 'x' }); });
 t('cerrar sesión', () => { api(adm, 'cerrarSesion'); const e = apiErr(adm, 'datos'); if (e !== 'SESION_EXPIRADA') throw new Error(e); });
 
 console.log(`\n${ok} pruebas correctas, ${fallos.length} fallidas · ${(Date.now() - T0)} ms · filas ${ing.length}`);

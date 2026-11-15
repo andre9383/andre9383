@@ -6,7 +6,7 @@ function adminDatos_(s) {
   exigir_(s, 'admin', 2);
   var usuarios = objetos_(H.USUARIOS).map(function (u) {
     return { doc: txt_(u['DOCUMENTO']), nombre: txt_(u['NOMBRE']), correo: txt_(u['CORREO']), rol: normRol_(u['ROL']), rolOriginal: txt_(u['ROL']),
-      activo: may_(u['ACTIVO']) === 'SI', area: txt_(u['AREA']), estado: may_(u['ESTADO REGISTRO']) || 'APROBADO',
+      activo: esSi_(u['ACTIVO']), area: txt_(u['AREA']), estado: may_(u['ESTADO REGISTRO']) || 'APROBADO',
       registro: ms_(u['FECHA REGISTRO']), ultimo: ms_(u['ULTIMO ACCESO']), claveVieja: txt_(u['CLAVE HASH']).indexOf('v3$') !== 0 };
   });
   var tabla = function (n) { var d = leer_(n); return { enc: d.enc, filas: d.filas.map(function (r) { return r.map(function (c) { return c instanceof Date ? fmtFecha_(c) : c; }); }) }; };

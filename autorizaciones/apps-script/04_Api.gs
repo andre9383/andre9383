@@ -134,7 +134,7 @@ function datosApp_(s) {
         eb: (D.base[i] || {}).est || txt_(o['ESTADO BASE']), fce: (D.base[i] || {}).fce || null, origen: txt_(o['ORIGEN']) || 'INGRESOS ABIERTOS' }; })
       .filter(function (c) { return veArea_(s, c.g, c.g); });
   }
-  var usuarios = objetos_(H.USUARIOS).filter(function (u) { return may_(u['ACTIVO']) === 'SI'; });
+  var usuarios = objetos_(H.USUARIOS).filter(function (u) { return esSi_(u['ACTIVO']); });
   return {
     yo: { nombre: s.nombre, documento: s.documento, rol: s.rol, areas: s.areas, perm: s.perm, cambiarClave: !!s.cambiarClave },
     param: p, ahora: Date.now(), ultimaCarga: ultimaCarga,

@@ -11,6 +11,7 @@ function onOpen() {
     .addItem('1. Inicializar o actualizar hojas', 'inicializarSistema')
     .addItem('2. Generar código de administrador inicial', 'generarCodigoAdmin')
     .addItem('3. Instalar alertas diarias por correo', 'instalarActivadores')
+    .addItem('Recuperar acceso de administrador', 'recuperarAccesoAdmin')
     .addSeparator()
     .addItem('Reabrir casos cerrados automáticamente', 'migrarCasosCerradosAutomaticamente')
     .addToUi();
@@ -27,7 +28,7 @@ function inicializarSistema() {
   if (!objetos_(H.PARAMETROS).length) appendFilas_(H.PARAMETROS, PARAMETROS_BASE.map(function (r) { return { 'CLAVE': r[0], 'VALOR': r[1], 'DESCRIPCION': r[2], 'ACTUALIZADO': ahora_(), 'USUARIO': 'Instalación' }; }));
   if (!objetos_(H.CODIGOS).length) appendFilas_(H.CODIGOS, CODIGOS_BASE.map(function (r) { return { 'PATRON': r[0], 'CLAVE': r[1], 'SIGNIFICADO': r[2], 'ACTIVO': r[3] }; }));
   pimienta_();
-  var tieneAdmin = objetos_(H.USUARIOS).some(function (u) { return normRol_(u['ROL']) === 'ADMINISTRADOR' && txt_(u['CLAVE HASH']).indexOf('v3$') === 0 && may_(u['ACTIVO']) === 'SI'; });
+  var tieneAdmin = objetos_(H.USUARIOS).some(function (u) { return normRol_(u['ROL']) === 'ADMINISTRADOR' && txt_(u['CLAVE HASH']).indexOf('v3$') === 0 && esSi_(u['ACTIVO']); });
   var msg = 'Hojas listas.';
   if (!tieneAdmin) msg += ' Código de administrador inicial (vale 24 horas): ' + crearCodigoAdmin_() + '. Úsalo en la aplicación: "Crear cuenta" › "Soy el administrador inicial".';
   mostrar_(msg);
@@ -69,4 +70,30 @@ function migrarCasosCerradosAutomaticamente() {
   });
   appendFilas_(H.GESTIONES, gest);
   mostrar_(n + ' casos pasaron a "' + EC.SALIO + '".');
+}
+
+/**
+ * Asigna una contraseña temporal a un administrador. Desde la hoja pide el documento;
+ * desde el editor usa el primer ADMINISTRADOR de la hoja USUARIOS.
+ * La contraseña solo se muestra en la alerta de la hoja o en el Registro de ejecución.
+ */
+function recuperarAccesoAdmin() {
+  var ultima = +(prop_('RECUPERACION_ADMIN') || 0);
+  if (Date.now() - ultima < 2 * 60e3) { mostrar_('Espera dos minutos antes de volver a usar la recuperación.'); return; }
+  prop_('RECUPERACION_ADMIN', Date.now());
+  var doc = '';
+  try {
+    var ui = SpreadsheetApp.getUi();
+    var r = ui.prompt('Recuperar acceso de administrador', 'Escribe el número de documento del administrador:', ui.ButtonSet.OK_CANCEL);
+    if (r.getSelectedButton() !== ui.Button.OK) return;
+    doc = txt_(r.getResponseText()).replace(/[^\dA-Za-z]/g, '');
+  } catch (e) { /* desde el editor: sin ventana */ }
+  var usuarios = objetos_(H.USUARIOS);
+  var u = doc ? usuarios.filter(function (o) { return txt_(o['DOCUMENTO']).replace(/[^\dA-Za-z]/g, '') === doc; })[0]
+              : usuarios.filter(function (o) { return normRol_(o['ROL']) === 'ADMINISTRADOR'; })[0];
+  if (!u) { mostrar_(doc ? 'No encontré el documento ' + doc + ' en USUARIOS.' : 'No hay ningún ADMINISTRADOR en USUARIOS. Usa la opción 2 (código de administrador inicial) y crea la cuenta.'); return; }
+  var temporal = 'Adm' + Math.floor(100000 + Math.random() * 899999) + uuid_().slice(0, 3);
+  actualizarFila_(H.USUARIOS, u._fila, { 'ROL': 'ADMINISTRADOR', 'ACTIVO': 'SI', 'ESTADO REGISTRO': 'APROBADO', 'CLAVE HASH': hashClave_(temporal), 'CAMBIAR CLAVE': 'SI', 'INTENTOS': 0, 'BLOQUEADO HASTA': '' });
+  auditar_(null, 'RECUPERACIÓN DE ACCESO ADMINISTRADOR', txt_(u['DOCUMENTO']), '', '');
+  mostrar_('Usuario: ' + txt_(u['DOCUMENTO']) + ' (' + txt_(u['NOMBRE']) + ')\nContraseña temporal: ' + temporal + '\nEntra a la aplicación con ese documento y esa contraseña; te pedirá cambiarla.');
 }

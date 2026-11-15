@@ -48,6 +48,9 @@ function aNumero_(v) {
   return isFinite(n) ? n : 0;
 }
 
+/** Acepta SI, SÍ, TRUE (casilla marcada), VERDADERO, 1 o X. */
+function esSi_(v) { if (v === true) return true; var x = norm_(v); return x === 'SI' || x === 'TRUE' || x === 'VERDADERO' || x === '1' || x === 'X'; }
+
 function txt_(v) { return v === null || v === undefined ? '' : String(v).trim(); }
 function may_(v) { return txt_(v).toUpperCase(); }
 
