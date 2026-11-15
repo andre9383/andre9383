@@ -50,6 +50,8 @@ var ACCIONES_ = {
   crearAut:         [function (s, d) { return crearAut_(s, d); }, 'aut', 2],
   accionAut:        [function (s, d) { return accionAut_(s, d); }, 'aut', 2],
   buscarCups:       [function (s, d) { return buscarCups_(s, d); }, 'aut', 1],
+  buscarIngresoReg: [function (s, d) { return buscarIngresoReg_(s, d); }, 'aut', 2],
+  editarAut:        [function (s, d) { return editarAut_(s, d); }, 'aut', 2],
   gestionesCaso:    [function (s, d) { return gestionesCaso_(s, d); }, 'casos', 1],
   actualizarCaso:   [function (s, d) { return actualizarCaso_(s, d); }, 'casos', 2],
   gestionCaso:      [function (s, d) { return gestionCaso_(s, d); }, 'casos', 2],
@@ -135,6 +137,8 @@ function datosApp_(s) {
     alertas: alertasDe_(s, D, p),
     gestores: usuarios.filter(function (u) { return normRol_(u['ROL']) === 'GESTOR_CASOS' || normRol_(u['ROL']) === 'ADMINISTRADOR'; }).map(function (u) { return txt_(u['NOMBRE']); }),
     autorizadores: usuarios.filter(function (u) { return normRol_(u['ROL']) === 'AUTORIZADOR'; }).map(function (u) { return txt_(u['NOMBRE']); }),
-    docsCaso: DOCS_CASO, iaActiva: !!prop_('ANTHROPIC_API_KEY')
+    docsCaso: DOCS_CASO, iaActiva: !!prop_('ANTHROPIC_API_KEY'),
+    personal: (s.perm.aut || 0) >= 2 ? objetos_(H.PERSONAL).map(function (o) { return txt_(o['NOMBRE']); }).filter(String).sort() : [],
+    listas: (s.perm.aut || 0) >= 2 ? objetos_(H.LISTAS).map(function (o) { var k = Object.keys(o).filter(function (z) { return z !== '_fila'; })[0]; return txt_(o[k]); }).filter(String) : []
   };
 }

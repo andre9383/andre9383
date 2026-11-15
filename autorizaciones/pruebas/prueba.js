@@ -56,7 +56,16 @@ t('gestiones automáticas con huella', () => { const g = L.getSheetByName('GESTI
 // 5. Autorizaciones
 if (!D) { console.log(fallos); process.exit(1); }
 const det = D.auts.find(a => a.id.startsWith('D-'));
-const nueva = t('crear desde código', () => api(adm, 'crearAut', { ingreso: det.ing, servicio: 'TOMOGRAFIA', cups: '879111', prioridad: 'alta', codigo: det.cod }).id);
+const REG = { registradoPor: 'JORGE SILVA', servicioRegistra: 'Urgencias', tipoServicio: 'Procedimiento' };
+t('registro exige quién registra', () => { const e = apiErr(adm, 'crearAut', { ingreso: det.ing, servicio: 'X' }); if (!/registra/.test(e)) throw new Error(e); });
+const nueva = t('crear desde código', () => api(adm, 'crearAut', Object.assign({ ingreso: det.ing, servicio: 'TOMOGRAFIA', cups: '879111', prioridad: 'alta', codigo: det.cod, folio: 'F-77', fechaServicio: new Date().toISOString() }, REG)).id);
+t('campos de la versión anterior guardados', () => { const sh = L.getSheetByName('REGISTROS_AUTORIZACIONES'), h = sh.data[0], r = sh.data.find(z => z[0] === nueva);
+  const v = c => r[h.indexOf(c)]; if (v('REGISTRADO POR') !== 'JORGE SILVA' || v('REGISTRADO POR DOCUMENTO') !== '1000002' || v('SERVICIO QUE REGISTRA') !== 'Urgencias' || v('FOLIO') !== 'F-77' || !(v('FECHA SERVICIO') instanceof Date)) throw new Error(h.map((c, i) => c + '=' + r[i]).join(' | ')); });
+t('buscar en base de ingresos', () => { const r = api(adm, 'buscarIngresoReg', { q: '1900012' }); if (!r.length || r[0].fuente !== 'BASE' || r[0].erp !== 'NUEVA EPS') throw new Error(JSON.stringify(r[0])); const r2 = api(adm, 'buscarIngresoReg', { q: 'paciente base 7' }); if (!r2.length) throw new Error('por nombre'); });
+t('estancia sin cobertura falla', () => { const e = apiErr(adm, 'crearAut', Object.assign({ ingreso: '1900012', servicio: 'ESTANCIA UCI' }, REG, { tipoServicio: 'Estancia' })); if (!/cobertura/.test(e)) throw new Error(e); });
+const est = t('estancia desde base de ingresos', () => api(adm, 'crearAut', Object.assign({ ingreso: '1900012', servicio: 'ESTANCIA UCI 3 DIAS', modalidadEstancia: 'Cuidado intensivo', coberturaDesde: '2026-11-10', coberturaHasta: '2026-11-12' }, REG, { tipoServicio: 'Estancia' })).id);
+t('ya autorizada al registrar', () => { const id = api(adm, 'crearAut', Object.assign({ ingreso: det.ing, servicio: 'ECO', numAutorizacion: 'A-555' }, REG)).id; const a = api(adm, 'datos').auts.find(z => z.id === id); if (a.est !== 'AUTORIZADO' || !a.fr) throw new Error(JSON.stringify(a)); });
+t('editar registro', () => { api(adm, 'editarAut', { id: est, folio: 'F-99', coberturaHasta: '2026-11-13' }); const a = api(adm, 'datos').auts.find(z => z.id === est); if (a.folio !== 'F-99' || !a.cobH || a.modal !== 'Cuidado intensivo' || a.regPor !== 'JORGE SILVA') throw new Error(JSON.stringify(a)); const b = api(adm, 'bitacoraAut', { id: est }); if (!b.some(x => /Datos corregidos/.test(x.t))) throw new Error('sin bitácora'); });
 t('radicar sin número falla', () => apiErr(adm, 'accionAut', { id: nueva, accion: 'radicar' }));
 t('radicar', () => api(adm, 'accionAut', { id: nueva, accion: 'radicar', numRadicado: '55231' }));
 t('autorizar', () => api(adm, 'accionAut', { id: nueva, accion: 'autorizar', numAutorizacion: '998877' }));
@@ -70,7 +79,7 @@ t('detectada desaparece al registrar', () => { if (D.auts.some(a => a.id === 'D-
 t('aprobar migrados', () => { ['1000002', '1000003', '1000004'].forEach(d => api(adm, 'guardarUsuario', { doc: d, estado: 'APROBADO' })); });
 const clv = {}; t('restablecer', () => { ['1000002', '1000003', '1000004'].forEach(d => { clv[d] = api(adm, 'restablecerClave', { doc: d }).temporal; }); });
 const aut = t('login autorizador temporal', () => pub('login', { usuario: 'jorge@x.com', clave: clv['1000002'] }));
-t('obliga a cambiar clave', () => { const e = apiErr(aut.token, 'crearAut', { ingreso: '1', servicio: 'x' }); if (!/cambiar tu contraseña/.test(e)) throw new Error(e); });
+t('obliga a cambiar clave', () => { const e = apiErr(aut.token, 'crearAut', Object.assign({ ingreso: '1', servicio: 'x' }, REG)); if (!/cambiar tu contraseña/.test(e)) throw new Error(e); });
 t('cambiar clave', () => api(aut.token, 'cambiarClave', { actual: clv['1000002'], nueva: 'Nueva2026x' }));
 t('rol legado OPERADOR = AUTORIZADOR', () => { const d = api(aut.token, 'datos'); if (d.yo.rol !== 'AUTORIZADOR' || d.yo.perm.aut !== 2 || d.yo.perm.admin !== 0) throw new Error(JSON.stringify(d.yo)); });
 t('autorizador no administra', () => apiErr(aut.token, 'adminDatos'));

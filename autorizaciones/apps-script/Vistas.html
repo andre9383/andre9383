@@ -83,7 +83,10 @@ async function abrirAut(a) {
    <div class="kv"><div><small>Paciente</small><span>${esc(a.pac)}</span></div><div><small>Documento</small><span class="mono">${esc(a.doc)}</span></div><div><small>Ingreso</small><span class="mono">${esc(a.ing)}</span></div>
    <div><small>Área</small><span>${esc(a.g)}${a.ala ? ' · ' + esc(a.ala) : ''}</span></div><div><small>ERP</small><span>${esc(a.erp)}</span></div><div><small>Solicitada</small><span>${fmtDT(a.fs)}</span></div>
    <div><small>Tiempo</small><span>${slaPill(a)}</span></div><div><small>Autorizador</small><span>${esc(a.autz)}</span></div>${a.rad ? `<div><small>Radicado</small><span class="mono">${esc(a.rad)}</span></div>` : ''}${a.num ? `<div><small>N° autorización</small><span class="mono">${esc(a.num)}</span></div>` : ''}${a.cups ? `<div><small>CUPS</small><span class="mono">${esc(a.cups)}</span></div>` : ''}</div>
+   ${!detectada ? `<div class="kv">${[['Registrado por', a.regPor], ['Servicio que registra', a.servReg], ['Área solicitante', a.area], ['Tipo de servicio', a.tserv], ['Tipo de atención', a.tipoAt], ['Fecha del servicio', a.fserv ? fmtDT(a.fserv) : ''], ['Estancia', a.modal], ['Cobertura', a.cobD ? fmtD(a.cobD) + ' → ' + fmtD(a.cobH) : ''], ['Folio', a.folio], ['Prioridad', a.pri]].filter(z => z[1]).map(z => `<div><small>${z[0]}</small><span>${esc(z[1])}</span></div>`).join('')}</div>` : ''}
+   ${a.obs ? `<div class="card" style="background:var(--surface-2)"><small class="crumb">Observaciones del registro</small><div>${esc(a.obs)}</div></div>` : ''}
    ${a.mot ? `<div class="card" style="background:var(--surface-2)"><small class="crumb">Motivo de negación</small><div>${esc(a.mot)}</div></div>` : ''}
+   ${!detectada && puedeGestionar && (abierta(a) || esAdmin) ? `<button class="btn ghost sm" data-editaut="${esc(a.id)}">Editar datos del registro</button>` : ''}
    ${!detectada ? `<div><h3 style="font-size:14px;margin-bottom:8px">Bitácora</h3>${bit === null ? '<p class="muted">Cargando…</p>' : bit.length ? `<ol class="timeline">${bit.map(h => `<li><div>${esc(h.t)}</div><small>${fmtDT(h.f)} · ${esc(h.u)}</small></li>`).join('')}</ol>` : '<p class="muted">Sin movimientos.</p>'}</div>` : ''}
    ${puedeGestionar ? (detectada ? `<button class="btn" data-tomar="${esc(a.ing)}|${esc(a.cod)}">Registrar trámite para este ingreso</button>` : formAccionesAut(a, esAdmin)) : `<p class="muted">${abierta(a) ? 'Solo lectura: este trámite lo gestiona ' + esc(a.autz) + '.' : 'Trámite cerrado.'}</p>`}`;
   drawer(esc(a.serv || 'Autorización pendiente'), esc(a.id) + ' · ' + esc(a.erp), cuerpo(detectada ? [] : null));
@@ -109,29 +112,68 @@ document.addEventListener('submit', async e => {
     const d = { id, accion: acc, observacion: $('#aObs').value, fecha: $('#aFec').value || null, autorizador: $('#aAut').value };
     if (acc === 'radicar') d.numRadicado = $('#aNum').value; if (acc === 'autorizar') d.numAutorizacion = $('#aNum').value;
     try { await API.call('accionAut', d); toast('Gestión registrada en ' + id); cerrarCapa(); await cargarDatos(); } catch (x) { fallo(x); } }
-  if (e.target.id === 'fNueva') { e.preventDefault(); const d = { ingreso: $('#nIng').dataset.v, servicio: $('#nServ').value, cups: $('#nServ').dataset.v || '', tipoServicio: $('#nTipo').value, prioridad: $('#nPri').value, observacion: $('#nObs').value, codigo: e.target.dataset.cod || '', fechaSolicitud: $('#nFec').value || null };
+  if (e.target.id === 'fEditAut') { e.preventDefault(); const d = Object.assign(leerRegistro(), { id: e.target.dataset.id, motivo: $('#eMot') ? $('#eMot').value : '' });
+    try { const r = await API.call('editarAut', d); toast(r.sinCambios ? 'No había cambios.' : 'Registro actualizado.'); cerrarCapa(); await cargarDatos(); const a = S.D.auts.find(z => z.id === d.id); if (a) abrirAut(a); } catch (x) { fallo(x); } return; }
+  if (e.target.id === 'fNueva') { e.preventDefault(); const d = Object.assign(leerRegistro(), { ingreso: $('#nIng').dataset.v, observacion: $('#nObs').value, codigo: e.target.dataset.cod || '', numAutorizacion: $('#nNum').value, fechaAutorizacion: $('#nFA').value || '' });
     if (!d.ingreso) { toast('Elige el ingreso de la lista de sugerencias.', 'error'); return; }
     try { const r = await API.call('crearAut', d); toast('Solicitud ' + r.id + ' registrada.'); cerrarCapa(); await cargarDatos(); } catch (x) { fallo(x); } }
 });
 document.addEventListener('click', e => { const b = e.target.closest('[data-tomar]'); if (!b) return; const [ing, cod] = b.dataset.tomar.split('|'); formNuevaAut(ing, cod); });
+const TIPOS_SERV = ['Procedimiento', 'Estancia', 'Imagen diagnóstica', 'Laboratorio', 'Interconsulta', 'Medicamento', 'Insumo / material', 'Remisión', 'Cirugía', 'Otro'];
+const MODALIDADES = ['Hospitalización general', 'Cuidado intermedio', 'Cuidado intensivo', 'Observación', 'Hospitalización en casa', 'Otra'];
+const isoLocal = ms => { if (!ms) return ''; const d = new Date(ms); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+function camposRegistro(a) {
+  a = a || {}; const opt = (arr, v) => arr.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('');
+  const yo = S.D.yo.nombre, per = S.D.personal || [], lis = S.D.listas || [];
+  const regPor = a.regPor || per.find(p => p.toUpperCase() === yo.toUpperCase()) || '';
+  return `<div class="sec-title" style="margin:4px 0 0">Quién registra</div>
+    <div class="form-grid"><div class="field"><label for="rgPor">Registrado por</label><select class="inp" id="rgPor"><option value="">Elige…</option>${opt(per, regPor)}${regPor && !per.includes(regPor) ? `<option selected>${esc(regPor)}</option>` : ''}</select></div>
+    <div class="field"><label for="rgServ">Servicio que registra</label><select class="inp" id="rgServ"><option value="">Elige…</option>${opt(lis, a.servReg)}</select></div>
+    <div class="field"><label for="rgArea">Área solicitante</label><select class="inp" id="rgArea"><option value="">Igual al área del ingreso</option>${opt(lis, a.area)}</select></div></div>
+    <div class="sec-title" style="margin:4px 0 0">Servicio a autorizar</div>
+    <div class="form-grid"><div class="field"><label for="rgTipo">Tipo de servicio</label><select class="inp" id="rgTipo">${opt(TIPOS_SERV, a.tserv || 'Procedimiento')}</select></div>
+    <div class="field"><label for="rgFS">Fecha del servicio</label><input class="inp" id="rgFS" type="datetime-local" value="${isoLocal(a.fserv)}"></div>
+    <div class="field"><label for="rgPri">Prioridad</label><select class="inp" id="rgPri">${opt(['ALTA', 'MEDIA', 'BAJA'], a.pri || 'MEDIA')}</select></div></div>
+    <div class="field"><label for="rgCups">CUPS (escribe código o nombre)</label><input class="inp" id="rgCups" autocomplete="off" value="${esc(a.cups || '')}" placeholder="Ej.: 879111 o tomografía"></div>
+    <div class="field"><label for="rgDesc">Descripción del servicio</label><textarea class="inp" id="rgDesc" placeholder="Lo que se solicita a la EPS">${esc(a.serv || '')}</textarea></div>
+    <div id="rgEst" ${/estancia/i.test(a.tserv || '') ? '' : 'hidden'}><div class="sec-title" style="margin:4px 0 0">Estancia</div><div class="form-grid">
+      <div class="field"><label for="rgMod">Modalidad</label><select class="inp" id="rgMod"><option value="">Elige…</option>${opt(MODALIDADES, a.modal)}</select></div>
+      <div class="field"><label for="rgCD">Cobertura desde</label><input class="inp" id="rgCD" type="date" value="${a.cobD ? isoLocal(a.cobD).slice(0, 10) : ''}"></div>
+      <div class="field"><label for="rgCH">Cobertura hasta</label><input class="inp" id="rgCH" type="date" value="${a.cobH ? isoLocal(a.cobH).slice(0, 10) : ''}"></div></div></div>
+    <div class="form-grid"><div class="field"><label for="rgFolio">Folio</label><input class="inp" id="rgFolio" value="${esc(a.folio || '')}"></div>
+    <div class="field"><label for="rgFSol">Fecha de solicitud</label><input class="inp" id="rgFSol" type="datetime-local" value="${isoLocal(a.fs)}"></div></div>`;
+}
+const leerRegistro = () => ({ registradoPor: $('#rgPor').value, servicioRegistra: $('#rgServ').value, areaSolicitante: $('#rgArea').value, tipoServicio: $('#rgTipo').value,
+  fechaServicio: $('#rgFS').value || '', prioridad: $('#rgPri').value, cups: $('#rgCups').dataset.v || $('#rgCups').value.split(' · ')[0], servicio: $('#rgDesc').value,
+  modalidadEstancia: $('#rgMod').value, coberturaDesde: $('#rgCD').value || '', coberturaHasta: $('#rgCH').value || '', folio: $('#rgFolio').value, fechaSolicitud: $('#rgFSol').value || '' });
+function activarCups() { autocompletar('rgCups', v => API.call('buscarCups', { q: v }), o => { $('#rgCups').dataset.v = o.v; const dsc = $('#rgDesc'); if (!dsc.value) dsc.value = o.l.split(' · ').slice(1).join(' · '); }); }
+document.addEventListener('change', e => { if (e.target.id === 'rgTipo') $('#rgEst').hidden = !/estancia/i.test(e.target.value); });
+
 function formNuevaAut(ing, cod) {
   if (nivel('aut') < 2) { toast('Tu rol no registra solicitudes.', 'error'); return; }
   const x = ing ? S.D.ingresos.find(z => z.i === ing) : null;
-  drawer('Nueva solicitud de autorización', 'Operación › Autorizaciones', `<form id="fNueva" class="grid" data-cod="${esc(cod || '')}">
-    <div class="field"><label for="nIng">Ingreso o paciente</label><input class="inp" id="nIng" placeholder="Escribe documento, nombre o número de ingreso" autocomplete="off" ${x ? `value="${esc(x.i + ' · ' + x.pac + ' · ' + x.doc)}" data-v="${esc(x.i)}"` : ''}></div>
-    <div id="nInfo" class="muted" style="font-size:12.5px">${x ? esc(x.g + ' · ' + x.erp + ' · ' + x.con) : ''}</div>
-    <div class="field"><label for="nServ">Servicio (CUPS o descripción)</label><input class="inp" id="nServ" placeholder="Escribe al menos 3 letras o el código CUPS" autocomplete="off"></div>
-    <div class="form-grid"><div class="field"><label for="nTipo">Tipo de servicio</label><select class="inp" id="nTipo">${['Procedimiento', 'Imagen diagnóstica', 'Laboratorio', 'Interconsulta', 'Medicamento', 'Estancia', 'Remisión', 'Insumo', 'Otro'].map(t => `<option>${t}</option>`).join('')}</select></div>
-    <div class="field"><label for="nPri">Prioridad</label><select class="inp" id="nPri"><option>ALTA</option><option selected>MEDIA</option><option>BAJA</option></select></div>
-    <div class="field"><label for="nFec">Fecha de solicitud</label><input class="inp" id="nFec" type="datetime-local"></div></div>
-    <div class="field"><label for="nObs">Observación</label><textarea class="inp" id="nObs"></textarea></div>
+  drawer('Registrar autorización', 'Operación › Autorizaciones', `<form id="fNueva" class="grid" data-cod="${esc(cod || '')}">
+    <div class="sec-title" style="margin:0">Paciente</div>
+    <div class="field"><label for="nIng">Ingreso, documento o nombre</label><input class="inp" id="nIng" placeholder="Busca en ingresos abiertos y en la base de ingresos" autocomplete="off" ${x ? `value="${esc(x.i + ' · ' + x.pac + ' · ' + x.doc)}" data-v="${esc(x.i)}"` : ''}></div>
+    <div id="nInfo" class="kv">${x ? fichaPaciente({ fuente: 'ABIERTO', doc: x.doc, pac: x.pac, erp: x.erp, con: x.con, g: x.g, f: x.f, cama: x.cama, eg: x.eg }) : ''}</div>
+    ${camposRegistro({})}
+    <div class="sec-title" style="margin:4px 0 0">Si ya está autorizada</div>
+    <div class="form-grid"><div class="field"><label for="nNum">N° de autorización</label><input class="inp" id="nNum" placeholder="Déjalo vacío si está pendiente"></div>
+    <div class="field"><label for="nFA">Fecha de autorización</label><input class="inp" id="nFA" type="datetime-local"></div></div>
+    <div class="field"><label for="nObs">Observaciones</label><textarea class="inp" id="nObs"></textarea></div>
     ${cod ? `<p class="muted" style="margin:0">Se registra a partir del código <b>${esc(cod)}</b> de la columna RESPONSABLE.</p>` : ''}
-    <button class="btn" type="submit">Registrar solicitud</button></form>`);
-  autocompletar('nIng', async v => { const t = v.toUpperCase(); return S.D.ingresos.filter(z => (z.i + ' ' + z.doc + ' ' + z.pac).toUpperCase().includes(t)).slice(0, 15).map(z => ({ v: z.i, l: z.i + ' · ' + z.pac + ' · ' + z.doc, x: z })); },
-    o => { $('#nIng').dataset.v = o.v; $('#nInfo').textContent = o.x.g + ' · ' + o.x.erp + ' · ' + o.x.con; });
-  autocompletar('nServ', v => API.call('buscarCups', { q: v }), o => { $('#nServ').dataset.v = o.v; });
+    <button class="btn" type="submit">Registrar</button></form>`);
+  autocompletar('nIng', v => API.call('buscarIngresoReg', { q: v }), o => { $('#nIng').dataset.v = o.v; $('#nInfo').innerHTML = fichaPaciente(o); });
+  activarCups();
 }
+const fichaPaciente = o => `<div><small>Paciente</small><span>${esc(o.pac)}</span></div><div><small>Documento</small><span class="mono">${esc(o.doc)}</span></div><div><small>ERP · contrato</small><span>${esc(o.erp)} · ${esc(o.con)}</span></div><div><small>Área</small><span>${esc(o.g || '—')}${o.cama ? ' · cama ' + esc(o.cama) : ''}</span></div><div><small>Fecha ingreso</small><span>${fmtD(o.f)}</span></div><div><small>Origen</small><span>${o.fuente === 'BASE' ? 'Base de ingresos' : 'Ingresos abiertos'}${o.eg ? ' · egresado' : ''}</span></div>`;
 
+document.addEventListener('click', e => { const b = e.target.closest('[data-editaut]'); if (!b) return; const a = S.D.auts.find(z => z.id === b.dataset.editaut); if (!a) return;
+  const cerrada = !abierta(a);
+  drawer('Editar datos del registro', esc(a.id) + ' · ' + esc(a.pac), `<form id="fEditAut" class="grid" data-id="${esc(a.id)}">${camposRegistro(a)}
+    ${cerrada ? '<div class="field"><label for="eMot">Motivo de la corrección (obligatorio: el trámite está cerrado)</label><textarea class="inp" id="eMot"></textarea></div>' : ''}
+    <button class="btn" type="submit">Guardar cambios</button></form>`);
+  activarCups(); });
 /* ================== 02 Ingresos abiertos ================== */
 const DEF_ING = () => [
   { k: 'sit', t: 'Situación', get: x => x.sit, lbl: v => SIT_LBL[v] || v, orden: SITS, grp: 'Estado' },

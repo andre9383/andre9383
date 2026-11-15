@@ -47,7 +47,16 @@ const page_html = html.replace('<head>', '<head>' + shim);
   // autorizaciones: registrar desde código
   await p.evaluate(() => ir('aut/bandeja')); await p.waitForTimeout(500); await p.screenshot({ path: OUT + '/10-bandeja-aut.png' });
   await p.click('[data-qf="fuente|Solo código en RESPONSABLE"]'); await p.waitForTimeout(300); await p.click('tr.row'); await p.waitForTimeout(300); await p.click('[data-tomar]'); await p.waitForTimeout(300);
-  await p.fill('#nServ', 'craneo'); await p.waitForTimeout(700); await p.screenshot({ path: OUT + '/11-nueva-solicitud.png' }); await p.keyboard.press('Enter'); await p.click('#fNueva button[type=submit]'); await p.waitForTimeout(800);
+  await p.selectOption('#rgPor', 'JORGE SILVA'); await p.selectOption('#rgServ', 'Urgencias'); await p.selectOption('#rgTipo', 'Estancia'); await p.fill('#rgCD', '2026-11-10'); await p.fill('#rgCH', '2026-11-12'); await p.selectOption('#rgMod', 'Cuidado intensivo');
+  await p.fill('#rgCups', 'craneo'); await p.waitForTimeout(700); await p.screenshot({ path: OUT + '/11-nueva-solicitud.png', fullPage: true }); await p.keyboard.press('Enter'); await p.waitForTimeout(200);
+  await p.click('#fNueva button[type=submit]'); await p.waitForTimeout(900); if (!(await p.textContent('#toasts')).includes('registrada')) errs.push('No se registró la solicitud: ' + await p.textContent('#toasts'));
+  // registrar desde la base de ingresos y editar
+  await p.evaluate(() => formNuevaAut()); await p.waitForTimeout(300); await p.fill('#nIng', '1900012'); await p.waitForTimeout(700); await p.keyboard.press('Enter'); await p.waitForTimeout(200);
+  await p.selectOption('#rgPor', 'MARTA RUIZ'); await p.selectOption('#rgServ', 'Consulta Externa'); await p.fill('#rgDesc', 'Resonancia de control'); await p.screenshot({ path: OUT + '/11b-registro-base.png' });
+  await p.click('#fNueva button[type=submit]'); await p.waitForTimeout(900);
+  await p.evaluate(() => { const a = S.D.auts.find(z => z.ing === '1900012'); abrirAut(a); }); await p.waitForTimeout(600); await p.screenshot({ path: OUT + '/11c-detalle-registro.png' });
+  await p.click('[data-editaut]'); await p.waitForTimeout(300); await p.fill('#rgFolio', 'F-123'); await p.click('#fEditAut button[type=submit]'); await p.waitForTimeout(900);
+  if (!(await p.evaluate(() => S.D.auts.find(z => z.ing === '1900012').folio === 'F-123'))) errs.push('No se editó el folio');
   // medición, informes, cargue, admin
   for (const [v, n] of [['med/resumen', '12-medicion'], ['med/erp', '13-medicion-erp'], ['med/casosm', '14-medicion-casos'], ['ing/conc', '15-concentracion'], ['ing/hall', '16-hallazgos'], ['ing/cambios', '17-cambios'], ['inf/informes', '18-informes'], ['carga/calidad', '19-calidad'], ['admin/usuarios', '20-usuarios'], ['admin/catalogos', '21-catalogos'], ['admin/permisos', '22-permisos'], ['casos/sss', '23-sin-seguridad'], ['ing/hosp', null], ['ing/ce', null], ['med/areas', null], ['med/gest', null], ['med/patron', null], ['med/evol', null], ['carga/cargar', null], ['carga/historial', null], ['admin/parametros', null], ['aut/historico', null], ['aut/mias', null], ['casos/soat', null], ['casos/sindoc', null], ['casos/cambio', null], ['casos/singes', null], ['inf/ia', null]]) {
     await p.evaluate(v => ir(v), v); await p.waitForTimeout(v.startsWith('admin') ? 900 : 450); if (n) await p.screenshot({ path: OUT + '/' + n + '.png' }); }
