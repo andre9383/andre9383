@@ -35,7 +35,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urljoin, urlparse
 
 RAIZ = Path(__file__).resolve().parent
-URL_INICIO = os.environ.get("ZAJUNA_URL", "https://zajuna.sena.edu.co/")
+URL_INICIO = os.environ.get("ZAJUNA_URL", "https://zajuna.sena.edu.co/zajuna/my/courses.php")
 EXT_MEDIA = (".mp4", ".m4a", ".mp3", ".webm", ".mkv", ".mov", ".wav", ".ogg", ".avi", ".m4v")
 PALABRAS_SESION = (
     "grabaci", "sesi", "encuentro", "clase", "video", "reuni", "webinar",
