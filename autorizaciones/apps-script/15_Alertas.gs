@@ -23,8 +23,9 @@ function alertasDe_(s, D, p) {
   }
   if (rol === 'GESTOR_CASOS' || rol === 'ADMINISTRADOR' || rol === 'COORDINADOR_GENERAL') {
     var mc = rol === 'GESTOR_CASOS' ? D.casos.filter(function (c) { return !c.gestor || c.gestor === s.nombre; }) : D.casos;
-    var sal = mc.filter(function (c) { return c.est === EC.SALIO; }).length;
-    add('cas-salio', 'crit', 'casos', 'salio', sal + ' casos salieron de ingresos abiertos sin cierre', 'Carga el soporte (factura o pagador) y cierra cada caso.', sal);
+    var salL = mc.filter(function (c) { return c.est === EC.SALIO; }), sal = salL.length;
+    var conf = salL.filter(function (c) { return ESTADOS_SALIDA[c.eb]; }).length;
+    add('cas-salio', 'crit', 'casos', 'salio', sal + ' casos salieron de ingresos abiertos sin cierre', conf + ' confirmados como facturados o cerrados en la base: carga el soporte y cierra. ' + (sal - conf) + ' sin confirmar en la base: verifica qué pasó.', sal);
     var sinG = D.casos.filter(function (c) { return !c.gestor && c.est !== EC.CERRADO && c.est !== EC.SALIO; }).length;
     add('cas-sing', 'warn', 'casos', 'soat', sinG + ' casos especiales sin gestor asignado', 'Sin gestor no hay responsable ni fecha de compromiso.', sinG);
     var venc = mc.filter(function (c) { return c.fc && c.fc < Date.now() && c.est !== EC.CERRADO; }).length;
@@ -37,6 +38,8 @@ function alertasDe_(s, D, p) {
     add('ing-ce', 'warn', 'ing', 'ce', ce + ' atenciones de consulta externa superan ' + p.CE_DIAS_CIERRE + ' días sin cerrar', 'No llevan egreso, pero deben cerrarse para facturar.', ce);
     var cnl = D.ingresos.filter(function (x) { return x.sit === 'CAMA_NO_LIBERADA'; }).length;
     add('ing-cama', 'crit', 'ing', 'listado', cnl + ' pacientes egresados siguen con cama asignada', 'Liberar la cama o cerrar el ingreso.', cnl);
+    var inc = D.ingresos.filter(function (x) { return ESTADOS_SALIDA[x.eb]; }).length;
+    add('ing-incons', 'warn', 'ing', 'listado', inc + ' ingresos siguen en abiertos pero la base los marca facturados, cerrados o anulados', 'Revisa el cierre en Dinámica: uno de los dos reportes está desactualizado.', inc);
     var hp = D.ingresos.filter(function (x) { return x.sit === 'HOSPITALIZADO' && x.ap; }).length;
     add('ing-hosp', 'info', 'ing', 'hosp', hp + ' hospitalizados con autorizaciones pendientes', todos ? 'Todas las áreas.' : s.areas.join(', '), hp);
   }

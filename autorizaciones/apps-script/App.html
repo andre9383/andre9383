@@ -11,6 +11,7 @@ const EC_ORDEN = [EC.NUEVO, EC.GESTION, EC.DEFINIDO, EC.PAGADOR, EC.SALIO, EC.CE
 const EC_LBL = { [EC.NUEVO]: 'Nuevo sin gestión', [EC.GESTION]: 'En gestión', [EC.DEFINIDO]: 'Definido · pendiente de cierre', [EC.PAGADOR]: 'Pasó a pagador asignado', [EC.SALIO]: 'Salió de abiertos · sin cierre', [EC.CERRADO]: 'Cerrado con soporte' };
 const EC_PILL = { [EC.NUEVO]: 'p-mut', [EC.GESTION]: 'p-warn', [EC.DEFINIDO]: 'p-info', [EC.PAGADOR]: 'p-acc', [EC.SALIO]: 'p-crit', [EC.CERRADO]: 'p-ok' };
 const EA_ABIERTA = { SOLICITADO: 1, RADICADO: 1, 'EN TRAMITE': 1 };
+const ESTADOS_SALIDA = { FACTURADO: 1, CERRADO: 1, ANULADO: 1 };
 const EA_PASOS = ['SOLICITADO', 'RADICADO', 'EN TRAMITE', 'AUTORIZADO'];
 const EA_PILL = { SOLICITADO: 'p-mut', RADICADO: 'p-info', 'EN TRAMITE': 'p-vio', AUTORIZADO: 'p-ok', NEGADO: 'p-crit', ANULADO: 'p-mut' };
 
@@ -33,7 +34,7 @@ const MODULOS = [
                   ['hosp', 'Hospitalizados', 'Cama asignada sin egreso', () => S.D.ingresos.filter(x => x.sit === 'HOSPITALIZADO').length],
                   ['ce', 'Consulta externa por cerrar', 'Sin egreso, con plazo de cierre', () => S.D.ingresos.filter(x => x.sit === 'CE' && x.d > P().CE_DIAS_CIERRE).length, null, 'warn']]],
     ['Análisis', [['conc', 'Concentración', 'ERP › contrato, área › ala, usuario'], ['hall', 'Hallazgos', 'Banderas por ingreso']]],
-    ['Control', [['cambios', 'Cambios entre cargas', 'Nuevos, salidos y cambios de pagador', () => S.D.cambios.length]]]] },
+    ['Control', [['cambios', 'Seguimiento día a día', 'Qué pasó con cada ingreso entre cargas, cruzado con la base', () => S.D.cambios.filter(c => c.tipo === 'SALIÓ DE ABIERTOS' && !ESTADOS_SALIDA[c.eb]).length, null, 'warn']]]] },
   { id: 'casos', n: '03', t: 'Casos especiales', grp: 'Operación', perm: 'casos', secs: [
     ['Bandejas', [['soat', 'SOAT definido', 'Aseguradora identificada', () => S.D.casos.filter(c => c.ban === 'SOAT_DEFINIDO' && c.est !== EC.CERRADO).length],
                   ['sindoc', 'SOAT sin documentos', 'Accidentes sin póliza o FURIPS', () => S.D.casos.filter(c => c.ban === 'SOAT_SIN_DOC' && c.est !== EC.CERRADO).length],
@@ -48,7 +49,7 @@ const MODULOS = [
     ['Descargas', [['informes', 'Informe gerencial y reportes', 'PDF, Word y Excel con encabezados ordenados']]],
     ['Asistente', [['ia', 'Asistente IA', 'Preguntas sobre los indicadores', null, 1]]]] },
   { id: 'carga', n: '06', t: 'Cargue de datos', grp: 'Configuración', perm: 'carga', secs: [
-    ['Ingresos abiertos', [['cargar', 'Cargar Excel', 'Solo administrador', null, 2], ['historial', 'Historial de cargas', 'Fotografías diarias'], ['calidad', 'Calidad del dato', 'Vacíos, variantes y códigos']]]] },
+    ['Archivos', [['cargar', 'Cargar archivos', 'Base de ingresos e ingresos abiertos', null, 2], ['historial', 'Historial de cargas', 'Fotografías diarias'], ['calidad', 'Calidad del dato', 'Vacíos, variantes y códigos']]]] },
   { id: 'admin', n: '07', t: 'Administración', grp: 'Configuración', perm: 'admin', secs: [
     ['Personas', [['usuarios', 'Usuarios y solicitudes', 'Aprobar, rol, área, contraseña', () => (S.adm ? S.adm.usuarios.filter(u => u.estado === 'PENDIENTE').length : 0), null, 'crit'], ['permisos', 'Permisos por rol', 'Acceso por módulo']]],
     ['Reglas', [['parametros', 'Parámetros', 'Metas, plazos y umbrales'], ['catalogos', 'Catálogos', 'ERP › contrato, áreas, códigos']]]] }

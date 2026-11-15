@@ -10,6 +10,8 @@ const tk = ctx.publico('login', { usuario: '1000001', clave: 'Clave2026' }).data
 const aObjs = rows => rows.map(r => { const o = {}; ENC_ING.forEach((h, i) => { const v = r[i]; o[h] = v instanceof Date ? v.toISOString() : v; }); return o; });
 ctx.api(tk, 'cargarIngresos', { nombreArchivo: 'c1.xlsx', filas: aObjs(ing.slice(0, 1150)) });
 const r2 = ing.slice(30).map(r => r.slice()); r2.filter(r => /SIN SEGURIDAD/.test(r[16])).slice(0, 4).forEach(r => { r[16] = 'CAPRESOCA EPS - URGENCIAS SIN - CUPS-SUBSIDIADO'; });
+ctx.api(tk, 'cargarBase', { filas: ing.map((r, k) => ({ 'INGRESO': r[0], 'FECHA INGRESO': r[1].toISOString(), 'DOCUMENTO': r[13], 'PACIENTE': r[14], 'EPS': r[16], 'ESTADO': 'REGISTRADO', 'AMBITO': r[5] })) });
+ctx.api(tk, 'cargarBase', { filas: ing.map((r, k) => ({ 'INGRESO': r[0], 'DOCUMENTO': r[13], 'PACIENTE': r[14], 'ESTADO': k < 18 || (k > 200 && k < 206) ? 'FACTURADO' : 'REGISTRADO' })) });
 ctx.api(tk, 'cargarIngresos', { nombreArchivo: 'c2.xlsx', filas: aObjs(r2) });
 ['1000002', '1000003', '1000004'].forEach(d => ctx.api(tk, 'guardarUsuario', { doc: d, estado: 'APROBADO' }));
 ctx.publico('registro', { documento: '3000001', nombre: 'Sofía Ávila', correo: 'sofia@x.com', area: 'URGENCIAS', clave: 'Clave2026', aceptaDatos: true });
@@ -39,7 +41,7 @@ const page_html = html.replace('<head>', '<head>' + shim);
   await p.click('[data-cb="ing/listado|g"]'); await p.waitForTimeout(200); await p.screenshot({ path: OUT + '/05-lista-area.png' });
   await p.locator('.cbp-o input').first().check(); await p.waitForTimeout(300); await p.click('[data-cbx="cerrar"]'); await p.waitForTimeout(500);
   await p.screenshot({ path: OUT + '/06-ingresos-filtrados.png' });
-  await p.click('[data-clr="*"]'); await p.waitForTimeout(300); await p.click('tr.row'); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/07-detalle-ingreso.png' }); await p.click('.x');
+  await p.click('[data-clr="*"]'); await p.waitForTimeout(300); await p.click('tr.row'); await p.waitForTimeout(900); await p.screenshot({ path: OUT + '/07-detalle-ingreso.png' }); await p.click('.x');
   // casos especiales
   await p.click('[data-mod="casos"]'); await p.waitForTimeout(250); await p.screenshot({ path: OUT + '/08-menu-casos.png' });
   await p.click('#mega [data-ir="casos/salio"]'); await p.waitForTimeout(500); await p.screenshot({ path: OUT + '/09-casos-salieron.png' });
@@ -58,16 +60,16 @@ const page_html = html.replace('<head>', '<head>' + shim);
   await p.click('[data-editaut]'); await p.waitForTimeout(300); await p.fill('#rgFolio', 'F-123'); await p.click('#fEditAut button[type=submit]'); await p.waitForTimeout(900);
   if (!(await p.evaluate(() => S.D.auts.find(z => z.ing === '1900012').folio === 'F-123'))) errs.push('No se editó el folio');
   // medición, informes, cargue, admin
-  for (const [v, n] of [['med/resumen', '12-medicion'], ['med/erp', '13-medicion-erp'], ['med/casosm', '14-medicion-casos'], ['ing/conc', '15-concentracion'], ['ing/hall', '16-hallazgos'], ['ing/cambios', '17-cambios'], ['inf/informes', '18-informes'], ['carga/calidad', '19-calidad'], ['admin/usuarios', '20-usuarios'], ['admin/catalogos', '21-catalogos'], ['admin/permisos', '22-permisos'], ['casos/sss', '23-sin-seguridad'], ['ing/hosp', null], ['ing/ce', null], ['med/areas', null], ['med/gest', null], ['med/patron', null], ['med/evol', null], ['carga/cargar', null], ['carga/historial', null], ['admin/parametros', null], ['aut/historico', null], ['aut/mias', null], ['casos/soat', null], ['casos/sindoc', null], ['casos/cambio', null], ['casos/singes', null], ['inf/ia', null]]) {
+  for (const [v, n] of [['med/resumen', '12-medicion'], ['med/erp', '13-medicion-erp'], ['med/casosm', '14-medicion-casos'], ['ing/conc', '15-concentracion'], ['ing/hall', '16-hallazgos'], ['ing/cambios', '17-seguimiento'], ['inf/informes', '18-informes'], ['carga/calidad', '19-calidad'], ['admin/usuarios', '20-usuarios'], ['admin/catalogos', '21-catalogos'], ['admin/permisos', '22-permisos'], ['casos/sss', '23-sin-seguridad'], ['ing/hosp', null], ['ing/ce', null], ['med/areas', null], ['med/gest', null], ['med/patron', null], ['med/evol', null], ['carga/cargar', null], ['carga/historial', null], ['admin/parametros', null], ['aut/historico', null], ['aut/mias', null], ['casos/soat', null], ['casos/sindoc', null], ['casos/cambio', null], ['casos/singes', null], ['inf/ia', null]]) {
     await p.evaluate(v => ir(v), v); await p.waitForTimeout(v.startsWith('admin') ? 900 : 450); if (n) await p.screenshot({ path: OUT + '/' + n + '.png' }); }
   // descarga excel y carga de archivo real con SheetJS
   await p.evaluate(() => ir('inf/informes')); await p.waitForTimeout(300);
   const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 5000 }).catch(() => null), p.click('[data-dl="excel"]')]); if (!dl) errs.push('No se disparó la descarga');
   const XLSX = require('../node_modules/xlsx'); const wb = XLSX.utils.book_new(); const filas = [['REPORTE INGRESOS ABIERTOS'], [], ENC_ING, ...r2.slice(0, 900).map(r => r.map(c => c instanceof Date ? c : c))];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(filas, { cellDates: true }), 'Hoja1'); XLSX.writeFile(wb, OUT + '/../prueba.xlsx');
-  await p.evaluate(() => ir('carga/cargar')); await p.waitForTimeout(300); await p.setInputFiles('#fileIn', OUT + '/../prueba.xlsx'); await p.waitForTimeout(800); await p.click('#bConf'); await p.waitForTimeout(1500);
+  await p.evaluate(() => ir('carga/cargar')); await p.waitForTimeout(300); await p.setInputFiles('[data-fi="abiertos"]', OUT + '/../prueba.xlsx'); await p.waitForTimeout(800); await p.click('#bConf-abiertos'); await p.waitForTimeout(1500);
   await p.screenshot({ path: OUT + '/24-carga-resultado.png' });
-  const res = await p.textContent('#valid'); if (!/Carga terminada/.test(res)) errs.push('Carga: ' + res);
+  const res = await p.textContent('#valid-abiertos'); if (!/carga terminada/i.test(res)) errs.push('Carga: ' + res);
   // celular
   const m = await nueva({ width: 390, height: 844 }); await m.fill('#lU', '1000001'); await m.fill('#lC', 'Clave2026'); await m.click('#fLogin button[type=submit]'); await m.waitForSelector('#nav .nav-btn'); await m.waitForTimeout(500);
   await m.evaluate(() => ir('ing/listado')); await m.waitForTimeout(600); const sw = await m.evaluate(() => document.documentElement.scrollWidth); if (sw > 392) errs.push('Celular desborda: ' + sw);

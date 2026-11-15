@@ -60,5 +60,7 @@ function hallazgosIngreso_(x, p, multi) {
   if (x.inf) h.push('Área inferida');
   if (multi && multi[x.doc] > 1) h.push('Paciente con varios ingresos abiertos');
   if (x.rc === 'SIN_REGLA') h.push('Código RESPONSABLE sin regla');
+  if (x.eb && ESTADOS_SALIDA[x.eb]) h.push(x.eb.charAt(0) + x.eb.slice(1).toLowerCase() + ' en la base y sigue en abiertos');
+  if (x.eb === '' && x.d >= 2) h.push('No aparece en la base de ingresos');   // eb = null cuando la base no se ha cargado
   return h;
 }

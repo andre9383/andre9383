@@ -53,20 +53,21 @@ function cargarIngresos_(s, datos) {
     filasAnteriores.forEach(function (o) { var x = derivarIngreso_(o, ctx); anteriores[x.i] = x; });
 
     // Cambios entre cargas
-    var cambios = [], nuevos = 0, salieron = 0, cambioPagador = 0;
+    var cambios = [], nuevos = 0, salieron = 0, cambioPagador = 0, base = mapaBase_();
     actuales.forEach(function (x) {
       var a = anteriores[x.i];
       if (!a) { nuevos++; cambios.push(filaCambio_(hoy, x, 'NUEVO', '', x.erp + ' · ' + x.con)); }
       else if (a.erp !== x.erp || a.ban !== x.ban) { cambioPagador++; cambios.push(filaCambio_(hoy, x, 'CAMBIO DE PAGADOR', a.erp + ' · ' + a.con, x.erp + ' · ' + x.con)); }
     });
     Object.keys(anteriores).forEach(function (k) {
-      if (!mapaAct[k]) { salieron++; cambios.push(filaCambio_(hoy, anteriores[k], 'SALIÓ DE ABIERTOS', anteriores[k].erp + ' · ' + anteriores[k].con, 'Presunto facturado')); }
+      if (!mapaAct[k]) { salieron++; var eb = (base[k] || {}).est || '';
+        cambios.push(filaCambio_(hoy, anteriores[k], 'SALIÓ DE ABIERTOS', anteriores[k].erp + ' · ' + anteriores[k].con, ESTADOS_SALIDA[eb] ? eb + ' en la base' : 'Sin confirmar en la base', eb)); }
     });
     var primeraCarga = Object.keys(anteriores).length === 0;
     if (!primeraCarga) appendFilas_(H.CAMBIOS, cambios);
 
     // Casos especiales
-    var rc = sincronizarCasos_(s, actuales, mapaAct, hoy);
+    var rc = sincronizarCasos_(s, actuales, mapaAct, hoy, base);
 
     // Fotografía del día (una por día: si ya hubo carga hoy, se reemplaza)
     var autPend = autorizacionesPendientesPorIngreso_(actuales);
@@ -94,8 +95,95 @@ function cargarIngresos_(s, datos) {
   });
 }
 
-function filaCambio_(f, x, tipo, antes, ahora) {
-  return { 'FECHA CARGA': f, 'INGRESO': x.i, 'TIPO CAMBIO': tipo, 'ANTES': antes, 'AHORA': ahora, 'DOCUMENTO': x.doc, 'PACIENTE': x.pac, 'AREA': x.g, 'VALOR': x.val };
+function filaCambio_(f, x, tipo, antes, ahora, estadoBase) {
+  return { 'FECHA CARGA': f, 'INGRESO': x.i, 'TIPO CAMBIO': tipo, 'ANTES': antes, 'AHORA': ahora, 'DOCUMENTO': x.doc, 'PACIENTE': x.pac, 'AREA': x.g, 'VALOR': x.val, 'ESTADO BASE': estadoBase || '', 'ORIGEN': 'INGRESOS ABIERTOS' };
+}
+
+/* ======================= BASE_INGRESOS (base principal) ======================= */
+
+function normEstadoBase_(e) {
+  var x = norm_(e);
+  if (/^BLOQU/.test(x)) return 'BLOQUEADO';          // incluye el error de digitación "BLOQUADO"
+  return x;
+}
+
+/** Mapa INGRESO → { est, ant, fce, fi } leído de BASE_INGRESOS. */
+function mapaBase_() {
+  var d = leer_(H.BASE), m = {};
+  var iI = d.idx['INGRESO'], iE = d.idx['ESTADO'], iA = d.idx['ESTADO ANTERIOR'], iF = d.idx['FECHA CAMBIO ESTADO'], iFI = d.idx['FECHA INGRESO'];
+  if (iI === undefined) return m;
+  d.filas.forEach(function (r) {
+    var k = txt_(r[iI]); if (!k) return;
+    m[k] = { est: iE !== undefined ? normEstadoBase_(r[iE]) : '', ant: iA !== undefined ? normEstadoBase_(r[iA]) : '', fce: iF !== undefined ? ms_(r[iF]) : null, fi: iFI !== undefined ? ms_(r[iFI]) : null };
+  });
+  return m;
+}
+
+/**
+ * Carga del Excel de la base de ingresos diarios. Actualiza por número de ingreso (no borra los anteriores),
+ * agrega los nuevos y registra cada cambio de estado (ej. REGISTRADO → FACTURADO) con su fecha.
+ */
+function cargarBase_(s, datos) {
+  exigir_(s, 'carga', 2);
+  var filas = datos && datos.filas;
+  if (!filas || !filas.length) throw new Error('El archivo no tiene filas.');
+  var enc = Object.keys(filas[0]).map(norm_);
+  var faltan = COLS_BASE_OBLIGATORIAS.filter(function (c) { return enc.indexOf(norm_(c)) < 0; });
+  if (faltan.length) throw new Error('Faltan columnas en el Excel de la base: ' + faltan.join(', ') + '.');
+  return conBloqueo_(function () {
+    var hoy = ahora_();
+    asegurarEncabezados_(H.BASE);
+    var d = leer_(H.BASE), ix = d.idx, n = d.enc.length;
+    var mapaCol = {};
+    Object.keys(filas[0]).forEach(function (k) { var nk = norm_(k); d.enc.forEach(function (c) { if (c && norm_(c) === nk) mapaCol[k] = c; }); });
+    var tabla = d.filas.map(function (r) { r = r.slice(); while (r.length < n) r.push(''); return r; });
+    var pos = {};
+    tabla.forEach(function (r, k) { var ing = txt_(r[ix['INGRESO']]); if (ing) pos[ing] = k; });
+    var nuevos = 0, cambiosEstado = 0, aSalida = 0, cambios = [], vistos = {};
+    filas.forEach(function (f) {
+      var o = {};
+      Object.keys(f).forEach(function (k) { if (mapaCol[k]) o[mapaCol[k]] = f[k]; });
+      var ing = txt_(o['INGRESO']);
+      if (!ing || vistos[ing]) return;
+      vistos[ing] = 1;
+      var fi = aFecha_(o['FECHA INGRESO']); if (fi) o['FECHA INGRESO'] = fi;
+      Object.keys(o).forEach(function (c) { if (typeof o[c] === 'string') o[c] = seguro_(o[c]); });
+      var nuevoEst = normEstadoBase_(o['ESTADO']);
+      var k = pos[ing];
+      if (k === undefined) {
+        var r = d.enc.map(function () { return ''; });
+        Object.keys(o).forEach(function (c) { r[ix[c]] = o[c]; });
+        r[ix['FECHA ULTIMA CARGA']] = hoy;
+        tabla.push(r); pos[ing] = tabla.length - 1; nuevos++;
+        return;
+      }
+      var fila = tabla[k], viejoEst = normEstadoBase_(fila[ix['ESTADO']]);
+      Object.keys(o).forEach(function (c) { if (o[c] !== '' && o[c] !== null && o[c] !== undefined) fila[ix[c]] = o[c]; });
+      fila[ix['FECHA ULTIMA CARGA']] = hoy;
+      if (nuevoEst && viejoEst && nuevoEst !== viejoEst) {
+        fila[ix['ESTADO ANTERIOR']] = viejoEst; fila[ix['FECHA CAMBIO ESTADO']] = hoy; cambiosEstado++;
+        if (ESTADOS_SALIDA[nuevoEst] && !ESTADOS_SALIDA[viejoEst]) aSalida++;
+        cambios.push({ 'FECHA CARGA': hoy, 'INGRESO': ing, 'TIPO CAMBIO': 'CAMBIO DE ESTADO EN BASE', 'ANTES': viejoEst, 'AHORA': nuevoEst,
+          'DOCUMENTO': txt_(fila[ix['DOCUMENTO']]), 'PACIENTE': txt_(fila[ix['PACIENTE']]), 'AREA': may_(fila[ix['AMBITO']]) || may_(fila[ix['INGRESO POR']]), 'VALOR': '', 'ESTADO BASE': nuevoEst, 'ORIGEN': 'BASE INGRESOS' });
+      }
+    });
+    reemplazarDatos_(H.BASE, tabla);
+    appendFilas_(H.CAMBIOS, cambios);
+    var resumen = { filas: Object.keys(vistos).length, total: tabla.length, nuevos: nuevos, cambiosEstado: cambiosEstado, aFacturado: aSalida };
+    auditar_(s, 'CARGA BASE INGRESOS', '', '', resumen);
+    return resumen;
+  });
+}
+
+/** Seguimiento día a día de un ingreso: cambios entre cargas de las dos bases. */
+function historialIngreso_(s, d) {
+  var ing = txt_(d.ingreso);
+  if (!ing) return { eventos: [], base: null };
+  var ev = objetos_(H.CAMBIOS).filter(function (o) { return txt_(o['INGRESO']) === ing; }).map(function (o) {
+    return { f: ms_(o['FECHA CARGA']), tipo: txt_(o['TIPO CAMBIO']), antes: txt_(o['ANTES']), ahora: txt_(o['AHORA']), eb: txt_(o['ESTADO BASE']), origen: txt_(o['ORIGEN']) || 'INGRESOS ABIERTOS' };
+  }).sort(function (a, b) { return (a.f || 0) - (b.f || 0); });
+  var b = buscarFila_(H.BASE, 'INGRESO', ing);
+  return { eventos: ev, base: b ? { est: normEstadoBase_(b['ESTADO']), ant: normEstadoBase_(b['ESTADO ANTERIOR']), fce: ms_(b['FECHA CAMBIO ESTADO']), fi: ms_(b['FECHA INGRESO']), folio: txt_(b['FOLIO HC']), ult: ms_(b['FECHA ULTIMA CARGA']) } : null };
 }
 
 function actualizarCatalogos_(filas) {
@@ -137,7 +225,8 @@ function actualizarCatalogos_(filas) {
 }
 
 /** Casos especiales: crea los nuevos, marca cambios de pagador y los que salieron (sin cerrarlos). */
-function sincronizarCasos_(s, actuales, mapaAct, hoy) {
+function sincronizarCasos_(s, actuales, mapaAct, hoy, base) {
+  base = base || {};
   asegurarEncabezados_(H.CASOS);
   var d = leer_(H.CASOS), ix = d.idx, filas = d.filas.map(function (r) { r = r.slice(); while (r.length < d.enc.length) r.push(''); return r; });
   var gestiones = [], porIngreso = {}, creados = 0, salieron = 0, cambio = 0;
@@ -193,7 +282,9 @@ function sincronizarCasos_(s, actuales, mapaAct, hoy) {
     if (est === EC.CERRADO) { set(r, 'EN EXCEL', 'NO'); return; }
     if (est !== EC.SALIO) {
       set(r, 'ESTADO', EC.SALIO); set(r, 'FECHA SALIDA EXCEL', hoy); salieron++;
-      gestiones.push(gestionAuto_(get(r, 'ID CASO'), ing, get(r, 'BANDEJA'), est, EC.SALIO, 'El ingreso ya no aparece en ingresos abiertos (presunto facturado). Falta cargar soporte y cerrar.'));
+      var eb = (base[ing] || {}).est || '';
+      gestiones.push(gestionAuto_(get(r, 'ID CASO'), ing, get(r, 'BANDEJA'), est, EC.SALIO, 'El ingreso ya no aparece en ingresos abiertos. ' +
+        (ESTADOS_SALIDA[eb] ? 'BASE_INGRESOS lo confirma como ' + eb + '.' : 'BASE_INGRESOS no confirma la facturación (estado: ' + (eb || 'no está en la base') + ').') + ' Falta cargar soporte y cerrar.'));
     }
     set(r, 'EN EXCEL', 'NO');
   });

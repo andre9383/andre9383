@@ -58,6 +58,8 @@ var ACCIONES_ = {
   documentosCaso:   [function (s, d) { return documentosCaso_(s, d); }, 'casos', 2],
   cerrarCaso:       [function (s, d) { return cerrarCaso_(s, d); }, 'casos', 2],
   cargarIngresos:   [function (s, d) { return cargarIngresos_(s, d); }, 'carga', 2],
+  cargarBase:       [function (s, d) { return cargarBase_(s, d); }, 'carga', 2],
+  historialIngreso: [function (s, d) { return historialIngreso_(s, d); }, 'inicio', 1],
   reporteExcel:     [function (s, d) { return reporteExcel_(s, d); }, 'med', 1],
   informe:          [function (s, d) { return informe_(s, d); }, 'med', 1],
   preguntarIA:      [function (s, d) { return preguntarIA_(s, d); }, 'med', 1],
@@ -97,13 +99,15 @@ function datosBase_(s) {
   var auts = listaAutorizaciones_(todos);
   var pend = {};
   auts.forEach(function (a) { if (AUT_ABIERTA[a.est]) pend[a.ing] = (pend[a.ing] || 0) + 1; });
-  var porIng = {};
-  todos.forEach(function (x) { x.ap = pend[x.i] || 0; porIng[x.i] = x; });
+  var porIng = {}, base = mapaBase_();
+  var hayBase = Object.keys(base).length > 0;          // sin base cargada no se marca nada
+  todos.forEach(function (x) { x.ap = pend[x.i] || 0; x.eb = hayBase ? ((base[x.i] || {}).est || '') : null; porIng[x.i] = x; });
   var ingresos = todos.filter(function (x) { return veArea_(s, x.g, x.area); });
   return {
     ingresos: ingresos,
     auts: auts.filter(function (a) { return veArea_(s, a.g, a.area); }),
-    casos: (s.perm.casos || 0) >= 1 ? casosLista_(s, porIng) : []
+    casos: (s.perm.casos || 0) >= 1 ? casosLista_(s, porIng).map(function (c) { var b = base[c.ing] || {}; c.eb = b.est || ''; c.fcb = b.fce || null; return c; }) : [],
+    base: base
   };
 }
 
@@ -112,7 +116,8 @@ function datosApp_(s) {
   var D = datosBase_(s);
   var multi = {};
   D.ingresos.forEach(function (x) { if (x.doc) multi[x.doc] = (multi[x.doc] || 0) + 1; });
-  D.ingresos.forEach(function (x) { x.h = hallazgosIngreso_(x, p, multi); delete x.plan; delete x.area; delete x.sg; });   // lo que la pantalla no usa no viaja
+  D.ingresos.forEach(function (x) { x.h = hallazgosIngreso_(x, p, multi); delete x.plan; delete x.area; delete x.sg; });
+  var baseInfo = { total: Object.keys(D.base).length, ultimaCarga: Object.keys(D.base).reduce(function (m, k) { return m; }, null) };   // lo que la pantalla no usa no viaja
   var hist = objetos_(H.HIST_ABIERTOS).map(function (o) {
     return { f: ms_(o['FECHA']), total: aNumero_(o['TOTAL']), valor: aNumero_(o['VALOR TOTAL']), eg: aNumero_(o['EGRESADOS ABIERTOS']),
       m30: aNumero_(o['MAS DE 30 DIAS']), ap: aNumero_(o['CON AUTORIZACION PENDIENTE']), hosp: aNumero_(o['HOSPITALIZADOS']),
@@ -121,10 +126,12 @@ function datosApp_(s) {
   }).filter(function (h) { return h.f; }).sort(function (a, b) { return a.f - b.f; });
   var ultimaCarga = hist.length ? hist[hist.length - 1].f : null;
   var cambios = [];
-  if ((s.perm.ing || 0) >= 1 && ultimaCarga) {
-    var dia = fmtFecha_(new Date(ultimaCarga), 'yyyy-MM-dd');
-    cambios = objetos_(H.CAMBIOS).filter(function (o) { var f = aFecha_(o['FECHA CARGA']); return f && fmtFecha_(f, 'yyyy-MM-dd') === dia; })
-      .map(function (o) { return { i: txt_(o['INGRESO']), tipo: txt_(o['TIPO CAMBIO']), antes: txt_(o['ANTES']), ahora: txt_(o['AHORA']), doc: txt_(o['DOCUMENTO']), pac: txt_(o['PACIENTE']), g: txt_(o['AREA']), val: aNumero_(o['VALOR']) }; })
+  if ((s.perm.ing || 0) >= 1) {                       // cambios de la última carga de cada base (abiertos y base de ingresos)
+    var todosC = objetos_(H.CAMBIOS), ultimo = {};
+    todosC.forEach(function (o) { var f = aFecha_(o['FECHA CARGA']); if (!f) return; var org = txt_(o['ORIGEN']) || 'INGRESOS ABIERTOS', dia = fmtFecha_(f, 'yyyy-MM-dd'); if (!ultimo[org] || dia > ultimo[org]) ultimo[org] = dia; });
+    cambios = todosC.filter(function (o) { var f = aFecha_(o['FECHA CARGA']); return f && fmtFecha_(f, 'yyyy-MM-dd') === ultimo[txt_(o['ORIGEN']) || 'INGRESOS ABIERTOS']; })
+      .map(function (o) { var i = txt_(o['INGRESO']); return { i: i, f: ms_(o['FECHA CARGA']), tipo: txt_(o['TIPO CAMBIO']), antes: txt_(o['ANTES']), ahora: txt_(o['AHORA']), doc: txt_(o['DOCUMENTO']), pac: txt_(o['PACIENTE']), g: txt_(o['AREA']), val: aNumero_(o['VALOR']),
+        eb: (D.base[i] || {}).est || txt_(o['ESTADO BASE']), fce: (D.base[i] || {}).fce || null, origen: txt_(o['ORIGEN']) || 'INGRESOS ABIERTOS' }; })
       .filter(function (c) { return veArea_(s, c.g, c.g); });
   }
   var usuarios = objetos_(H.USUARIOS).filter(function (u) { return may_(u['ACTIVO']) === 'SI'; });
@@ -133,7 +140,7 @@ function datosApp_(s) {
     param: p, ahora: Date.now(), ultimaCarga: ultimaCarga,
     ingresos: (s.perm.ing || 0) >= 1 || (s.perm.casos || 0) >= 1 ? D.ingresos : [],
     auts: (s.perm.aut || 0) >= 1 || (s.perm.med || 0) >= 1 ? D.auts : [],
-    casos: D.casos, hist: hist, cambios: cambios,
+    casos: D.casos, hist: hist, cambios: cambios, baseTotal: Object.keys(D.base).length,
     alertas: alertasDe_(s, D, p),
     gestores: usuarios.filter(function (u) { return normRol_(u['ROL']) === 'GESTOR_CASOS' || normRol_(u['ROL']) === 'ADMINISTRADOR'; }).map(function (u) { return txt_(u['NOMBRE']); }),
     autorizadores: usuarios.filter(function (u) { return normRol_(u['ROL']) === 'AUTORIZADOR'; }).map(function (u) { return txt_(u['NOMBRE']); }),

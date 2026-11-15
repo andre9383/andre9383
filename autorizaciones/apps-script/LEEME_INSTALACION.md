@@ -55,6 +55,20 @@ No borra datos: crea las hojas que faltan y agrega columnas **al final** de las 
    *Soy el administrador inicial* y pega el código. Si tu documento ya existe en USUARIOS, esto le asigna la nueva contraseña.
 9. Entra con tu documento o correo.
 
+## Uso diario: orden de carga (Configuración › Cargue de datos)
+
+1. **Base de ingresos diarios** (`BASE_INGRESOS`): actualiza por número de ingreso, agrega los nuevos y registra
+   cada cambio de estado (ej. REGISTRADO → FACTURADO) con su fecha. No borra los anteriores.
+2. **Ingresos abiertos** (`INGRESOS_ABIERTOS`): reemplaza la carga anterior, la compara y cruza con la base.
+
+En *Ingresos abiertos › Seguimiento día a día* ves qué pasó con cada ingreso entre cargas:
+salidas confirmadas en la base (facturado, cerrado o anulado), salidas **sin confirmar** para verificar,
+ingresos nuevos, cambios de pagador y cambios de estado en la base. Cada ingreso y cada caso especial
+muestran su estado en la base y su historial entre cargas.
+
+`inicializarSistema` puede tardar uno o dos minutos la primera vez (permisos, hojas y columnas nuevas).
+Solo se ejecuta una vez y después de una actualización que agregue columnas.
+
 ## Después de entrar
 
 - **Usuarios de la versión anterior**: sus contraseñas no son compatibles. En *Administración › Usuarios*
@@ -87,7 +101,7 @@ No borra datos: crea las hojas que faltan y agrega columnas **al final** de las 
 
 ## Límites conocidos
 
-- Probado con un simulador de Apps Script y un navegador automatizado (73 pruebas del servidor y el recorrido completo de la interfaz).
+- Probado con un simulador de Apps Script y un navegador automatizado (90 pruebas del servidor y el recorrido completo de la interfaz).
   La primera ejecución en tu Apps Script real es la prueba que falta.
 - Los gráficos y el lector de Excel necesitan internet en el navegador.
 - Con más de ~10.000 ingresos abiertos la carga inicial de la página se vuelve lenta; hoy tienes ~2.800.

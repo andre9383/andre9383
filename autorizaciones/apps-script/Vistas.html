@@ -12,6 +12,17 @@ const sitPill = s => `<span class="pill ${SIT_PILL[s] || 'p-mut'}">${SIT_LBL[s] 
 const ecPill = e => `<span class="pill ${EC_PILL[e] || 'p-mut'}">${EC_LBL[e] || e}</span>`;
 const bucketDias = d => d <= 7 ? '0–7 días' : d <= 15 ? '8–15 días' : d <= 30 ? '16–30 días' : d <= 60 ? '31–60 días' : d <= 90 ? '61–90 días' : 'Más de 90 días';
 const BUCKETS = ['0–7 días', '8–15 días', '16–30 días', '31–60 días', '61–90 días', 'Más de 90 días'];
+const ebPill = eb => eb === null || eb === undefined ? '<span class="pill p-mut">Base sin cargar</span>' : !eb ? '<span class="pill p-warn">No está en la base</span>' : `<span class="pill ${ESTADOS_SALIDA[eb] ? 'p-ok' : 'p-info'}">${esc(eb)}</span>`;
+const ebLbl = eb => eb === null || eb === undefined ? '(base sin cargar)' : eb || 'No está en la base';
+/** Seguimiento día a día: se carga en el panel de detalle de un ingreso o de un caso. */
+async function pintarSeguimiento(ing) {
+  const el = $('#segDia'); if (!el) return;
+  try { const h = await API.call('historialIngreso', { ingreso: ing }); if (!$('#segDia')) return;
+    const b = h.base;
+    $('#segDia').innerHTML = `<div class="kv mb"><div><small>Estado en la base</small><span>${b ? ebPill(b.est) : ebPill('')}</span></div>${b && b.ant ? `<div><small>Estado anterior</small><span>${esc(b.ant)} → ${esc(b.est)} · ${fmtD(b.fce)}</span></div>` : ''}${b && b.folio ? `<div><small>Folio HC</small><span class="mono">${esc(b.folio)}</span></div>` : ''}${b && b.ult ? `<div><small>Última carga de la base</small><span>${fmtDT(b.ult)}</span></div>` : ''}</div>` +
+      (h.eventos.length ? `<ol class="timeline">${h.eventos.map(e => `<li><div><b>${esc(e.tipo)}</b>${e.antes || e.ahora ? ' · ' + esc(e.antes || '—') + ' → ' + esc(e.ahora || '—') : ''}</div><small>${fmtDT(e.f)} · ${e.origen === 'BASE INGRESOS' ? 'Base de ingresos' : 'Ingresos abiertos'}</small></li>`).join('')}</ol>` : '<p class="muted">Sin cambios registrados entre cargas.</p>');
+  } catch (e) { el.innerHTML = '<p class="muted">No se pudo cargar el seguimiento.</p>'; }
+}
 const V = {};
 
 /* ================== 00 Inicio ================== */
@@ -186,6 +197,7 @@ const DEF_ING = () => [
   { k: 'u', t: 'Usuario de ingreso', get: x => x.u || '(vacío)', grp: 'Origen' },
   { k: 'ap', t: 'Autorización', get: x => x.ap ? 'Con pendientes' : 'Sin pendientes', grp: 'Control' },
   { k: 'dias', t: 'Días abierto', get: x => bucketDias(x.d), orden: BUCKETS, grp: 'Control' },
+  { k: 'eb', t: 'Estado en la base', get: x => ebLbl(x.eb), grp: 'Control' },
   { k: 'h', t: 'Hallazgo', get: x => x.h || [], grp: 'Control' }];
 const buscaIng = x => x.pac + ' ' + x.doc + ' ' + x.i + ' ' + x.cama + ' ' + x.obs + ' ' + x.resp;
 const colsIng = () => [
@@ -236,9 +248,11 @@ function abrirIng(x) {
   <div><small>ERP · contrato</small><span>${esc(x.erp)} · ${esc(x.con)}</span></div><div><small>Valor</small><span>${money(x.val)}</span></div><div><small>Usuario</small><span>${esc(x.u)}</span></div><div><small>Estado</small><span>${esc(x.est)}</span></div></div>
   <div class="card" style="background:var(--surface-2)"><small class="crumb">ENTIDAD tal como llega en el Excel</small><div class="mono" style="overflow-wrap:anywhere">${esc(x.ent)}</div></div>
   <div class="card" style="background:var(--surface-2)"><small class="crumb">RESPONSABLE</small><div>${x.resp ? `<span class="mono">${esc(x.resp)}</span> → ${esc(x.rl)}` : '—'}</div><small class="crumb" style="display:block;margin-top:8px">Observaciones</small><div>${esc(x.obs || '—')}</div></div>
+  <div><h3 style="font-size:14px;margin-bottom:8px">Seguimiento día a día (abiertos ↔ base)</h3><div id="segDia"><p class="muted">Cargando…</p></div></div>
   <div><small class="crumb">Hallazgos</small><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${(x.h || []).map(h => `<span class="pill p-warn">${esc(h)}</span>`).join('') || '<span class="pill p-ok">Sin hallazgos</span>'}</div></div>
   <div><h3 style="font-size:14px;margin-bottom:8px">Autorizaciones (${auts.length})</h3>${auts.length ? `<div class="tbl-wrap"><table><thead><tr><th>Trámite</th><th>Servicio</th><th>Estado</th><th>Tiempo</th></tr></thead><tbody>${auts.map(a => `<tr><td class="mono">${esc(a.id)}</td><td>${esc(a.serv || 'Código ' + a.cod)}</td><td>${estPill(a.est)}</td><td>${slaPill(a)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">Sin autorizaciones.</p>'}</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">${nivel('aut') >= 2 && x.sit !== 'CE' ? `<button class="btn" data-tomar="${esc(x.i)}|">Nueva solicitud para este ingreso</button>` : ''}${c ? `<button class="btn ghost" data-caso="${esc(c.id)}">Ver caso especial</button>` : ''}</div>`);
+  pintarSeguimiento(x.i);
 }
 
 const DIMS = { erp: ['ERP', x => x.erp], contrato: ['ERP › contrato', x => x.erp, x => x.con], area: ['Área', x => x.g], ala: ['Área › ala / pabellón', x => x.g, x => x.ala || '(sin ala)'], areaErp: ['Área › ERP', x => x.g, x => x.erp], usuario: ['Usuario › área', x => x.u || '(vacío)', x => x.g], responsable: ['Código RESPONSABLE', x => x.resp ? x.rl : '(vacío)'], ingresoPor: ['Ingreso por', x => x.por || '(vacío)'], bandeja: ['Tipo de pagador', x => BAN_LBL[x.ban] || x.ban] };
@@ -269,12 +283,30 @@ V['ing/hall'] = () => {
 
 V['ing/cambios'] = () => {
   if (!nivel('ing')) return sinAcceso();
-  const C = S.D.cambios, tipo = S.opc.cmb || 'SALIÓ DE ABIERTOS';
-  const n = t => C.filter(c => c.tipo === t).length;
-  const rows = C.filter(c => c.tipo === tipo);
-  return head('Cambios entre cargas', `Comparación de la carga del ${fmtDT(S.D.ultimaCarga)} con la anterior. Un ingreso que deja de aparecer queda como “presunto facturado” hasta que se confirme con soporte.`) + subtabs() +
-  `<div class="flow mb">${[['SALIÓ DE ABIERTOS', 'Salieron (presunto facturado)', '--crit', '−'], ['NUEVO', 'Ingresos nuevos', '--ok', '+'], ['CAMBIO DE PAGADOR', 'Cambiaron de pagador', '--info', '']].map(z => `<div class="node ${tipo === z[0] ? 'on' : ''}" data-opc="cmb|${z[0]}"><b class="num" style="color:var(${z[2]})">${z[3]}${fmtN(n(z[0]))}</b><small>${z[1]}</small></div>`).join('')}</div>` +
-  table('cmb-' + tipo, [{ h: 'Ingreso', v: c => `<span class="mono">${esc(c.i)}</span>`, s: c => c.i }, { h: 'Paciente', v: c => `${esc(c.pac)}<br><span class="mono muted">${esc(c.doc)}</span>`, s: c => c.pac }, { h: 'Área', v: c => esc(c.g), s: c => c.g }, { h: 'Antes', v: c => esc(c.antes || '—'), s: c => c.antes }, { h: 'Ahora', v: c => c.tipo === 'SALIÓ DE ABIERTOS' ? '<span class="pill p-crit">Fuera de abiertos</span>' : esc(c.ahora), s: c => c.ahora }, { h: 'Valor', cl: 'r', v: c => money(c.val), s: c => c.val }], rows, c => { const x = S.D.ingresos.find(z => z.i === c.i); if (x) abrirIng(x); }, { vacio: S.D.hist.length < 2 ? 'Los cambios aparecen desde la segunda carga.' : 'Sin cambios de este tipo.' });
+  const C = S.D.cambios, sal = C.filter(c => c.tipo === 'SALIÓ DE ABIERTOS');
+  const grupos = [
+    ['conf', 'Salieron · confirmados en la base', '--ok', c => c.tipo === 'SALIÓ DE ABIERTOS' && ESTADOS_SALIDA[c.eb], 'Salieron de abiertos y la base los muestra facturados, cerrados o anulados.'],
+    ['sinconf', 'Salieron · sin confirmar', '--crit', c => c.tipo === 'SALIÓ DE ABIERTOS' && !ESTADOS_SALIDA[c.eb], 'Salieron de abiertos pero la base no confirma facturación: verificar.'],
+    ['nuevo', 'Ingresos nuevos en abiertos', '--info', c => c.tipo === 'NUEVO', 'Aparecieron en la última carga de ingresos abiertos.'],
+    ['pagador', 'Cambiaron de pagador', '--violet', c => c.tipo === 'CAMBIO DE PAGADOR', 'Pasaron, por ejemplo, de sin seguridad social a una ERP.'],
+    ['base', 'Cambios de estado en la base', '--accent', c => c.tipo === 'CAMBIO DE ESTADO EN BASE', 'Ej.: REGISTRADO → FACTURADO en la última carga de la base.']];
+  const sel = S.opc.cmb2 || 'sinconf', g = grupos.find(z => z[0] === sel), rows = C.filter(g[3]);
+  const ultA = C.filter(c => c.origen !== 'BASE INGRESOS').map(c => c.f)[0], ultB = C.filter(c => c.origen === 'BASE INGRESOS').map(c => c.f)[0];
+  return head('Seguimiento día a día', `Qué pasó con cada ingreso entre una carga y otra, cruzando ingresos abiertos con la base de ingresos (${fmtN(S.D.baseTotal)} ingresos en la base). Última carga de abiertos: ${fmtDT(S.D.ultimaCarga)}${ultB ? ' · cambios de la base del ' + fmtD(ultB) : ''}.`) + subtabs() +
+  (S.D.baseTotal ? '' : '<div class="alert warn mb"><span class="sev"></span><div><div class="t">La base de ingresos no está cargada</div><div class="d">Sin la base no se puede confirmar si un ingreso que salió de abiertos quedó facturado. Cárgala en Configuración › Cargue de datos.</div></div><span></span></div>') +
+  `<div class="flow mb">${grupos.map(z => `<div class="node ${sel === z[0] ? 'on' : ''}" data-opc="cmb2|${z[0]}"><b class="num" style="color:var(${z[2]})">${fmtN(C.filter(z[3]).length)}</b><small>${z[1]}</small></div>`).join('')}</div>
+  <p class="sub mb">${g[4]}</p>` +
+  table('seg-' + sel, [
+    { h: 'Ingreso', v: c => `<span class="mono">${esc(c.i)}</span>`, s: c => c.i },
+    { h: 'Paciente', v: c => `${esc(c.pac)}<br><span class="mono muted">${esc(c.doc)}</span>`, s: c => c.pac },
+    { h: 'Área', v: c => esc(c.g), s: c => c.g },
+    { h: 'Antes', v: c => esc(c.antes || '—'), s: c => c.antes },
+    { h: 'Ahora', v: c => esc(c.ahora || '—'), s: c => c.ahora },
+    { h: 'Estado en la base', v: c => ebPill(c.eb) + (c.fce ? `<br><small class="muted">desde ${fmtD(c.fce)}</small>` : ''), s: c => c.eb },
+    { h: 'Caso especial', v: c => { const k = S.D.casos.find(z => z.ing === c.i); return k ? ecPill(k.est) : '—'; } },
+    { h: 'Valor', cl: 'r', v: c => c.val ? money(c.val) : '—', s: c => c.val }], rows,
+    c => { const x = S.D.ingresos.find(z => z.i === c.i), k = S.D.casos.find(z => z.ing === c.i); if (x) abrirIng(x); else if (k) abrirCaso(k); else drawer('Ingreso ' + esc(c.i), 'Seguimiento día a día', `<div class="kv"><div><small>Paciente</small><span>${esc(c.pac)}</span></div><div><small>Documento</small><span class="mono">${esc(c.doc)}</span></div></div><div id="segDia"><p class="muted">Cargando…</p></div>`) || pintarSeguimiento(c.i); },
+    { vacio: S.D.hist.length < 2 && !C.length ? 'El seguimiento aparece desde la segunda carga.' : 'Sin ingresos en este grupo.' });
 };
 
 /* ================== 03 Casos especiales ================== */
@@ -286,6 +318,7 @@ const DEF_CASOS = () => [
   { k: 'gestor', t: 'Gestor', get: c => c.gestor || 'Sin asignar', grp: 'Responsable' },
   { k: 'comp', t: 'Compromiso', get: c => !c.fc ? 'Sin fecha' : c.fc < S.D.ahora ? 'Vencido' : 'Al día', orden: ['Vencido', 'Al día', 'Sin fecha'], grp: 'Responsable' },
   { k: 'neo', t: 'Tipo de paciente', get: c => c.neo ? 'Neonato' : 'Adulto o niño', grp: 'Responsable' },
+  { k: 'eb', t: 'Estado en la base', get: c => ebLbl(c.eb), grp: 'Estado' },
   { k: 'dias', t: 'Días', get: c => bucketDias(c.d), orden: BUCKETS, grp: 'Responsable' }];
 function vCasos(scope) {
   if (!nivel('casos')) return sinAcceso();
@@ -313,6 +346,7 @@ function vCasos(scope) {
     { h: 'Gestor', v: c => c.gestor ? esc(c.gestor) : '<span class="pill p-warn">Sin asignar</span>', s: c => c.gestor },
     { h: 'Compromiso', v: c => c.fc ? `<span class="pill ${c.fc < S.D.ahora ? 'p-crit' : 'p-mut'}">${fmtD(c.fc)}</span>` : '—', s: c => c.fc || 0 },
     { h: 'Días', cl: 'r', v: c => c.d, s: c => c.d },
+    { h: 'En la base', v: c => ebPill(c.eb) + (c.fcb ? `<br><small class="muted">${fmtD(c.fcb)}</small>` : ''), s: c => c.eb || '' },
     { h: 'Estado', v: c => ecPill(c.est), s: c => EC_ORDEN.indexOf(c.est) }], rows, abrirCaso);
 }
 ['soat', 'sindoc', 'sss', 'salio', 'cambio', 'singes'].forEach(k => { V['casos/' + k] = () => vCasos(k); });
@@ -335,6 +369,7 @@ async function abrirCaso(c) {
       : `<div class="form-grid"><div class="field"><label for="kTr">Trámite</label><input class="inp" id="kTr" value="${esc(c.tram)}"></div><div class="field"><label for="kEn">Ente responsable</label><input class="inp" id="kEn" value="${esc(c.ente)}"></div></div>`}
     <button class="btn ghost" type="submit">Guardar datos</button></form>` : ''}
   <div><h3 style="font-size:14px;margin-bottom:8px">Lista de chequeo</h3><div class="checks">${docs.map(d => `<label><input type="checkbox" data-doc="${esc(d)}" ${c.docs.includes(d) ? 'checked' : ''} ${ed ? '' : 'disabled'}> ${esc(d)}</label>`).join('')}</div>${ed ? `<button class="btn ghost sm mt" data-docs="${esc(c.id)}">Guardar documentos</button>` : ''}</div>
+  <div><h3 style="font-size:14px;margin-bottom:8px">Seguimiento día a día (abiertos ↔ base)</h3><div id="segDia"><p class="muted">Cargando…</p></div></div>
   <div><h3 style="font-size:14px;margin-bottom:8px">Bitácora</h3>${g === null ? '<p class="muted">Cargando…</p>' : g.length ? `<ol class="timeline">${g.map(h => `<li><div>${esc(h.t)}</div><small>${fmtDT(h.f)} · ${esc(h.u)} · ${esc(h.tipo)}${h.en && h.en !== h.ea ? ' · ' + esc(h.ea) + ' → ' + esc(h.en) : ''}</small></li>`).join('')}</ol>` : '<p class="muted">Sin gestiones.</p>'}</div>
   ${ed ? `<form id="fCasoGes" class="card grid" data-id="${esc(c.id)}"><h3>Registrar gestión</h3><div class="field"><label for="kT">Tipo</label><select class="inp" id="kT">${['Llamada telefónica', 'Correo electrónico', 'Revisión de documentos', 'Visita / entrevista', 'Radicación', 'Otra'].map(t => `<option>${t}</option>`).join('')}</select></div>
     <div class="field"><label for="kD">Descripción</label><textarea class="inp" id="kD" placeholder="Ej.: se recibe póliza N° 12345"></textarea></div>
@@ -344,6 +379,7 @@ async function abrirCaso(c) {
     <div class="field"><label for="kRC">Resultado</label><select class="inp" id="kRC"><option>Facturado</option><option>Pagador asignado y facturado</option><option>Afiliado al régimen</option><option>Particular / pago directo</option><option>Otro</option></select></div><button class="btn" type="submit">Cerrar con soporte</button></form>` : ''}`;
   drawer(esc(c.pac), (BAN_LBL[c.ban] || c.ban) + ' · ingreso ' + esc(c.ing), cuerpo(null));
   try { const g = await API.call('gestionesCaso', { id: c.id }); if ($('.drawer')) $('.dr-b').innerHTML = cuerpo(g); } catch (e) { fallo(e); }
+  pintarSeguimiento(c.ing);
 }
 document.addEventListener('submit', async e => {
   const f = e.target, id = f.dataset && f.dataset.id;
@@ -463,17 +499,21 @@ document.addEventListener('submit', async e => { if (e.target.id !== 'fIA') retu
   try { const r = await API.call('preguntarIA', { pregunta: $('#iaQ').value }); out.innerHTML = `<div class="ia-out">${esc(r.texto)}</div><p class="muted" style="font-size:12px">Texto generado por IA a partir de indicadores agregados. Revísalo antes de usarlo.${r.truncado ? ' La respuesta quedó incompleta.' : ''}</p>`; } catch (x) { out.innerHTML = ''; fallo(x); } });
 
 /* ================== 06 Cargue de datos ================== */
+const TIPOS_CARGA = {
+  base: { t: 'Base de ingresos diarios', hoja: 'BASE_INGRESOS', accion: 'cargarBase', req: ['INGRESO', 'ESTADO'], d: 'Ingresos del día o del periodo, facturados y abiertos. Se actualiza por número de ingreso: no borra los anteriores y registra cada cambio de estado (ej. REGISTRADO → FACTURADO).' },
+  abiertos: { t: 'Ingresos abiertos', hoja: 'INGRESOS_ABIERTOS', accion: 'cargarIngresos', req: ['INGRESO', 'ENTIDAD'], d: 'Reporte de ingresos abiertos de Dinámica (23 columnas). Reemplaza la carga anterior, la compara y cruza los que salieron con la base.' } };
 V['carga/cargar'] = () => { if (nivel('carga') < 2) return sinAcceso();
-  return head('Cargar Excel de ingresos abiertos', 'Solo el administrador carga. Cada carga guarda una fotografía, compara con la anterior y actualiza los casos especiales. Ningún caso se cierra solo.') + subtabs() +
-  `<div class="grid g-2"><div class="card"><h3>Nuevo archivo</h3><p class="hint">Excel de Dinámica con sus 23 columnas. Se leen por nombre de encabezado.</p>
-    <div class="drop-zone" id="dz"><b>Arrastra el archivo aquí</b><br>o<br><label class="btn ghost sm" style="margin-top:8px">Elegir archivo<input type="file" id="fileIn" accept=".xlsx,.xls,.csv" hidden></label></div><div id="valid" class="mt">${S.resCarga || ''}</div></div>
-   <div class="card"><h3>Qué hace la carga</h3><ol style="padding-left:18px;margin:0;display:grid;gap:6px"><li>Valida las columnas obligatorias y quita ingresos repetidos.</li><li>Convierte VALOR de texto (“1.234.567,89”) a número.</li><li>Unifica ENTIDAD con el catálogo ERP › contrato y propone los textos nuevos.</li><li>Agrupa AREA en área › ala; si viene vacía, la infiere de INGRESO POR.</li><li>Lee los códigos de RESPONSABLE (pendientes de autorización).</li><li>Compara con la carga anterior: nuevos, salidos, cambio de pagador.</li><li>Casos que salen quedan “Salió sin cierre” y alertan al gestor.</li><li>Una fotografía por día: si ya cargaste hoy, la reemplaza.</li></ol></div></div>`; };
-V['carga/cargar'].after = () => { const dz = $('#dz'), fi = $('#fileIn'); if (!dz) return;
+  S.resCarga = S.resCarga || {};
+  return head('Cargar archivos', 'Orden recomendado cada día: primero la base de ingresos, después ingresos abiertos. Así, los ingresos que salen de abiertos se confirman de inmediato contra la base.') + subtabs() +
+  `<div class="grid g-2">${['base', 'abiertos'].map((k, n) => { const T = TIPOS_CARGA[k]; return `<div class="card"><div class="card-h"><div><div class="crumb">Paso ${n + 1}</div><h3>${T.t}</h3><p class="hint">${T.d}</p></div><span class="pill p-mut">${T.hoja}</span></div>
+    <div class="drop-zone" data-dz="${k}"><b>Arrastra el archivo aquí</b><br>o<br><label class="btn ghost sm" style="margin-top:8px">Elegir archivo<input type="file" data-fi="${k}" accept=".xlsx,.xls,.csv" hidden></label></div><div id="valid-${k}" class="mt">${S.resCarga[k] || ''}</div></div>`; }).join('')}</div>
+  <div class="card mt"><h3>Qué se cruza entre las dos bases</h3><ol style="padding-left:18px;margin:0;display:grid;gap:6px"><li>Ingreso que sale de abiertos y la base lo muestra FACTURADO, CERRADO o ANULADO: salida confirmada.</li><li>Ingreso que sale de abiertos y en la base sigue REGISTRADO o no aparece: salida sin confirmar, para verificar.</li><li>Ingreso que sigue en abiertos pero la base ya lo marca facturado: inconsistencia entre reportes.</li><li>Casos especiales: el seguimiento muestra el estado en la base y la fecha del cambio; el gestor cierra con soporte.</li></ol></div>`; };
+V['carga/cargar'].after = () => { document.querySelectorAll('[data-dz]').forEach(dz => { const k = dz.dataset.dz, fi = document.querySelector(`[data-fi="${k}"]`);
   ['dragenter', 'dragover'].forEach(v => dz.addEventListener(v, e => { e.preventDefault(); dz.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(v => dz.addEventListener(v, e => { e.preventDefault(); dz.classList.remove('over'); }));
-  dz.addEventListener('drop', e => leerExcel(e.dataTransfer.files[0])); fi.onchange = () => leerExcel(fi.files[0]); };
-async function leerExcel(file) {
-  if (!file) return; S.resCarga = ''; const out = $('#valid');
+  dz.addEventListener('drop', e => leerExcel(e.dataTransfer.files[0], k)); fi.onchange = () => leerExcel(fi.files[0], k); }); };
+async function leerExcel(file, tipo) {
+  if (!file) return; const T = TIPOS_CARGA[tipo]; S.resCarga = S.resCarga || {}; S.resCarga[tipo] = ''; const out = $('#valid-' + tipo);
   if (!/\.(xlsx|xls|csv)$/i.test(file.name)) { out.innerHTML = '<div class="alert crit"><span class="sev"></span><div><div class="t">Formato no válido</div><div class="d">Sube un .xlsx, .xls o .csv.</div></div><span></span></div>'; return; }
   if (typeof XLSX === 'undefined') { fallo(new Error('No se pudo cargar el lector de Excel. Revisa la conexión a internet.')); return; }
   out.innerHTML = '<p class="muted">Leyendo archivo…</p>';
@@ -481,15 +521,17 @@ async function leerExcel(file) {
     const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
     const sh = wb.Sheets[wb.SheetNames[0]], m = XLSX.utils.sheet_to_json(sh, { header: 1, defval: '', raw: true });
     const norm = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
-    const hi = m.findIndex(r => r.map(norm).includes('INGRESO') && r.map(norm).includes('ENTIDAD'));
-    if (hi < 0) throw new Error('No encontré la fila de encabezados (debe tener INGRESO y ENTIDAD).');
+    const hi = m.findIndex(r => T.req.every(c => r.map(norm).includes(c)));
+    if (hi < 0) throw new Error(`No encontré la fila de encabezados: debe tener ${T.req.join(' y ')}. ¿Es el archivo de ${T.t.toLowerCase()}?`);
     const enc = m[hi].map(String);
     const filas = m.slice(hi + 1).filter(r => r.some(c => c !== '')).map(r => { const o = {}; enc.forEach((h, i) => { if (h) { const v = r[i]; o[h] = v instanceof Date ? v.toISOString() : v; } }); return o; });
-    out.innerHTML = `<div class="alert info"><span class="sev"></span><div><div class="t">${esc(file.name)}: ${fmtN(filas.length)} filas</div><div class="d">Encabezados encontrados en la fila ${hi + 1}. Confirma para reemplazar la carga actual.</div></div><button class="btn sm" id="bConf">Cargar</button></div>`;
-    $('#bConf').onclick = async () => { $('#bConf').disabled = true; out.insertAdjacentHTML('beforeend', '<p class="muted">Procesando en el servidor… puede tardar hasta un minuto.</p>');
-      try { const r = await API.call('cargarIngresos', { nombreArchivo: file.name, filas });
-        S.resCarga = out.innerHTML = `<div class="alert info"><span class="sev"></span><div><div class="t">Carga terminada: ${fmtN(r.filas)} ingresos${r.reemplazoDelDia ? ' (reemplazó la fotografía de hoy)' : ''}</div><div class="d">${r.primeraCarga ? 'Primera carga: los cambios aparecen desde la siguiente.' : `Nuevos ${fmtN(r.nuevos)} · salieron ${fmtN(r.salieron)} · cambio de pagador ${fmtN(r.cambioPagador)}`} · casos creados ${fmtN(r.casosCreados)} · casos que salieron sin cierre ${fmtN(r.casosSalieron)}${r.duplicados ? ' · ' + r.duplicados + ' filas repetidas omitidas' : ''}.</div></div><span></span></div>`;
-        await cargarDatos(); } catch (x) { fallo(x); $('#bConf') && ($('#bConf').disabled = false); } };
+    out.innerHTML = `<div class="alert info"><span class="sev"></span><div><div class="t">${esc(file.name)}: ${fmtN(filas.length)} filas</div><div class="d">Se cargará en ${T.hoja}.</div></div><button class="btn sm" id="bConf-${tipo}">Cargar</button></div>`;
+    $('#bConf-' + tipo).onclick = async () => { $('#bConf-' + tipo).disabled = true; out.insertAdjacentHTML('beforeend', '<p class="muted">Procesando en el servidor… puede tardar hasta un minuto.</p>');
+      try { const r = await API.call(T.accion, { nombreArchivo: file.name, filas });
+        const det = tipo === 'base' ? `${fmtN(r.filas)} filas leídas · ${fmtN(r.nuevos)} ingresos nuevos · ${fmtN(r.cambiosEstado)} cambios de estado (${fmtN(r.aFacturado)} pasaron a facturado, cerrado o anulado) · ${fmtN(r.total)} ingresos en la base.`
+          : `${r.primeraCarga ? 'Primera carga: el seguimiento aparece desde la siguiente.' : `Nuevos ${fmtN(r.nuevos)} · salieron ${fmtN(r.salieron)} · cambio de pagador ${fmtN(r.cambioPagador)}`} · casos creados ${fmtN(r.casosCreados)} · casos que salieron sin cierre ${fmtN(r.casosSalieron)}${r.duplicados ? ' · ' + r.duplicados + ' filas repetidas omitidas' : ''}.`;
+        S.resCarga[tipo] = out.innerHTML = `<div class="alert info"><span class="sev"></span><div><div class="t">${T.t}: carga terminada${r.reemplazoDelDia ? ' (reemplazó la fotografía de hoy)' : ''}</div><div class="d">${det}</div></div><button class="btn ghost sm" data-ir="ing/cambios">Ver seguimiento</button></div>`;
+        await cargarDatos(); } catch (x) { fallo(x); const b = $('#bConf-' + tipo); if (b) b.disabled = false; } };
   } catch (x) { out.innerHTML = ''; fallo(x); }
 }
 V['carga/historial'] = () => V['med/evol']();
