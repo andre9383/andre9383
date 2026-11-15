@@ -10,8 +10,8 @@ const pub = (a, d) => { const r = ctx.publico(a, d); sinFechas(r); if (!r.ok) th
 const T0 = Date.now();
 
 // 1. Instalación y seguridad del menú
-t('menú bloqueado desde la web', () => { env.activeUser = ''; let e; try { ctx.generarCodigoAdmin(); } catch (x) { e = x; } if (!e) throw new Error('generarCodigoAdmin se pudo llamar sin sesión de Google'); });
-let codigo; t('inicializar', () => { env.activeUser = 'owner@x.com'; const m = ctx.inicializarSistema(); codigo = env.props.get('CODIGO_ADMIN_INICIAL'); if (!codigo) throw new Error('sin código: ' + m); env.activeUser = ''; });
+t('el código nunca se devuelve a quien llama', () => { env.activeUser = ''; const r = ctx.generarCodigoAdmin(); if (r !== undefined) throw new Error('devolvió ' + r); const r2 = ctx.inicializarSistema(); if (r2 !== undefined) throw new Error('inicializar devolvió ' + r2); });
+let codigo; t('inicializar con correo vacío (como en tu Apps Script)', () => { env.activeUser = ''; ctx.inicializarSistema(); codigo = env.props.get('CODIGO_ADMIN_INICIAL'); if (!codigo) throw new Error('sin código'); });
 t('columnas nuevas agregadas sin borrar', () => { const h = L.getSheetByName('CASOS_ESPECIALES').data[0]; if (!h.includes('ERP ACTUAL') || h[2] !== 'ESTADO') throw new Error(h.join(',')); if (L.getSheetByName('INGRESOS_ABIERTOS').getLastRow() !== ing.length + 1) throw new Error('INGRESOS alterado'); });
 t('login con clave vieja falla', () => { const r = ctx.publico('login', { usuario: '1000001', clave: 'loquesea1' }); if (r.ok) throw new Error('entró con clave vieja'); });
 t('registro admin con código', () => pub('registro', { documento: '1000001', nombre: 'Laura Mendez', correo: 'admin@x.com', area: 'URGENCIAS', clave: 'Clave2026', aceptaDatos: true, codigoAdmin: codigo }));
@@ -104,7 +104,7 @@ t('informe pdf con IA', () => { env.tablas = 0; const r = api(adm, 'informe', { 
 t('informe word', () => { const r = api(adm, 'informe', { formato: 'docx' }); if (!/docx$/.test(r.nombre)) throw new Error(r.nombre); });
 
 // 9. Menú y alertas
-t('migrar casos legado', () => { env.activeUser = 'owner@x.com'; ctx.migrarCasosCerradosAutomaticamente(); env.activeUser = ''; const e = L.getSheetByName('CASOS_ESPECIALES'); const i = e.data[0].indexOf('ESTADO'); if (e.data.slice(1).some(r => /DIN[ÁA]MICA/.test(r[i]))) throw new Error('quedó CERRADO EN DINÁMICA'); });
+t('migrar casos legado', () => { ctx.migrarCasosCerradosAutomaticamente(); const e = L.getSheetByName('CASOS_ESPECIALES'); const i = e.data[0].indexOf('ESTADO'); if (e.data.slice(1).some(r => /DIN[ÁA]MICA/.test(r[i]))) throw new Error('quedó CERRADO EN DINÁMICA'); });
 t('alertas por correo', () => { env.mails.length = 0; ctx.ejecutarAlertasProgramadas(); if (env.mails.length < 2) throw new Error(env.mails.length); const n = env.mails.length; ctx.ejecutarAlertasProgramadas(); if (env.mails.length !== n) throw new Error('reenvió'); });
 t('cerrar sesión', () => { api(adm, 'cerrarSesion'); const e = apiErr(adm, 'datos'); if (e !== 'SESION_EXPIRADA') throw new Error(e); });
 

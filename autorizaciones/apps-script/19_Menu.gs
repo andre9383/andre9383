@@ -1,5 +1,9 @@
 /**
- * Menú de la hoja e instalación. Estas funciones se ejecutan desde la hoja o el editor, no desde la app.
+ * Menú de la hoja e instalación. Estas funciones se ejecutan desde la hoja o el editor.
+ *
+ * Seguridad: Apps Script deja llamar desde el navegador cualquier función que no termine en "_".
+ * Por eso ninguna de estas funciones DEVUELVE nada: el código de administrador solo se muestra
+ * en el Registro de ejecución del editor y en la alerta de la hoja, que solo ven los editores del archivo.
  */
 
 function onOpen() {
@@ -12,51 +16,41 @@ function onOpen() {
     .addToUi();
 }
 
-/**
- * Apps Script deja llamar desde el navegador cualquier función sin "_" al final.
- * Estas funciones de instalación solo deben correr desde la hoja o el editor, por una persona con sesión de Google.
- * Desde la app web (anónima) Session.getActiveUser() llega vacío y se rechaza.
- */
-function soloDesdeHoja_() {
-  var activo = '', efectivo = '';
-  try { activo = Session.getActiveUser().getEmail(); efectivo = Session.getEffectiveUser().getEmail(); } catch (e) {}
-  if (!activo || activo !== efectivo) throw new Error('Esta función solo se ejecuta desde el menú de la hoja o desde el editor.');
+function mostrar_(msg) {
+  console.log(msg);
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) { /* ejecutado desde el editor: queda en el Registro de ejecución */ }
 }
 
 /** Crea las hojas que falten y agrega columnas nuevas al final. No borra datos. */
 function inicializarSistema() {
-  soloDesdeHoja_();
   Object.keys(ENC).forEach(function (n) { asegurarEncabezados_(n); });
   if (!objetos_(H.PARAMETROS).length) appendFilas_(H.PARAMETROS, PARAMETROS_BASE.map(function (r) { return { 'CLAVE': r[0], 'VALOR': r[1], 'DESCRIPCION': r[2], 'ACTUALIZADO': ahora_(), 'USUARIO': 'Instalación' }; }));
   if (!objetos_(H.CODIGOS).length) appendFilas_(H.CODIGOS, CODIGOS_BASE.map(function (r) { return { 'PATRON': r[0], 'CLAVE': r[1], 'SIGNIFICADO': r[2], 'ACTIVO': r[3] }; }));
   pimienta_();
   var tieneAdmin = objetos_(H.USUARIOS).some(function (u) { return normRol_(u['ROL']) === 'ADMINISTRADOR' && txt_(u['CLAVE HASH']).indexOf('v3$') === 0 && may_(u['ACTIVO']) === 'SI'; });
   var msg = 'Hojas listas.';
-  if (!tieneAdmin) { var c = generarCodigoAdmin(true); msg += ' Código de administrador inicial: ' + c + ' (úsalo en "Crear cuenta" › "Soy el administrador inicial").'; }
-  console.log(msg);
-  try { SpreadsheetApp.getUi().alert(msg); } catch (e) { /* ejecutado desde el editor */ }
-  return msg;
+  if (!tieneAdmin) msg += ' Código de administrador inicial (vale 24 horas): ' + crearCodigoAdmin_() + '. Úsalo en la aplicación: "Crear cuenta" › "Soy el administrador inicial".';
+  mostrar_(msg);
 }
 
 /** Código de un solo uso para crear (o recuperar) la cuenta de administrador. Vence en 24 horas. */
-function generarCodigoAdmin(silencioso) {
-  soloDesdeHoja_();
+function generarCodigoAdmin() {
+  mostrar_('Código de administrador inicial (vale 24 horas): ' + crearCodigoAdmin_());
+}
+
+function crearCodigoAdmin_() {
   var c = ('' + Math.floor(100000 + Math.random() * 899999)) + '-' + uuid_().slice(0, 4).toUpperCase();
   prop_('CODIGO_ADMIN_INICIAL', c);
   ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'vencerCodigoAdmin') ScriptApp.deleteTrigger(t); });
   try { ScriptApp.newTrigger('vencerCodigoAdmin').timeBased().after(24 * 36e5).create(); } catch (e) { console.warn(e); }
-  if (silencioso !== true) { console.log('Código: ' + c); try { SpreadsheetApp.getUi().alert('Código de administrador inicial (24 horas): ' + c); } catch (e) {} }
   return c;
 }
 function vencerCodigoAdmin() { PropertiesService.getScriptProperties().deleteProperty('CODIGO_ADMIN_INICIAL'); }
 
 function instalarActivadores() {
-  soloDesdeHoja_();
   ScriptApp.getProjectTriggers().forEach(function (t) { if (['ejecutarAlertasProgramadas', 'actualizarControlAutomatico'].indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger('ejecutarAlertasProgramadas').timeBased().everyDays(1).atHour(7).inTimezone(APP.ZONA).create();
-  var msg = 'Alerta diaria por correo instalada a las 7:00.';
-  console.log(msg);
-  try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
+  mostrar_('Alerta diaria por correo instalada a las 7:00.');
 }
 
 /**
@@ -64,7 +58,6 @@ function instalarActivadores() {
  * para que el gestor cargue el soporte. Se registra una gestión por cada uno.
  */
 function migrarCasosCerradosAutomaticamente() {
-  soloDesdeHoja_();
   var d = leer_(H.CASOS), n = 0, gest = [];
   d.filas.forEach(function (r, i) {
     var e = norm_(r[d.idx['ESTADO']]), res = txt_(r[d.idx['RESULTADO CIERRE']]);
@@ -75,8 +68,5 @@ function migrarCasosCerradosAutomaticamente() {
     }
   });
   appendFilas_(H.GESTIONES, gest);
-  var msg = n + ' casos pasaron a "' + EC.SALIO + '".';
-  console.log(msg);
-  try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
-  return n;
+  mostrar_(n + ' casos pasaron a "' + EC.SALIO + '".');
 }

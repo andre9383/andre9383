@@ -3,7 +3,7 @@ const fs = require('fs'), path = require('path'); const { chromium } = require('
 const DIR = process.argv[2], OUT = process.argv[3];
 const { crearEntorno } = require('./mock'); const { libroInicial, ENC_ING } = require('./semilla');
 const { L, ing } = libroInicial(1200); const { ctx, env } = crearEntorno(L);
-env.activeUser = 'owner@x.com'; ctx.inicializarSistema(); const cod = env.props.get('CODIGO_ADMIN_INICIAL'); env.activeUser = '';
+ctx.inicializarSistema(); const cod = env.props.get('CODIGO_ADMIN_INICIAL'); env.activeUser = '';
 // dejar todo listo: admin, una carga, usuarios aprobados
 ctx.publico('registro', { documento: '1000001', nombre: 'Laura Méndez', correo: 'admin@x.com', area: 'URGENCIAS', clave: 'Clave2026', aceptaDatos: true, codigoAdmin: cod });
 const tk = ctx.publico('login', { usuario: '1000001', clave: 'Clave2026' }).data.token;
