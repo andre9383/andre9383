@@ -75,7 +75,7 @@ def dump(name, var, obj):
 counts = {}
 for lv in (5, 4, 3, 2, 1):
     rows = []
-    for x in raw['kanji']:
+    for x in sorted(raw['kanji'], key=lambda x: (x['freq'] or 9999, x['strokes'])):
         if x['jlpt'] != lv:
             continue
         t = es.get(x['k'], {})

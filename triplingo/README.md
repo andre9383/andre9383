@@ -18,6 +18,11 @@ App Android para aprender **inglés, portugués (Brasil) y japonés** en un plan
 - **Canciones** tradicionales de dominio público con subtítulos, karaoke, completar letra, cantar con evaluación; pegar la letra de tus canciones o crear canciones con IA.
 - **Libros**: fragmentos de clásicos de dominio público (Carroll, Austen, Machado de Assis, Sōseki, Akutagawa, Miyazawa) y cuentos graduados, con lector interactivo.
 - **Modo niños** (niveles 1 y 2): 12 unidades con imágenes, juegos de "¿Dónde está?", parejas y repetir en voz alta, y estrellas.
+### Novedades 2.2 — Escritura japonesa completa
+- **Hiragana y katakana completos** (15 lecciones cada uno): básicos, dakuten/handakuten, combinados (yōon), っ/ッ pequeña, vocales largas y katakana extendido.
+- **2.211 kanji del JLPT (N5→N1)** en lecciones de 10, ordenados por frecuencia, con lecturas on/kun, significado en español y 3 palabras de ejemplo.
+- Cada lección: aprender (orden de trazos animado) → escribir **trazo a trazo** (detecta orden y dirección) → quiz → escribir de memoria. Todo sin conexión.
+- Datos regenerables con `tools/extract_japanese.py`, `tools/translate_es.py` y `tools/build_jp_assets.py` (créditos en `assets/licenses/CREDITS.txt`).
 - Nuevos ejercicios: parejas, dictado y completar huecos; **cuaderno de errores**; efectos de sonido; tamaño de letra ajustable.
 
 ## Compilar
