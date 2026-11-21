@@ -373,5 +373,51 @@ V.jlearn = async function ({ track, n, onDone }) {
 
 // ------------------------------------------------------------------ vista "Kanji" (atajo a las pistas N5–N1)
 V.kanji = function () { A._jt = A._jt && A._jt[0] === 'n' ? A._jt : 'n5'; go('jwrite', null, true); };
+window.JPW_INT = { tracks, items: lessonItems, title: lessonTitle, load: needLevel };
 window.JP_TOTAL_KANJI = () => Object.values(window.JPK_COUNTS || {}).reduce((a, b) => a + b, 0);
+})();
+
+// =====================================================================
+// Integración con Cursos → Japonés e Inicio
+// =====================================================================
+(function () {
+  const T = window.TL, A = T.A, esc = T.esc;
+  const tr = () => window.JPW_INT.tracks();
+  const doneIn = (t) => { const st = T.S.jpw || {}; let d = 0; for (let i = 0; i < t.lessons; i++) if (st[t.id + '-' + i] && st[t.id + '-' + i].done) d++; return d; };
+  // Progreso total de japonés 0‑100: 50% gramática/conversación, 20% kana, 30% kanji
+  window.JPW_INT.percent = function () {
+    const nu = T.NU(); let du = 0; for (let i = 0; i < nu; i++) { const u = T.S.units['ja-' + i]; if (u && u.done) du++; }
+    const t = tr(), kana = t.filter(x => !x.lv), kan = t.filter(x => x.lv);
+    const kp = kana.reduce((a, x) => a + doneIn(x), 0) / kana.reduce((a, x) => a + x.lessons, 0);
+    const kj = kan.reduce((a, x) => a + doneIn(x), 0) / kan.reduce((a, x) => a + x.lessons, 0);
+    return { total: Math.round(du / nu * 50 + kp * 20 + kj * 30), units: [du, nu], kana: Math.round(kp * 100), kanji: Math.round(kj * 100) };
+  };
+  // Siguiente lección de escritura recomendada (hiragana → katakana → N5 → … → N1)
+  window.JPW_INT.next = function () {
+    for (const t of tr()) for (let i = 0; i < t.lessons; i++) { const s = (T.S.jpw || {})[t.id + '-' + i]; if (!s || !s.done) return { track: t, n: i, title: window.JPW_INT.title(t.id, i), steps: s ? ['learn', 'write', 'quiz', 'memory'].filter(k => s.steps[k]).length : 0 }; }
+    return null;
+  };
+  // Contenido de las pestañas de escritura dentro de Cursos → Japonés
+  window.JPW_INT.section = async function (sub, el) {
+    const list = tr().filter(t => sub === 'kanji' ? t.lv : t.id === sub);
+    let h = '';
+    if (sub === 'kanji') {
+      const open = A._jkopen || list.find(t => doneIn(t) < t.lessons)?.id || 'n5';
+      for (const t of list) {
+        const d = doneIn(t);
+        h += `<button class="lvl ${t.id === open ? 'cur' : ''} ${d === t.lessons ? 'done' : ''}" onclick="App._jkopen=App._jkopen==='${t.id}'?'-':'${t.id}';render()"><span class="lic">漢</span><div class="grow"><b>Kanji N${t.lv}</b> <span class="badge">${window.JPK_COUNTS[t.lv]} kanji</span><div class="mut">${{ 5: 'Lo esencial: números, días, personas, verbos básicos', 4: 'Vida diaria: familia, ciudad, tiempo, acciones', 3: 'Intermedio: trabajo, sociedad, emociones', 2: 'Avanzado: noticias, economía, abstracto', 1: 'Maestría: literatura, política, términos cultos' }[t.lv]}</div><div class="bar" style="margin-top:6px"><i style="width:${d / t.lessons * 100}%;background:var(--ja)"></i></div></div><span class="mut">${d}/${t.lessons}</span></button>`;
+        if (t.id === open) { await window.JPW_INT.load(t.lv); h += lessonsHTML(t); }
+      }
+    } else list.forEach(t => { h += `<div class="card"><b>${t.ic} ${t.n}</b> <span class="mut">· ${doneIn(t)}/${t.lessons} lecciones</span><div class="bar" style="margin-top:6px"><i style="width:${doneIn(t) / t.lessons * 100}%;background:var(--ja)"></i></div><button class="btn sm sec" style="margin-top:8px" onclick="go('jtable','${t.id}')">Ver tabla completa</button></div>` + lessonsHTML(t); });
+    if (el && document.body.contains(el)) el.innerHTML = h;
+  };
+  function lessonsHTML(t) {
+    let h = '<div class="path">';
+    for (let i = 0; i < t.lessons; i++) {
+      const s = (T.S.jpw || {})[t.id + '-' + i], d = s && s.done, nst = s ? ['learn', 'write', 'quiz', 'memory'].filter(k => s.steps[k]).length : 0;
+      const chars = window.JPW_INT.items(t.id, i).map(x => x.ch).join(' ');
+      h += `<button class="unit ${d ? 'done' : ''}" onclick="go('jlesson',{track:'${t.id}',n:${i}})"><div class="n">${d ? '✓' : i + 1}</div><div class="grow"><b>${esc(window.JPW_INT.title(t.id, i))}</b><div class="jprev">${chars}</div><div class="mut">${nst}/4 pasos</div></div><span>›</span></button>`;
+    }
+    return h + '</div>';
+  }
 })();

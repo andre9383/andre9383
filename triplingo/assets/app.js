@@ -321,7 +321,9 @@ V.home = function () {
       const st = U(l, i).steps; const n = ['theory', 'vocab', 'practice', 'speak', 'quiz'].filter(k => st[k]).length;
       const late = i < plan ? `<span class="badge" style="color:var(--warn)">${plan - i} unid. de atraso</span>` : (i > plan ? '<span class="badge" style="color:var(--ok)">adelantado</span>' : '<span class="badge">al día</span>');
       return `<button class="unit" onclick="App.openUnit('${l}',${i})"><div class="n" style="background:${COURSE[l].color}33">${COURSE[l].flag}</div>
-        <div class="grow"><b>${esc(u.t)}</b><div class="mut">${LV(i).ic} ${LV(i).n} · unidad ${i + 1} · ${n}/5 pasos ${late}</div><div class="bar" style="margin-top:6px"><i style="width:${n * 20}%"></i></div></div><span>›</span></button>`;
+        <div class="grow"><b>${esc(u.t)}</b><div class="mut">${LV(i).ic} ${LV(i).n} · unidad ${i + 1} · ${n}/5 pasos ${late}</div><div class="bar" style="margin-top:6px"><i style="width:${n * 20}%"></i></div></div><span>›</span></button>`
+        + (l === 'ja' && window.JPW_INT ? (() => { const nx = window.JPW_INT.next(), P = window.JPW_INT.percent(); return nx ? `<button class="unit" onclick="go('jlesson',{track:'${nx.track.id}',n:${nx.n}})"><div class="n" style="background:#facc1533;font-size:20px">${nx.track.ic}</div>
+        <div class="grow"><b>✍️ ${esc(nx.track.n)} · ${esc(nx.title)}</b><div class="mut">Escritura japonesa · ${nx.steps}/4 pasos · japonés total ${P.total}%</div><div class="bar" style="margin-top:6px"><i style="width:${nx.steps * 25}%;background:var(--ja)"></i></div></div><span>›</span></button>` : ''; })() : '');
     }).join('')}
     <div class="grid2" style="margin-top:6px">
       <button class="tile" onclick="tabGo('review')"><span class="ic">🧠</span><b>Repaso espaciado</b><span class="mut">${due} tarjetas pendientes</span></button>
@@ -352,6 +354,17 @@ V.courses = function () {
   const C = COURSE[l], cur = curUnit(l);
   let h = top('Cursos') + `<div class="tabs">${S.langs.map(x => `<button class="${x === l ? 'on' : ''}" onclick="App.cTab('${x}')">${COURSE[x].flag} ${COURSE[x].name}</button>`).join('')}</div>`;
   h += `<div class="card"><div class="row"><div class="grow"><b>${C.flag} ${C.name}</b><div class="mut">${doneCount(l)}/${NU()} unidades · nivel actual ${LV(cur).cefr}</div></div><button class="btn sm sec" onclick="App.placement('${l}')">Test de nivel</button><button class="btn sm sec" onclick="go('method')">Método</button></div></div>`;
+  if (l === 'ja' && window.JPW_INT) {
+    const P = window.JPW_INT.percent(), sub = A._jsub || 'lessons';
+    h += `<div class="card"><div class="row"><b class="grow">🇯🇵 Japonés de 0 a 100</b><b style="font-size:22px">${P.total}%</b></div><div class="bar" style="margin:8px 0"><i style="width:${P.total}%;background:var(--ja)"></i></div>
+      <div class="mut">📘 Lecciones ${P.units[0]}/${P.units[1]} · あ ア Kana ${P.kana}% · 漢 Kanji ${P.kanji}%</div></div>
+      <div class="tabs jtabs">${[['lessons', '📘 Lecciones'], ['hira', 'あ Hiragana'], ['kata', 'ア Katakana'], ['kanji', '漢 Kanji N5→N1']].map(([k, n]) => `<button class="${sub === k ? 'on' : ''}" onclick="App._jsub='${k}';render()">${n}</button>`).join('')}</div>`;
+    if (sub !== 'lessons') {
+      $app.innerHTML = h + '<div id="jsub"><div class="spin"></div></div>';
+      window.JPW_INT.section(sub, document.getElementById('jsub'));
+      return;
+    }
+  }
   const openLv = A._olv != null ? A._olv : levelIdx(cur);
   LEVELS.forEach((L, li) => {
     const n = L.to - L.from + 1, d = C.units.slice(L.from, L.to + 1).filter((_, k) => S.units[l + '-' + (L.from + k)] && S.units[l + '-' + (L.from + k)].done).length;
@@ -982,7 +995,7 @@ V.settings = function () {
     <p class="mut">Inicio del plan: ${S.started}</p><label class="mut">Idiomas activos</label><div class="row wrap">${LANGS.map(l => `<button class="lang-chip ${S.langs.includes(l) ? 'on' : ''}" onclick="App.sLang('${l}')">${S.langs.includes(l) ? '✅' : '➕'} ${COURSE[l].flag} ${COURSE[l].name}</button>`).join('')}</div></div>
   <div class="card"><h3>💾 Datos</h3><div class="row wrap"><button class="btn sm sec" onclick="App.sExp()">Exportar progreso</button><button class="btn sm sec" onclick="App.sImp()">Importar</button><button class="btn sm bad" onclick="App.sReset()">Borrar todo</button></div><textarea id="io" style="margin-top:10px;display:none"></textarea></div>
   <div class="card"><h3>📜 Créditos y licencias</h3><p class="mut">Trazos: AnimCJK / Make Me a Hanzi (LGPL v3 y Arphic PL). Kanji y vocabulario: KANJIDIC2 / JMdict © EDRDG (CC BY-SA 4.0). Canciones y libros: dominio público.</p><div class="row wrap">${['CREDITS.txt', 'LGPL.txt', 'ARPHICPL.TXT', 'COPYING.txt', 'kanji-data-MIT.txt'].map(f => `<a class="btn sm sec" href="licenses/${f}">${f}</a>`).join('')}</div></div>
-  <p class="mut center">TriLingo 2.2 · hecho para aprender 3× más rápido</p>`;
+  <p class="mut center">TriLingo 2.3 · hecho para aprender 3× más rápido</p>`;
   A.sKey = () => { const k = document.getElementById('k').value.trim(); if (k) setKey(k); setModel(document.getElementById('mdl').value); toast('Guardado ✓'); render(); };
   A.sTest = async () => { setModel(document.getElementById('mdl').value); const e = document.getElementById('tst'); e.textContent = 'Probando…'; try { const t = await ai({ messages: [{ role: 'user', text: 'Responde solo: "¡Conexión OK! 👋" y un saludo en inglés, portugués y japonés en una línea.' }] }); e.textContent = '✅ ' + t; } catch (x) { e.textContent = '❌ ' + x.message; } };
   A.sRate = (v) => { S.rate = +v; document.getElementById('rv').textContent = v; save(); };

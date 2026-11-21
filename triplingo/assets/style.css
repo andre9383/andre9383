@@ -185,3 +185,4 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .jbig span{cursor:pointer}
 .jprev{font-size:20px;letter-spacing:2px;margin:2px 0;overflow-wrap:anywhere}
 .kgrid.kana button{font-size:22px}
+.tabs.jtabs{flex-wrap:wrap}
