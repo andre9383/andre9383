@@ -2,3 +2,4 @@ build/
 src/com/triplingo/app/BuildKey.java
 *.keystore
 local.key
+__pycache__/
