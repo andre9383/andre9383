@@ -12,13 +12,25 @@ const $nav = document.getElementById('nav');
 
 // ------------------------------------------------------------------ estado
 const DEF = {
-  v: 1, started: null, name: '', langs: ['en', 'pt', 'ja'], goal: 150, rate: 0.9,
+  v: 2, started: null, name: '', langs: ['en', 'pt', 'ja'], goal: 150, rate: 0.9,
   xp: 0, streak: 0, best: 0, lastDay: null, today: { d: null, xp: 0 }, hist: {},
-  units: {}, srs: {}, kana: {}, stats: { answers: 0, correct: 0, spoken: 0, convs: 0, lessons: 0, minutes: 0 }
+  units: {}, srs: {}, kana: {}, stats: { answers: 0, correct: 0, spoken: 0, convs: 0, lessons: 0, minutes: 0 },
+  mode: 'adult', kids: {}, mistakes: [], font: 100, sfx: true, write: {}, kanji: {}
 };
+const NU = () => COURSE.en.units.length; // 32 unidades: Básico, A1, A2, B1, B2, C1, C2
 let S = load();
 function load() {
-  try { const s = JSON.parse(localStorage.getItem('tl_state')); if (s && s.v) return Object.assign({}, DEF, s); } catch (e) { }
+  try {
+    const s = JSON.parse(localStorage.getItem('tl_state'));
+    if (s && s.v) {
+      if (s.v < 2) { // v1 tenía 24 unidades (A1–C1); ahora hay 4 de Básico delante
+        const u = {}; Object.keys(s.units || {}).forEach(k => { const [l, i] = k.split('-'); u[l + '-' + (+i + 4)] = s.units[k]; });
+        ['en', 'pt', 'ja'].forEach(l => { if (u[l + '-4']) for (let i = 0; i < 4; i++) u[l + '-' + i] = { steps: {}, best: 0, done: true, skipped: true }; });
+        s.units = u; s.v = 2;
+      }
+      return Object.assign(JSON.parse(JSON.stringify(DEF)), s);
+    }
+  } catch (e) { }
   return JSON.parse(JSON.stringify(DEF));
 }
 function save() { try { localStorage.setItem('tl_state', JSON.stringify(S)); } catch (e) { } }
@@ -39,7 +51,10 @@ function addXP(n) {
   save();
 }
 function streakAlive() { if (!S.lastDay) return 0; const d = dayNum(today()) - dayNum(S.lastDay); return d <= 1 ? S.streak : 0; }
-function weekIndex() { if (!S.started) return 0; return Math.min(23, Math.max(0, Math.floor((dayNum(today()) - dayNum(S.started)) / 7))); }
+function weekIndex() { if (!S.started) return 0; return Math.min(25, Math.max(0, Math.floor((dayNum(today()) - dayNum(S.started)) / 7))); }
+// Plan de 26 semanas: Básico → C1 (28 unidades); C2 es la extensión de maestría
+function planUnit() { if (!S.started) return 0; return Math.min(NU() - 1, Math.floor((dayNum(today()) - dayNum(S.started)) * 28 / 182)); }
+const LV = (i) => LEVELS[levelIdx(i)];
 const U = (l, i) => S.units[l + '-' + i] || (S.units[l + '-' + i] = { steps: {}, best: 0, done: false });
 function unitUnlocked(l, i) { return i === 0 || (S.units[l + '-' + (i - 1)] && S.units[l + '-' + (i - 1)].done) || (S.units[l + '-' + i] && S.units[l + '-' + i].open); }
 function curUnit(l) { const n = COURSE[l].units.length; for (let i = 0; i < n; i++) if (!(S.units[l + '-' + i] && S.units[l + '-' + i].done)) return i; return n - 1; }
@@ -81,6 +96,51 @@ function lev(a, b) {
   return prev[n];
 }
 const sim = (a, b) => { if (!a && !b) return 1; return 1 - lev(a, b) / Math.max(a.length, b.length); };
+
+// ---- Conversor romaji → kana (teclado japonés integrado)
+const RK = {};
+(function () {
+  const V = ['a', 'i', 'u', 'e', 'o'], H = 'あいうえお';
+  const rows = { '': 'あいうえお', k: 'かきくけこ', s: 'さしすせそ', t: 'たちつてと', n: 'なにぬねの', h: 'はひふへほ', m: 'まみむめも', y: 'や_ゆ_よ', r: 'らりるれろ', w: 'わ__を', g: 'がぎぐげご', z: 'ざじずぜぞ', d: 'だぢづでど', b: 'ばびぶべぼ', p: 'ぱぴぷぺぽ' };
+  Object.keys(rows).forEach(c => V.forEach((v, k) => { if (rows[c][k] !== '_') RK[c + v] = rows[c][k]; }));
+  Object.assign(RK, { shi: 'し', chi: 'ち', tsu: 'つ', fu: 'ふ', ji: 'じ', wo: 'を', nn: 'ん', "n'": 'ん', xtsu: 'っ', ltsu: 'っ', xya: 'ゃ', xyu: 'ゅ', xyo: 'ょ', la: 'ぁ', li: 'ぃ', lu: 'ぅ', le: 'ぇ', lo: 'ぉ', xa: 'ぁ', xi: 'ぃ', xu: 'ぅ', xe: 'ぇ', xo: 'ぉ', '-': 'ー' });
+  const yo = { ky: 'き', sh: 'し', ch: 'ち', ny: 'に', hy: 'ひ', my: 'み', ry: 'り', gy: 'ぎ', j: 'じ', by: 'び', py: 'ぴ', sy: 'し', ty: 'ち', zy: 'じ', dy: 'ぢ', jy: 'じ', cy: 'ち' };
+  Object.keys(yo).forEach(c => { RK[c + 'a'] = yo[c] + 'ゃ'; RK[c + 'u'] = yo[c] + 'ゅ'; RK[c + 'o'] = yo[c] + 'ょ'; });
+  RK.she = 'しぇ'; RK.je = 'じぇ'; RK.che = 'ちぇ'; RK.fa = 'ふぁ'; RK.fi = 'ふぃ'; RK.fe = 'ふぇ'; RK.fo = 'ふぉ'; RK.ti = 'てぃ'; RK.di = 'でぃ'; RK.wi = 'うぃ'; RK.we = 'うぇ'; RK.va = 'ゔぁ'; RK.vi = 'ゔぃ'; RK.vu = 'ゔ';
+})();
+const hira2kata = (s) => s.replace(/[ぁ-ゖ]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60));
+const kata2hira = (s) => s.replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+function toKana(str, kata, fold) {
+  let s = String(str).toLowerCase(); if (kata) s = s.replace(/([āīūēō])/g, (m) => ({ ā: 'a', ī: 'i', ū: 'u', ē: 'e', ō: 'o' })[m] + '-');
+  s = s.replace(/ā/g, 'aa').replace(/ī/g, 'ii').replace(/ū/g, 'uu').replace(/ē/g, 'ei').replace(/ō/g, 'ou');
+  let out = '', i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (!/[a-z'\-]/.test(c)) { out += c; i++; continue; }
+    if (c === s[i + 1] && /[bcdfghjkmpqrstvwxyz]/.test(c)) { out += 'っ'; i++; continue; }
+    if (c === 'n' && s[i + 1] === 'n' && /[aiueoy]/.test(s[i + 2] || '')) { out += 'ん'; i++; continue; }
+    if (c === 'n' && (i + 1 >= s.length ? fold : !/[aiueoyn']/.test(s[i + 1]))) { out += 'ん'; i++; continue; }
+    let hit = false;
+    for (let L = 4; L >= 1; L--) { const seg = s.substr(i, L); if (RK[seg]) { out += RK[seg]; i += L; hit = true; break; } }
+    if (!hit) { out += c; i++; }
+  }
+  if (fold) return kata2hira(out);
+  return kata ? hira2kata(out) : out;
+}
+window.toKana = toKana;
+
+// ---- Efectos de sonido (Web Audio, sin archivos)
+let AC = null;
+function sfx(t) {
+  if (!S.sfx) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const seq = { ok: [[660, .07], [880, .1]], bad: [[220, .16]], combo: [[660, .06], [880, .06], [1175, .12]], win: [[523, .1], [659, .1], [784, .1], [1047, .25]], tap: [[500, .04]] }[t] || [];
+    let at = AC.currentTime;
+    seq.forEach(([f, d]) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = t === 'bad' ? 'sawtooth' : 'sine'; o.frequency.value = f; g.gain.setValueAtTime(.12, at); g.gain.exponentialRampToValueAtTime(.001, at + d); o.connect(g); g.connect(AC.destination); o.start(at); o.stop(at + d); at += d * .9; });
+  } catch (e) { }
+}
+function openUrl(u) { try { if (NATIVE && Android.openUrl) Android.openUrl(u); else window.open(u, '_blank'); } catch (e) { window.open(u, '_blank'); } }
 
 // ------------------------------------------------------------------ voz (TTS + STT)
 const BCP = { en: 'en-US', pt: 'pt-BR', ja: 'ja-JP', es: 'es-ES' };
@@ -163,7 +223,7 @@ function parseJSON(t) {
   t = String(t).trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
   try { return JSON.parse(t); } catch (e) { const m = t.match(/[\[{][\s\S]*[\]}]/); if (m) return JSON.parse(m[0]); throw e; }
 }
-function levelOf(l) { const i = curUnit(l); return CEFR[Math.floor(i / 4)] + ' (unidad ' + (i + 1) + ': ' + COURSE[l].units[i].t + ')'; }
+function levelOf(l) { const i = curUnit(l); return LV(i).cefr + ' (unidad ' + (i + 1) + ': ' + COURSE[l].units[i].t + ')'; }
 const LNAME = { en: 'inglés', pt: 'portugués de Brasil', ja: 'japonés' };
 const aiErr = (e) => `<div class="card"><b>⚠️ No pude contactar a la IA.</b><p class="mut">${esc(e.message || e)}</p><p class="mut">Revisa tu conexión o tu clave en <b>Más → Ajustes</b>. Si dice "high demand", vuelve a intentarlo en unos segundos.</p></div>`;
 
@@ -178,7 +238,7 @@ function go(name, arg, replace) {
 }
 window.goBack = function () {
   if (document.querySelector('.fb')) { document.querySelector('.fb').remove(); }
-  if (!stack.length) { if (view && view.name !== 'home') { view = { name: 'home' }; render(); return 'stay'; } return 'exit'; }
+  if (!stack.length) { const root = S.mode === 'kids' ? 'kidsHome' : 'home'; if (view && view.name !== root) { view = { name: root }; render(); return 'stay'; } return 'exit'; }
   view = stack.pop(); render(); return 'stay';
 };
 function tabGo(name) { stack = []; view = { name }; render(); }
@@ -210,7 +270,7 @@ const A = window.App;
 
 V.onboard = function () {
   const sel = new Set(S.langs);
-  const lv = { en: 0, pt: 0, ja: 0 };
+  const lv = { en: 0, pt: 0, ja: 0 }; let mode = 'adult';
   function draw() {
     $app.innerHTML = `
     <div class="hero"><h2>¡Bienvenido a TriLingo! 🌍</h2><p>Inglés 🇬🇧, portugués 🇧🇷 y japonés 🇯🇵 en 6 meses, de cero a nivel avanzado, con teoría, práctica, voz e IA.</p></div>
@@ -221,8 +281,10 @@ V.onboard = function () {
     <div class="card"><h3>Tu nivel actual</h3>
       ${LANGS.filter(l => sel.has(l)).map(l => `<div class="row" style="margin:8px 0"><span class="grow">${COURSE[l].flag} ${COURSE[l].name}</span>
         <select style="width:auto" onchange="App.obL('${l}',this.value)">
-        <option value="0" ${lv[l] == 0 ? 'selected' : ''}>Desde cero</option><option value="4" ${lv[l] == 4 ? 'selected' : ''}>Básico (mes 2)</option><option value="8" ${lv[l] == 8 ? 'selected' : ''}>Pre‑intermedio (mes 3)</option><option value="12" ${lv[l] == 12 ? 'selected' : ''}>Intermedio (mes 4)</option></select></div>`).join('')}
+        ${LEVELS.slice(0, 5).map((L, k) => { const v = k ? LEVELS[k - 1].to + 1 : 0; return `<option value="${v}" ${lv[l] == v ? 'selected' : ''}>${k ? 'Ya domino ' + LEVELS[k - 1].n + ' → empiezo en ' + L.n : 'Desde cero (Básico)'}</option>`; }).join('')}</select></div>`).join('')}
+      <p class="mut">¿No estás seguro? Luego puedes hacer el <b>Test de nivel</b> en Cursos.</p>
     </div>
+    <div class="card"><h3>¿Quién va a aprender?</h3><div class="row"><button class="lang-chip ${mode === 'adult' ? 'on' : ''}" onclick="App.obM('adult')">🧑 Joven / adulto</button><button class="lang-chip ${mode === 'kids' ? 'on' : ''}" onclick="App.obM('kids')">🧸 Niño/a (3‑10 años)</button></div></div>
     <div class="card"><h3>Meta diaria</h3><select id="goal"><option value="90">Relajada · 90 XP (~20 min)</option><option value="150" selected>Seria · 150 XP (~35 min)</option><option value="250">Intensa · 250 XP (~60 min)</option><option value="400">Modo 3× · 400 XP (~90 min)</option></select></div>
     <div class="card"><h3>Clave de Gemini (IA)</h3><p class="mut">Activa conversaciones, tutor y ejercicios ilimitados. ${getKey() ? '✅ Ya está configurada.' : 'Puedes ponerla después en Ajustes.'}</p>
       ${getKey() ? '' : '<input id="key" placeholder="Pega tu API key de Gemini">'}</div>
@@ -230,12 +292,13 @@ V.onboard = function () {
   }
   A.obT = (l) => { sel.has(l) ? sel.size > 1 && sel.delete(l) : sel.add(l); S.name = document.getElementById('nm').value; draw(); };
   A.obL = (l, v) => { lv[l] = +v; };
+  A.obM = (m) => { mode = m; S.name = document.getElementById('nm').value; draw(); };
   A.obGo = () => {
     S.name = document.getElementById('nm').value.trim();
     S.langs = LANGS.filter(l => sel.has(l)); S.goal = +document.getElementById('goal').value;
     const k = document.getElementById('key'); if (k && k.value.trim()) setKey(k.value.trim());
     S.langs.forEach(l => { for (let i = 0; i < lv[l]; i++) { const u = U(l, i); u.done = true; u.skipped = true; } });
-    S.started = today(); touchDay(); save(); view = { name: 'home' }; render();
+    S.mode = mode; S.started = today(); touchDay(); save(); view = { name: mode === 'kids' ? 'kidsHome' : 'home' }; render();
   };
   draw();
 };
@@ -247,30 +310,35 @@ V.home = function () {
   const hello = S.name ? 'Hola, ' + esc(S.name) : 'Hola';
   $app.innerHTML = `${top('TriLingo', false)}
   <div class="hero row">
-    <div class="grow"><h2>${hello} 👋</h2><div>Semana <b>${w + 1}</b> de 24 · ${MONTHS[Math.floor(w / 4)]}</div>
+    <div class="grow"><h2>${hello} 👋</h2><div>Semana <b>${w + 1}</b> de 26 · plan Básico → C1</div>
       <div class="mut" style="color:#e0e7ff">Hoy: ${S.today.xp}/${S.goal} XP</div></div>
     <div class="ring" style="background:conic-gradient(#fff ${pct * 3.6}deg,#ffffff33 0)"><div class="ring" style="width:66px;height:66px;background:#5b21b6">${pct}%</div></div>
   </div>
   <div class="card"><h2>🎯 Misión de hoy (método 3×)</h2>
     ${S.langs.map(l => {
-      const i = curUnit(l), plan = Math.min(23, w), u = COURSE[l].units[i];
+      const i = curUnit(l), plan = planUnit(), u = COURSE[l].units[i];
       const st = U(l, i).steps; const n = ['theory', 'vocab', 'practice', 'speak', 'quiz'].filter(k => st[k]).length;
-      const late = i < plan ? `<span class="badge" style="color:var(--warn)">${plan - i} sem. de atraso</span>` : (i > plan ? '<span class="badge" style="color:var(--ok)">adelantado</span>' : '<span class="badge">al día</span>');
+      const late = i < plan ? `<span class="badge" style="color:var(--warn)">${plan - i} unid. de atraso</span>` : (i > plan ? '<span class="badge" style="color:var(--ok)">adelantado</span>' : '<span class="badge">al día</span>');
       return `<button class="unit" onclick="App.openUnit('${l}',${i})"><div class="n" style="background:${COURSE[l].color}33">${COURSE[l].flag}</div>
-        <div class="grow"><b>${esc(u.t)}</b><div class="mut">Unidad ${i + 1} · ${n}/5 pasos ${late}</div><div class="bar" style="margin-top:6px"><i style="width:${n * 20}%"></i></div></div><span>›</span></button>`;
+        <div class="grow"><b>${esc(u.t)}</b><div class="mut">${LV(i).ic} ${LV(i).n} · unidad ${i + 1} · ${n}/5 pasos ${late}</div><div class="bar" style="margin-top:6px"><i style="width:${n * 20}%"></i></div></div><span>›</span></button>`;
     }).join('')}
     <div class="grid2" style="margin-top:6px">
       <button class="tile" onclick="tabGo('review')"><span class="ic">🧠</span><b>Repaso espaciado</b><span class="mut">${due} tarjetas pendientes</span></button>
       <button class="tile" onclick="tabGo('talk')"><span class="ic">💬</span><b>Conversación IA</b><span class="mut">5‑10 min hablando</span></button>
     </div>
   </div>
+  <div class="month">Explorar</div>
   <div class="grid3">
+    <button class="tile" onclick="go('songs')"><span class="ic">🎵</span><b>Canciones</b></button>
+    <button class="tile" onclick="go('books')"><span class="ic">📚</span><b>Libros</b></button>
     <button class="tile" onclick="go('pron')"><span class="ic">🎙️</span><b>Pronunciación</b></button>
-    ${S.langs.includes('ja') ? `<button class="tile" onclick="go('kana')"><span class="ic">あ</span><b>Kana</b></button>` : `<button class="tile" onclick="go('reading')"><span class="ic">📖</span><b>Lectura IA</b></button>`}
+    ${S.langs.includes('ja') ? `<button class="tile" onclick="go('jwrite')"><span class="ic">✍️</span><b>Escribir japonés</b></button><button class="tile" onclick="go('kanji')"><span class="ic">漢</span><b>Kanji</b></button>` : `<button class="tile" onclick="go('reading')"><span class="ic">📖</span><b>Lectura IA</b></button>`}
+    <button class="tile" onclick="go('mistakes')"><span class="ic">📒</span><b>Mis errores</b><span class="mut">${S.mistakes.length}</span></button>
     <button class="tile" onclick="go('tutor')"><span class="ic">🧑‍🏫</span><b>Tutor IA</b></button>
+    <button class="tile" onclick="App.toKids()"><span class="ic">🧸</span><b>Modo niños</b></button>
   </div>
   <div class="card" style="margin-top:12px"><h3>📈 Progreso del plan</h3>
-    ${S.langs.map(l => { const d = doneCount(l); return `<div class="row" style="margin:8px 0"><span style="width:28px">${COURSE[l].flag}</span><div class="grow bar"><i style="width:${d / 24 * 100}%;background:${COURSE[l].color}"></i></div><span class="mut" style="width:56px;text-align:right">${d}/24</span></div>`; }).join('')}
+    ${S.langs.map(l => { const d = doneCount(l); return `<div class="row" style="margin:8px 0"><span style="width:28px">${COURSE[l].flag}</span><div class="grow bar"><i style="width:${d / NU() * 100}%;background:${COURSE[l].color}"></i></div><span class="mut" style="width:56px;text-align:right">${d}/${NU()}</span></div>`; }).join('')}
   </div>
   <div class="card"><h3>💡 Consejo del día</h3><p>${SKILLS[(dayNum(today())) % SKILLS.length].ic} <b>${SKILLS[(dayNum(today())) % SKILLS.length].t}:</b> ${SKILLS[(dayNum(today())) % SKILLS.length].d}</p></div>`;
 };
@@ -281,16 +349,32 @@ V.courses = function () {
   const l = courseTab && S.langs.includes(courseTab) ? courseTab : S.langs[0]; courseTab = l;
   const C = COURSE[l], cur = curUnit(l);
   let h = top('Cursos') + `<div class="tabs">${S.langs.map(x => `<button class="${x === l ? 'on' : ''}" onclick="App.cTab('${x}')">${COURSE[x].flag} ${COURSE[x].name}</button>`).join('')}</div>`;
-  h += `<div class="card"><div class="row"><div class="grow"><b>${C.flag} ${C.name}</b><div class="mut">${doneCount(l)}/24 unidades · nivel actual ${CEFR[Math.floor(cur / 4)]}</div></div><button class="btn sm sec" onclick="go('method')">Método</button></div></div>`;
-  C.units.forEach((u, i) => {
-    if (i % 4 === 0) h += `<div class="month">${MONTHS[i / 4]}</div>`;
-    const st = S.units[l + '-' + i], done = st && st.done, open = unitUnlocked(l, i);
-    h += `<button class="unit ${done ? 'done' : ''} ${i === cur ? 'cur' : ''} ${open ? '' : 'lock'}" onclick="App.tryUnit('${l}',${i})">
-      <div class="n">${done ? '✓' : open ? i + 1 : '🔒'}</div><div class="grow"><b>${esc(u.t)}</b><div class="mut">Semana ${i + 1}${st && st.best ? ' · mejor quiz ' + st.best + '%' : ''}</div></div><span>›</span></button>`;
+  h += `<div class="card"><div class="row"><div class="grow"><b>${C.flag} ${C.name}</b><div class="mut">${doneCount(l)}/${NU()} unidades · nivel actual ${LV(cur).cefr}</div></div><button class="btn sm sec" onclick="App.placement('${l}')">Test de nivel</button><button class="btn sm sec" onclick="go('method')">Método</button></div></div>`;
+  const openLv = A._olv != null ? A._olv : levelIdx(cur);
+  LEVELS.forEach((L, li) => {
+    const n = L.to - L.from + 1, d = C.units.slice(L.from, L.to + 1).filter((_, k) => S.units[l + '-' + (L.from + k)] && S.units[l + '-' + (L.from + k)].done).length;
+    const isCur = li === levelIdx(cur);
+    h += `<button class="lvl ${isCur ? 'cur' : ''} ${d === n ? 'done' : ''}" onclick="App.olv(${li})"><span class="lic">${L.ic}</span><div class="grow"><b>Nivel ${L.n}</b> <span class="badge">${L.cefr}</span><div class="mut">${L.can}</div><div class="bar" style="margin-top:6px"><i style="width:${d / n * 100}%;background:${C.color}"></i></div></div><span class="mut">${d}/${n}</span></button>`;
+    if (li !== openLv) return;
+    h += `<div class="path">`;
+    for (let i = L.from; i <= L.to; i++) {
+      const u = C.units[i], st = S.units[l + '-' + i], done = st && st.done, open = unitUnlocked(l, i);
+      const nst = st ? ['theory', 'vocab', 'practice', 'speak', 'quiz'].filter(k => st.steps[k]).length : 0;
+      h += `<button class="node ${done ? 'done' : ''} ${i === cur ? 'cur' : ''} ${open ? '' : 'lock'}" style="margin-left:${[0, 10, 20, 10][(i - L.from) % 4]}%" onclick="App.tryUnit('${l}',${i})">
+        <div class="disc" style="--p:${nst * 20}%"><span>${done ? '★' : open ? i + 1 : '🔒'}</span></div><div class="nt"><b>${esc(u.t)}</b><span class="mut">${done ? (st.skipped ? 'saltada' : 'quiz ' + st.best + '%') : nst + '/5 pasos'}</span></div></button>`;
+    }
+    h += `</div>`;
   });
   $app.innerHTML = h;
 };
-A.cTab = (l) => { courseTab = l; render(); };
+A.cTab = (l) => { courseTab = l; A._olv = null; render(); };
+A.olv = (li) => { A._olv = A._olv === li ? -1 : li; render(); };
+// Test de nivel: 3 preguntas por nivel; se detiene al fallar 2 de 3 y desbloquea hasta ahí
+A.placement = (l) => {
+  const qs = [];
+  LEVELS.forEach((L, li) => { pick(Array.from({ length: L.to - L.from + 1 }, (_, k) => L.from + k), 3).forEach(i => { const v = pick(COURSE[l].units[i].v, 1)[0]; qs.push({ type: 'mc', prompt: 'Nivel ' + L.n + ' · ¿Qué significa?', big: v[0], sub: '', say: v[0], options: distract(l, i, 2, v[2]), answer: v[2], lvl: li }); }); });
+  go('ex', { l, i: 0, kind: 'placement', qs });
+};
 A.tryUnit = (l, i) => {
   if (unitUnlocked(l, i)) return go('unit', { l, i });
   if (confirm('Esta unidad está bloqueada. ¿Quieres hacer el examen para saltar hasta aquí? (necesitas 80%)')) startQuiz(l, i, true);
@@ -312,7 +396,7 @@ V.unit = function ({ l, i }) {
     ['quiz', '🏆', 'Quiz final', 'Aprueba con 80% para avanzar']
   ];
   $app.innerHTML = top(`${C.flag} Unidad ${i + 1}`) + `
-  <div class="card" style="border-left:5px solid ${C.color}"><div class="mut">${MONTHS[Math.floor(i / 4)]}</div><h2>${esc(u.t)}</h2>
+  <div class="card" style="border-left:5px solid ${C.color}"><div class="mut">${LV(i).ic} Nivel ${LV(i).n} · ${LV(i).cefr}</div><h2>${esc(u.t)}</h2>
    <div class="bar"><i style="width:${steps.filter(s => st.steps[s[0]]).length * 20}%"></i></div></div>
   <div class="steps">${steps.map(s => `<button class="unit ${st.steps[s[0]] ? 'done' : ''}" onclick="App.step('${s[0]}')"><div class="n">${st.steps[s[0]] ? '✓' : s[1]}</div><div class="grow"><b>${s[2]}</b><div class="mut">${s[3]}</div></div><span>›</span></button>`).join('')}</div>
   <div class="month">✨ Potenciado con IA</div>
@@ -372,7 +456,7 @@ V.vocab = function ({ l, i }) {
 // ------------- motor de ejercicios
 function distract(l, i, field, correct, n) {
   let pool = COURSE[l].units[i].v.map(v => v[field]);
-  for (let d = 1; pool.length < 12 && d < 24; d++) { [i - d, i + d].forEach(j => { if (j >= 0 && j < 24) pool = pool.concat(COURSE[l].units[j].v.map(v => v[field])); }); }
+  for (let d = 1; pool.length < 12 && d < NU(); d++) { [i - d, i + d].forEach(j => { if (j >= 0 && j < NU()) pool = pool.concat(COURSE[l].units[j].v.map(v => v[field])); }); }
   pool = [...new Set(pool)].filter(x => x !== correct);
   return shuffle([correct].concat(pick(pool, n || 3)));
 }
@@ -386,12 +470,26 @@ function buildQs(l, i, kind) {
   pick(u.v, 3).forEach(v => qs.push({ type: 'write', prompt: 'Escribe en ' + COURSE[l].name.toLowerCase() + ':', big: v[2], answer: v[0], pron: v[1], say: v[0] }));
   u.s.forEach(s => {
     const toks = s[0].replace(/[.,!?。、！？]/g, m => l === 'ja' ? m : '').split(/\s+/).filter(Boolean);
-    let extra = []; COURSE[l].units[(i + 1) % 24].s.forEach(x => extra = extra.concat(x[0].replace(/[.,!?。、！？]/g, '').split(/\s+/)));
+    let extra = []; COURSE[l].units[(i + 1) % NU()].s.forEach(x => extra = extra.concat(x[0].replace(/[.,!?。、！？]/g, '').split(/\s+/)));
     extra = pick(extra.filter(w => !toks.includes(w)), 2);
     qs.push({ type: 'build', prompt: 'Traduce ordenando las piezas:', big: s[2], answer: toks, tokens: shuffle(toks.concat(extra)), say: s[0] });
   });
+  // Huecos (cloze): quita una pieza de cada frase de ejemplo
+  u.s.forEach(s => {
+    const toks = s[0].split(/\s+/).filter(Boolean); if (toks.length < 3) return;
+    const clean = (w) => w.replace(/[.,!?。、！？"]/g, '');
+    const cands = toks.map((w, k) => [clean(w), k]).filter(x => x[0].length > 1);
+    if (!cands.length) return;
+    const [ans, k] = cands[Math.floor(Math.random() * cands.length)];
+    let pool = []; u.s.concat(COURSE[l].units[(i + 1) % NU()].s).forEach(x => x[0].split(/\s+/).forEach(w => { w = clean(w); if (w && w !== ans) pool.push(w); }));
+    const shown = toks.map((w, j) => j === k ? w.replace(clean(w), '____') : w).join(l === 'ja' ? '' : ' ');
+    qs.push({ type: 'mc', prompt: 'Completa la frase', big: shown, sub: s[2], options: shuffle([ans].concat(pick([...new Set(pool)], 3))), answer: ans, say: s[0], small: true });
+  });
+  // Parejas y dictado
+  qs.push({ type: 'pairs', pairs: pick(u.v, 4).map(v => [v[0], v[2]]) });
+  pick(u.v, 2).forEach(v => qs.push({ type: 'write', listen: true, prompt: 'Dictado: escucha y escribe', answer: v[0], pron: v[1], say: v[0], es: v[2] }));
   if (kind === 'practice') { pick(u.v, 2).concat([u.s[0]]).forEach(v => qs.push({ type: 'speak', text: v[0], pron: v[1], es: v[2] })); }
-  return kind === 'quiz' ? pick(qs.filter(q => q.type !== 'speak'), 12) : shuffle(qs);
+  return kind === 'quiz' ? pick(qs.filter(q => q.type !== 'speak' && q.type !== 'pairs'), 12) : shuffle(qs);
 }
 function startPractice(l, i) { go('ex', { l, i, kind: 'practice', qs: buildQs(l, i, 'practice') }); }
 function startQuiz(l, i, skip) { go('ex', { l, i, kind: skip ? 'skip' : 'quiz', qs: buildQs(l, i, 'quiz') }); }
@@ -420,7 +518,7 @@ Formato: [{"q":"enunciado en español con la parte en ${LNAME[l]}","options":["a
 V.ex = function (arg) {
   const { l, i, kind } = arg;
   const qs = arg.qs.slice(); const total = qs.length;
-  let idx = 0, right = 0, firstTry = 0, answered = new Set(), streak = 0;
+  let idx = 0, right = 0, firstTry = 0, answered = new Set(), streak = 0; const plc = {};
   const t0 = Date.now();
   window.__curQ = () => qs[idx];
   function next() {
@@ -436,11 +534,18 @@ V.ex = function (arg) {
     if (q.type === 'mc') {
       h += `<div class="mut">${esc(q.prompt)}</div>`;
       if (q.listen) h += `<div class="center" style="margin:20px 0"><button class="speak-btn" style="width:96px;height:96px;font-size:40px" onclick="App.exSay()">🔊</button><button class="btn sm sec" onclick="App.exSlow()">🐢 Más lento</button></div>`;
-      else if (q.big) h += `<div class="row" style="justify-content:center"><div class="big">${esc(q.big)}</div>${q.say ? sayBtn(q.say, l) : ''}</div>${q.sub ? `<div class="center mut">${esc(q.sub)}</div>` : ''}`;
-      h += `<div class="opts">${q.options.map((o, k) => `<button class="opt" data-k="${k}" onclick="App.exMC(${k})">${esc(o)}</button>`).join('')}</div>`;
+      else if (q.big) h += `<div class="row" style="justify-content:center"><div class="big" style="${q.small ? 'font-size:24px' : ''}">${esc(q.big)}</div>${q.say && !q.small ? sayBtn(q.say, l) : ''}</div>${q.sub ? `<div class="center mut">${esc(q.sub)}</div>` : ''}`;
+      if (q.pic) h += `<div class="pics">${q.options.map((o, k) => `<button class="opt pic" data-k="${k}" onclick="App.exMC(${k})">${esc(o)}</button>`).join('')}</div>`;
+      else h += `<div class="opts">${q.options.map((o, k) => `<button class="opt" data-k="${k}" onclick="App.exMC(${k})">${esc(o)}</button>`).join('')}</div>`;
+    } else if (q.type === 'pairs') {
+      q.left = shuffle(q.pairs.map((p, k) => k)); q.right = shuffle(q.pairs.map((p, k) => k)); q.done = []; q.sel = null; q.err = 0;
+      h += `<div class="mut">Toca las parejas</div><div class="q">Une cada palabra con su significado</div><div class="pairs">
+        <div>${q.left.map(k => `<button class="opt" id="pl${k}" onclick="App.exP('l',${k})">${esc(q.pairs[k][0])}</button>`).join('')}</div>
+        <div>${q.right.map(k => `<button class="opt" id="pr${k}" onclick="App.exP('r',${k})">${esc(q.pairs[k][1])}</button>`).join('')}</div></div>`;
     } else if (q.type === 'write') {
-      h += `<div class="mut">${esc(q.prompt)}</div><div class="big">${esc(q.big)}</div>
-       <input id="wr" autocomplete="off" autocapitalize="off" placeholder="${l === 'ja' ? 'Escribe en kana o romaji' : 'Escribe aquí'}" onkeydown="if(event.key==='Enter')App.exW()">
+      h += `<div class="mut">${esc(q.prompt)}</div>${q.listen ? `<div class="center" style="margin:16px 0"><button class="speak-btn" style="width:90px;height:90px;font-size:38px" onclick="App.exSay()">🔊</button><button class="btn sm sec" onclick="App.exSlow()">🐢 Más lento</button></div>` : `<div class="big">${esc(q.big)}</div>`}
+       <input id="wr" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${l === 'ja' ? 'Escribe en romaji → se convierte a kana' : 'Escribe aquí'}" onkeydown="if(event.key==='Enter')App.exW()" ${l === 'ja' ? 'oninput="App.ime(this)"' : ''}>
+       ${l === 'ja' ? `<div class="row" style="margin-top:6px"><span class="mut grow">Teclado: <b id="imel">${S.ime === 'off' ? 'libre' : S.ime === 'kata' ? 'katakana' : 'hiragana'}</b></span><button class="btn sm sec" onclick="App.imeMode()">Cambiar</button></div>` : ''}
        <button class="btn full" style="margin-top:12px" onclick="App.exW()">Comprobar</button>`;
     } else if (q.type === 'build') {
       q.picked = [];
@@ -461,10 +566,18 @@ V.ex = function (arg) {
   function feedback(ok, q, extra) {
     S.stats.answers++;
     const first = !answered.has(idx) && !q.retry;
-    if (ok) { right++; streak++; S.stats.correct++; if (first) firstTry++; addXP(streak >= 5 ? 15 : 10); vib(30); }
-    else { streak = 0; vib(120); if (kind === 'practice' || kind === 'speak' || kind === 'ai') qs.push(Object.assign({}, q, { retry: true })); }
+    if (ok) { right++; streak++; S.stats.correct++; if (first) firstTry++; addXP(streak >= 5 ? 15 : 10); vib(30); sfx(streak >= 5 ? 'combo' : 'ok'); if (q.lvl != null) plc[q.lvl] = (plc[q.lvl] || 0) + 1; }
+    else {
+      streak = 0; vib(120); sfx('bad');
+      if (['practice', 'speak', 'ai', 'kids', 'mistakes', 'pron'].includes(kind)) qs.push(Object.assign({}, q, { retry: true }));
+      if (kind !== 'kids' && kind !== 'placement' && q.type !== 'speak' && q.type !== 'pairs' && l !== 'kana') {
+        const m = { l, q: Object.assign({}, q, { retry: false, picked: undefined }), t: Date.now() };
+        S.mistakes = [m].concat(S.mistakes.filter(x => JSON.stringify(x.q.answer) !== JSON.stringify(q.answer))).slice(0, 150);
+      }
+    }
+    if (ok && kind === 'mistakes') S.mistakes = S.mistakes.filter(x => JSON.stringify(x.q.answer) !== JSON.stringify(q.answer));
     answered.add(idx); save();
-    const ans = q.type === 'build' ? q.answer.join(l === 'ja' ? '' : ' ') : q.type === 'speak' ? q.text : q.answer;
+    const ans = q.type === 'build' ? q.answer.join(l === 'ja' ? '' : ' ') : q.type === 'speak' ? q.text : q.type === 'pairs' ? q.pairs.map(p => p[0] + ' = ' + p[1]).join(' · ') : q.answer + (q.es ? ' (' + q.es + ')' : '');
     const fb = document.createElement('div'); fb.className = 'fb ' + (ok ? 'ok' : 'bad');
     fb.innerHTML = `<div class="in"><div class="q">${ok ? ['¡Excelente! 🎉', '¡Correcto! ✨', '¡Muy bien! 💪', '¡Perfecto! 🌟'][Math.floor(Math.random() * 4)] : 'Respuesta correcta:'}</div>
       ${!ok ? `<div style="font-size:18px;font-weight:700;margin-bottom:6px">${esc(disp(l, ans))}</div>` : ''}${extra || ''}
@@ -474,6 +587,17 @@ V.ex = function (arg) {
     if (q.say && q.type !== 'mc') speak(q.say, l); else if (q.sayAns) speak(q.answer, l);
   }
   A.exNext = () => { idx++; next(); };
+  A.exP = (side, k) => {
+    const q = qs[idx]; if (document.querySelector('.fb') || q.done.includes(k + side)) return;
+    if (side === 'l') speak(q.pairs[k][0], l);
+    if (!q.sel || q.sel[0] === side) { document.querySelectorAll('.pairs .sel').forEach(b => b.classList.remove('sel')); q.sel = [side, k]; document.getElementById('p' + side + k).classList.add('sel'); return; }
+    const a = q.sel, other = side === 'l' ? 'r' : 'l'; q.sel = null;
+    document.querySelectorAll('.pairs .sel').forEach(b => b.classList.remove('sel'));
+    if (a[1] === k) {
+      q.done.push(k + 'l', k + 'r'); ['l', 'r'].forEach(s => { const b = document.getElementById('p' + s + k); b.classList.add('right'); b.disabled = true; }); sfx('ok');
+      if (q.done.length === q.pairs.length * 2) setTimeout(() => feedback(q.err <= 1, q, q.err ? `<div class="mut">${q.err} error(es)</div>` : ''), 250);
+    } else { q.err++; sfx('bad'); vib(80); [['p' + a[0] + a[1]], ['p' + side + k]].forEach(([id]) => { const b = document.getElementById(id); b.classList.add('wrong'); setTimeout(() => b.classList.remove('wrong'), 450); }); }
+  };
   A.exSay = () => speak(qs[idx].say || qs[idx].text, l);
   A.exSlow = () => speak(qs[idx].say || qs[idx].text, l, 0.55);
   A.exMC = (k) => {
@@ -484,9 +608,11 @@ V.ex = function (arg) {
   };
   A.exW = () => {
     if (document.querySelector('.fb')) return;
-    const q = qs[idx], val = document.getElementById('wr').value;
+    const q = qs[idx]; let val = document.getElementById('wr').value;
     if (!val.trim()) return;
-    const s = Math.max(sim(norm(val, l), norm(q.answer, l)), q.pron ? sim(norm(val, l), norm(q.pron, l)) : 0);
+    const raw = val; if (l === 'ja') val = toKana(val, false, true);
+    const s = Math.max(sim(norm(val, l), norm(q.answer, l)), q.pron ? sim(norm(raw, l), norm(q.pron, l)) : 0,
+      l === 'ja' ? sim(norm(val, l), norm(toKana(q.answer, false, true), l)) : 0, l === 'ja' && q.pron ? sim(norm(val, l), norm(toKana(q.pron, false, true), l)) : 0);
     feedback(s >= 0.85, q, s >= 0.85 && s < 1 ? `<div class="mut">Casi perfecto: <b>${esc(q.answer)}</b></div>` : '');
   };
   A.exT = (k) => {
@@ -527,14 +653,22 @@ V.ex = function (arg) {
       if (pass) {
         st.steps.quiz = true; if (!st.done) { st.done = true; S.stats.lessons++; addXP(50); }
         if (kind === 'skip') { for (let j = 0; j < i; j++) { const s2 = U(l, j); if (!s2.done) { s2.done = true; s2.skipped = true; } } }
-        if (i + 1 < 24) U(l, i + 1).open = true;
+        if (i + 1 < NU()) U(l, i + 1).open = true;
         COURSE[l].units[i].v.forEach(v => srsAdd(l, v));
       }
       msg = pass ? '¡Unidad superada! Se desbloqueó la siguiente.' : 'Necesitas 80%. Repasa la teoría y la práctica e inténtalo de nuevo.';
     } else if (kind === 'practice') { markStep(l, i, 'practice', 30); msg = 'Práctica completada. Los errores se repitieron hasta acertarlos.'; }
     else if (kind === 'speak') { markStep(l, i, 'speak', 30); msg = 'Has entrenado tu pronunciación. ¡Sigue haciendo shadowing!'; }
     else if (kind === 'review') { msg = 'Repaso terminado.'; }
+    else if (kind === 'placement') {
+      let lv = -1; for (let k = 0; k < LEVELS.length; k++) { if ((plc[k] || 0) >= 2) lv = k; else break; }
+      if (lv >= 0) { for (let j = 0; j <= LEVELS[lv].to; j++) { const s2 = U(l, j); if (!s2.done) { s2.done = true; s2.skipped = true; } } if (LEVELS[lv].to + 1 < NU()) U(l, LEVELS[lv].to + 1).open = true; }
+      msg = lv >= 0 ? `Tu nivel en ${COURSE[l].name.toLowerCase()}: <b>${LEVELS[lv].n}</b>. Desbloqueé todo hasta ahí; empieza en ${LEVELS[Math.min(lv + 1, LEVELS.length - 1)].n}.` : 'Empieza desde el nivel Básico. ¡Vas a avanzar rápido!';
+    }
+    else if (kind === 'kids') { const ku = S.kids[arg.key] || (S.kids[arg.key] = { stars: 0 }); const st = pct >= 90 ? 3 : pct >= 70 ? 2 : 1; ku.stars = Math.max(ku.stars, st); msg = '⭐'.repeat(st) + ' ¡Lo hiciste genial!'; }
+    else if (kind === 'mistakes') { msg = 'Los errores que acertaste salieron de tu cuaderno.'; }
     else msg = '¡Buen trabajo!';
+    sfx('win');
     save();
     if (pass) confetti();
     setNav(false);
@@ -543,6 +677,7 @@ V.ex = function (arg) {
       <button class="btn full" onclick="goBack()">Continuar</button>
       ${!pass ? `<button class="btn sec full" style="margin-top:10px" onclick="App.retry()">Reintentar</button>` : ''}</div>`;
     A.retry = () => startQuiz(l, i, kind === 'skip');
+    if (arg.onDone) arg.onDone(pct);
   }
   next();
 };
@@ -721,7 +856,7 @@ V.aiExplain = async function ({ l, i }) {
   const u = COURSE[l].units[i];
   $app.innerHTML = top('🧑‍🏫 Explicación IA') + '<div class="card center"><div class="spin"></div><p>Preparando una explicación a tu medida…</p></div>';
   try {
-    const t = await ai({ messages: [{ role: 'user', text: `Explica a un hispanohablante (nivel ${CEFR[Math.floor(i / 4)]}) el tema "${u.t}" de ${LNAME[l]}. Base: ${u.g.replace(/<[^>]+>/g, ' ')}.
+    const t = await ai({ messages: [{ role: 'user', text: `Explica a un hispanohablante (nivel ${LV(i).cefr}) el tema "${u.t}" de ${LNAME[l]}. Base: ${u.g.replace(/<[^>]+>/g, ' ')}.
 Incluye: 1) explicación sencilla con analogía con el español, 2) tabla o lista de formas, 3) 6 ejemplos con traducción${l === 'ja' ? ' y romaji' : ''}, 4) los 3 errores típicos de hispanohablantes, 5) un truco mnemotécnico, 6) mini‑reto de 3 frases para traducir (con soluciones al final). Markdown breve y visual.` }] });
     $app.innerHTML = top('🧑‍🏫 Explicación IA') + `<div class="card md">${md(t)}</div><button class="btn full" onclick="App.aeOk()">Entendido ✓</button>`;
     A.aeOk = () => { addXP(10); goBack(); };
@@ -749,7 +884,7 @@ V.writeLab = function ({ l, i }) {
     const txt = document.getElementById('wl').value.trim(); if (txt.length < 5) return;
     document.getElementById('wlr').innerHTML = '<div class="spin"></div>';
     try {
-      const t = await ai({ messages: [{ role: 'user', text: `Corrige este texto de un estudiante de ${LNAME[l]} (nivel ${CEFR[Math.floor(i / 4)]}): """${txt}""". Responde en español con: 1) versión corregida completa, 2) lista de cada error → corrección → por qué, 3) una versión más natural/nativa, 4) nota /10. Markdown breve.` }] });
+      const t = await ai({ messages: [{ role: 'user', text: `Corrige este texto de un estudiante de ${LNAME[l]} (nivel ${LV(i).cefr}): """${txt}""". Responde en español con: 1) versión corregida completa, 2) lista de cada error → corrección → por qué, 3) una versión más natural/nativa, 4) nota /10. Markdown breve.` }] });
       document.getElementById('wlr').innerHTML = `<div class="card md">${md(t)}</div>`; addXP(25);
     } catch (e) { document.getElementById('wlr').innerHTML = aiErr(e); }
   };
@@ -787,6 +922,11 @@ V.more = function () {
     ${S.langs.includes('ja') ? `<button class="tile" onclick="go('kana')"><span class="ic">あ</span><b>Kana</b><span class="mut">Hiragana y katakana</span></button>` : ''}
     <button class="tile" onclick="go('method')"><span class="ic">🚀</span><b>Método y técnicas</b><span class="mut">Aprende a aprender</span></button>
     <button class="tile" onclick="go('focus')"><span class="ic">⏱️</span><b>Modo enfoque</b><span class="mut">Pomodoro 25/5</span></button>
+    <button class="tile" onclick="go('songs')"><span class="ic">🎵</span><b>Canciones</b><span class="mut">Con subtítulos</span></button>
+    <button class="tile" onclick="go('books')"><span class="ic">📚</span><b>Libros</b><span class="mut">Clásicos y cuentos</span></button>
+    ${S.langs.includes('ja') ? `<button class="tile" onclick="go('jwrite')"><span class="ic">✍️</span><b>Escribir japonés</b><span class="mut">Kana y kanji a mano</span></button><button class="tile" onclick="go('kanji')"><span class="ic">漢</span><b>Kanji</b><span class="mut">${KANJI.length} esenciales</span></button>` : ''}
+    <button class="tile" onclick="go('mistakes')"><span class="ic">📒</span><b>Mis errores</b><span class="mut">${S.mistakes.length} por repasar</span></button>
+    <button class="tile" onclick="App.toKids()"><span class="ic">🧸</span><b>Modo niños</b><span class="mut">Niveles 1 y 2</span></button>
     <button class="tile" onclick="go('stats')"><span class="ic">📊</span><b>Estadísticas</b><span class="mut">Tu progreso</span></button>
     <button class="tile" onclick="go('settings')"><span class="ic">⚙️</span><b>Ajustes</b><span class="mut">IA, voz, metas</span></button>
   </div>`;
@@ -800,7 +940,7 @@ V.stats = function () {
    <div class="card center"><div class="big">${acc}%</div><div class="mut">precisión</div></div><div class="card center"><div class="big">${S.stats.spoken}</div><div class="mut">frases habladas</div></div>
    <div class="card center"><div class="big">${S.stats.convs}</div><div class="mut">conversaciones</div></div><div class="card center"><div class="big">${Object.keys(S.srs).length}</div><div class="mut">tarjetas</div></div></div>
    <div class="card"><h3>Últimos 14 días</h3><div class="row" style="align-items:flex-end;height:120px;gap:4px">${days.map(d => `<div class="grow center"><div style="height:${Math.max(3, d[1] / mx * 100)}px;background:${d[1] >= S.goal ? 'var(--ok)' : 'var(--pri)'};border-radius:6px"></div><div class="mut" style="font-size:10px">${d[0]}</div></div>`).join('')}</div></div>
-   <div class="card"><h3>Por idioma</h3>${S.langs.map(l => `<div class="row" style="margin:8px 0"><span>${COURSE[l].flag}</span><span class="grow">${COURSE[l].name} · ${CEFR[Math.floor(curUnit(l) / 4)]}</span><span class="mut">${doneCount(l)}/24</span></div>`).join('')}</div>`;
+   <div class="card"><h3>Por idioma</h3>${S.langs.map(l => `<div class="row" style="margin:8px 0"><span>${COURSE[l].flag}</span><span class="grow">${COURSE[l].name} · ${LV(curUnit(l)).cefr}</span><span class="mut">${doneCount(l)}/${NU()}</span></div>`).join('')}</div>`;
 };
 V.focus = function () {
   let left = 25 * 60, mode = 'focus', timer = null;
@@ -833,15 +973,20 @@ V.settings = function () {
   <div class="card"><h3>🔊 Voz</h3>${voices}<label class="mut">Velocidad de lectura: <b id="rv">${S.rate}</b></label><input type="range" min="0.5" max="1.3" step="0.05" value="${S.rate}" oninput="App.sRate(this.value)" style="padding:0">
     <div class="row" style="margin-top:8px"><button class="btn sm sec" onclick="App.sHear()">Probar voces</button>${NATIVE ? '<button class="btn sm sec" onclick="Android.installVoices()">Instalar voces</button>' : ''}</div>
     <p class="mut">Para reconocimiento de voz en japonés/portugués sin conexión: Ajustes de Android → Google → Voz → Idiomas sin conexión.</p></div>
+  <div class="card"><h3>👁️ Accesibilidad</h3><label class="mut">Tamaño de letra: <b id="fv">${S.font || 100}%</b></label><input type="range" min="85" max="140" step="5" value="${S.font || 100}" oninput="App.sFont(this.value)" style="padding:0">
+    <div class="row" style="margin-top:8px"><span class="grow">Efectos de sonido</span><button class="btn sm sec" onclick="App.sSfx()">${S.sfx ? '🔔 Activados' : '🔕 Desactivados'}</button></div>
+    <div class="row" style="margin-top:8px"><span class="grow">Modo niños (interfaz infantil)</span><button class="btn sm sec" onclick="App.toKids()">🧸 Activar</button></div></div>
   <div class="card"><h3>🎯 Plan</h3><label class="mut">Meta diaria (XP)</label><select onchange="App.sGoal(this.value)">${[90, 150, 250, 400].map(g => `<option ${S.goal == g ? 'selected' : ''}>${g}</option>`).join('')}</select>
     <p class="mut">Inicio del plan: ${S.started}</p><label class="mut">Idiomas activos</label><div class="row wrap">${LANGS.map(l => `<button class="lang-chip ${S.langs.includes(l) ? 'on' : ''}" onclick="App.sLang('${l}')">${COURSE[l].flag} ${COURSE[l].name}</button>`).join('')}</div></div>
   <div class="card"><h3>💾 Datos</h3><div class="row wrap"><button class="btn sm sec" onclick="App.sExp()">Exportar progreso</button><button class="btn sm sec" onclick="App.sImp()">Importar</button><button class="btn sm bad" onclick="App.sReset()">Borrar todo</button></div><textarea id="io" style="margin-top:10px;display:none"></textarea></div>
-  <p class="mut center">TriLingo 1.0 · hecho para aprender 3× más rápido</p>`;
+  <p class="mut center">TriLingo 2.0 · hecho para aprender 3× más rápido</p>`;
   A.sKey = () => { const k = document.getElementById('k').value.trim(); if (k) setKey(k); setModel(document.getElementById('mdl').value); toast('Guardado ✓'); render(); };
   A.sTest = async () => { setModel(document.getElementById('mdl').value); const e = document.getElementById('tst'); e.textContent = 'Probando…'; try { const t = await ai({ messages: [{ role: 'user', text: 'Responde solo: "¡Conexión OK! 👋" y un saludo en inglés, portugués y japonés en una línea.' }] }); e.textContent = '✅ ' + t; } catch (x) { e.textContent = '❌ ' + x.message; } };
   A.sRate = (v) => { S.rate = +v; document.getElementById('rv').textContent = v; save(); };
   A.sHear = () => { const ph = { en: 'Hello! Nice to meet you.', pt: 'Olá! Muito prazer.', ja: 'こんにちは。はじめまして。' }; let d = 0; S.langs.forEach(l => { setTimeout(() => speak(ph[l], l), d); d += 2600; }); };
   A.sGoal = (g) => { S.goal = +g; save(); };
+  A.sFont = (v) => { S.font = +v; document.getElementById('fv').textContent = v + '%'; save(); window.applyFont(); };
+  A.sSfx = () => { S.sfx = !S.sfx; save(); render(); };
   A.sLang = (l) => { if (S.langs.includes(l)) { if (S.langs.length > 1) S.langs = S.langs.filter(x => x !== l); } else S.langs = LANGS.filter(x => x === l || S.langs.includes(x)); save(); render(); };
   A.sExp = () => { const t = document.getElementById('io'); t.style.display = 'block'; t.value = JSON.stringify(S); t.select(); try { document.execCommand('copy'); toast('Copiado al portapapeles'); } catch (e) { } };
   A.sImp = () => { const t = document.getElementById('io'); if (t.style.display !== 'block') { t.style.display = 'block'; t.placeholder = 'Pega aquí tu progreso exportado y vuelve a pulsar Importar'; return; } try { const s = JSON.parse(t.value); if (!s.v) throw 0; S = Object.assign({}, DEF, s); save(); toast('Importado ✓'); render(); } catch (e) { toast('Texto inválido'); } };
@@ -849,7 +994,17 @@ V.settings = function () {
 };
 
 // ------------------------------------------------------------------ globales y arranque
+A.ime = (el) => { if (S.ime === 'off') return; const v = el.value; const c = toKana(v, S.ime === 'kata', false); if (c !== v) el.value = c; };
+A.imeMode = () => { S.ime = (!S.ime || S.ime === 'hira') ? 'kata' : S.ime === 'kata' ? 'off' : 'hira'; save(); const e = document.getElementById('imel'); if (e) e.textContent = S.ime === 'off' ? 'libre' : S.ime === 'kata' ? 'katakana' : 'hiragana'; const w = document.getElementById('wr'); if (w) w.focus(); };
+A.toKids = () => { S.mode = 'kids'; save(); stack = []; view = { name: 'kidsHome' }; render(); };
 window.go = go; window.tabGo = tabGo; window.render = render;
-touchDay();
-render();
+// API interna para los módulos de features.js
+window.TL = {
+  get S() { return S; }, V, A, go, render, speak, listen, ai, parseJSON, md, esc, shuffle, pick, disp, norm, sim, sayBtn, toast, addXP, save, srsAdd,
+  scoreSpeech, diffHTML, top, confetti, levelOf, LNAME, aiErr, vib, setNav, sfx, openUrl, toKana, hira2kata, kata2hira, curUnit, U, NU, LV, today,
+  get stack() { return stack; }, set stack(v) { stack = v; }, get view() { return view; }, set view(v) { view = v; }, $app
+};
+function applyFont() { document.documentElement.style.fontSize = (S.font || 100) + '%'; document.body.style.fontSize = (16 * (S.font || 100) / 100) + 'px'; }
+touchDay(); applyFont(); window.applyFont = applyFont;
+setTimeout(() => { if (S.mode === 'kids' && S.started) view = { name: 'kidsHome' }; render(); }, 0);
 })();

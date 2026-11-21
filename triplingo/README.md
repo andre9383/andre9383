@@ -11,6 +11,15 @@ App Android para aprender **inglés, portugués (Brasil) y japonés** en un plan
 - **IA (Gemini)**: conversaciones de rol con corrección, tutor, explicaciones ampliadas, ejercicios infinitos, técnica Feynman, corrección de textos y lecturas graduadas.
 - Entrenador de **hiragana/katakana**, modo enfoque (Pomodoro), estadísticas y racha.
 
+### Novedades 2.0
+- **7 niveles** por idioma: Básico (pre‑A1), A1, A2, B1, B2, C1 y C2 (32 unidades), ruta visual y **test de nivel**.
+- **Escritura japonesa**: lienzo para dibujar hiragana, katakana y 102 kanji con guía, evaluación automática, conteo de trazos y orden de trazos animado ([KanjiVG](https://kanjivg.tagaini.net/), CC BY‑SA 3.0, se descarga con internet). Teclado romaji→kana integrado.
+- **Kanji**: tabla N5 con lecturas on/kun, ejemplos, audio, quiz y repaso.
+- **Canciones** tradicionales de dominio público con subtítulos, karaoke, completar letra, cantar con evaluación; pegar la letra de tus canciones o crear canciones con IA.
+- **Libros**: fragmentos de clásicos de dominio público (Carroll, Austen, Machado de Assis, Sōseki, Akutagawa, Miyazawa) y cuentos graduados, con lector interactivo.
+- **Modo niños** (niveles 1 y 2): 12 unidades con imágenes, juegos de "¿Dónde está?", parejas y repetir en voz alta, y estrellas.
+- Nuevos ejercicios: parejas, dictado y completar huecos; **cuaderno de errores**; efectos de sonido; tamaño de letra ajustable.
+
 ## Compilar
 ```bash
 sudo apt-get install android-sdk-platform-23 aapt apksigner zipalign dalvik-exchange openjdk-17-jdk

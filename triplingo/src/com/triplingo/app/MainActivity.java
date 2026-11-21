@@ -361,6 +361,15 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         public void setModel(String m) { prefs.edit().putString("model", m == null ? "" : m.trim()).apply(); }
 
         @JavascriptInterface
+        public void openUrl(String u) {
+            try {
+                Intent i = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(u));
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
+            } catch (Exception ignore) { }
+        }
+
+        @JavascriptInterface
         public void vibrate(int ms) {
             try {
                 android.os.Vibrator v = (android.os.Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
