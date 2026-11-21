@@ -275,8 +275,8 @@ V.onboard = function () {
     $app.innerHTML = `
     <div class="hero"><h2>¡Bienvenido a TriLingo! 🌍</h2><p>Inglés 🇬🇧, portugués 🇧🇷 y japonés 🇯🇵 en 6 meses, de cero a nivel avanzado, con teoría, práctica, voz e IA.</p></div>
     <div class="card"><h3>¿Cómo te llamas?</h3><input id="nm" placeholder="Tu nombre" value="${esc(S.name)}"></div>
-    <div class="card"><h3>¿Qué idiomas vas a aprender?</h3><div class="row wrap">
-      ${LANGS.map(l => `<button class="lang-chip ${sel.has(l) ? 'on' : ''}" onclick="App.obT('${l}')">${COURSE[l].flag} ${COURSE[l].name}</button>`).join('')}
+    <div class="card"><h3>¿Qué idiomas vas a aprender?</h3><p class="mut">✅ = incluido · toca para quitar o añadir</p><div class="row wrap">
+      ${LANGS.map(l => `<button class="lang-chip ${sel.has(l) ? 'on' : ''}" onclick="App.obT('${l}')">${sel.has(l) ? '✅' : '➕'} ${COURSE[l].flag} ${COURSE[l].name}</button>`).join('')}
     </div></div>
     <div class="card"><h3>Tu nivel actual</h3>
       ${LANGS.filter(l => sel.has(l)).map(l => `<div class="row" style="margin:8px 0"><span class="grow">${COURSE[l].flag} ${COURSE[l].name}</span>
@@ -314,6 +314,7 @@ V.home = function () {
       <div class="mut" style="color:#e0e7ff">Hoy: ${S.today.xp}/${S.goal} XP</div></div>
     <div class="ring" style="background:conic-gradient(#fff ${pct * 3.6}deg,#ffffff33 0)"><div class="ring" style="width:66px;height:66px;background:#5b21b6">${pct}%</div></div>
   </div>
+  ${LANGS.filter(x => !S.langs.includes(x)).map(x => `<button class="unit" style="border:2px dashed var(--pri2)" onclick="App.addLang('${x}')"><div class="n">➕</div><div class="grow"><b>Activar ${COURSE[x].flag} ${COURSE[x].name}</b><div class="mut">Este idioma está desactivado. Tócalo para añadirlo a tu plan.</div></div></button>`).join('')}
   <div class="card"><h2>🎯 Misión de hoy (método 3×)</h2>
     ${S.langs.map(l => {
       const i = curUnit(l), plan = planUnit(), u = COURSE[l].units[i];
@@ -343,6 +344,7 @@ V.home = function () {
   <div class="card"><h3>💡 Consejo del día</h3><p>${SKILLS[(dayNum(today())) % SKILLS.length].ic} <b>${SKILLS[(dayNum(today())) % SKILLS.length].t}:</b> ${SKILLS[(dayNum(today())) % SKILLS.length].d}</p></div>`;
 };
 A.openUnit = (l, i) => go('unit', { l, i });
+A.addLang = (l) => { if (!S.langs.includes(l)) S.langs = LANGS.filter(x => x === l || S.langs.includes(x)); save(); toast(COURSE[l].flag + " " + COURSE[l].name + " activado ✓"); render(); };
 
 let courseTab = null;
 V.courses = function () {
@@ -977,7 +979,7 @@ V.settings = function () {
     <div class="row" style="margin-top:8px"><span class="grow">Efectos de sonido</span><button class="btn sm sec" onclick="App.sSfx()">${S.sfx ? '🔔 Activados' : '🔕 Desactivados'}</button></div>
     <div class="row" style="margin-top:8px"><span class="grow">Modo niños (interfaz infantil)</span><button class="btn sm sec" onclick="App.toKids()">🧸 Activar</button></div></div>
   <div class="card"><h3>🎯 Plan</h3><label class="mut">Meta diaria (XP)</label><select onchange="App.sGoal(this.value)">${[90, 150, 250, 400].map(g => `<option ${S.goal == g ? 'selected' : ''}>${g}</option>`).join('')}</select>
-    <p class="mut">Inicio del plan: ${S.started}</p><label class="mut">Idiomas activos</label><div class="row wrap">${LANGS.map(l => `<button class="lang-chip ${S.langs.includes(l) ? 'on' : ''}" onclick="App.sLang('${l}')">${COURSE[l].flag} ${COURSE[l].name}</button>`).join('')}</div></div>
+    <p class="mut">Inicio del plan: ${S.started}</p><label class="mut">Idiomas activos</label><div class="row wrap">${LANGS.map(l => `<button class="lang-chip ${S.langs.includes(l) ? 'on' : ''}" onclick="App.sLang('${l}')">${S.langs.includes(l) ? '✅' : '➕'} ${COURSE[l].flag} ${COURSE[l].name}</button>`).join('')}</div></div>
   <div class="card"><h3>💾 Datos</h3><div class="row wrap"><button class="btn sm sec" onclick="App.sExp()">Exportar progreso</button><button class="btn sm sec" onclick="App.sImp()">Importar</button><button class="btn sm bad" onclick="App.sReset()">Borrar todo</button></div><textarea id="io" style="margin-top:10px;display:none"></textarea></div>
   <p class="mut center">TriLingo 2.0 · hecho para aprender 3× más rápido</p>`;
   A.sKey = () => { const k = document.getElementById('k').value.trim(); if (k) setKey(k); setModel(document.getElementById('mdl').value); toast('Guardado ✓'); render(); };

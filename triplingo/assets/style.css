@@ -170,3 +170,5 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .kcard{display:block;width:100%;background:linear-gradient(160deg,#4338ca,#7c3aed);border-radius:30px;padding:26px 10px;text-align:center;margin-bottom:14px}
 .kemoji{font-size:120px;line-height:1.1}
 .kword{font-size:40px;font-weight:900;margin:6px 0}
+.grid3 .tile b{font-size:14px;overflow-wrap:anywhere;hyphens:auto}
+.grid3 .tile{padding:12px 10px}
