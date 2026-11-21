@@ -81,6 +81,8 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
 
     @Override
     public void onBackPressed() {
+        String u = web.getUrl();
+        if (u != null && !u.contains("index.html") && web.canGoBack()) { web.goBack(); return; }
         web.evaluateJavascript("window.goBack ? window.goBack() : 'exit'", new android.webkit.ValueCallback<String>() {
             @Override
             public void onReceiveValue(String v) {

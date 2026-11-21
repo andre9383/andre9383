@@ -408,7 +408,7 @@ V.unit = function ({ l, i }) {
     <button class="tile" onclick="App.feynman()"><span class="ic">👶</span><b>Técnica Feynman</b><span class="mut">Explica y te evalúo</span></button>
     <button class="tile" onclick="App.writeLab()"><span class="ic">📝</span><b>Escribe y corrijo</b><span class="mut">Producción escrita</span></button>
   </div>
-  <button class="btn sec full" style="margin-top:12px" onclick="App.talkUnit()">💬 Conversar usando esta unidad</button>`;
+  <button class="btn sec full" style="margin-top:12px" onclick="App.talkUnit()">💬 Conversar usando esta unidad</button>${l === 'ja' ? `<button class="btn sec full" style="margin-top:10px" onclick="App._jt='${i < 12 ? 'hira' : 'n5'}';go('jwrite')">✍️ Practicar escritura japonesa (${i < 12 ? 'hiragana y katakana' : 'kanji'})</button>` : ''}`;
   A.step = (k) => {
     if (k === 'theory') go('theory', { l, i });
     else if (k === 'vocab') go('vocab', { l, i });
@@ -926,7 +926,7 @@ V.more = function () {
     <button class="tile" onclick="go('focus')"><span class="ic">⏱️</span><b>Modo enfoque</b><span class="mut">Pomodoro 25/5</span></button>
     <button class="tile" onclick="go('songs')"><span class="ic">🎵</span><b>Canciones</b><span class="mut">Con subtítulos</span></button>
     <button class="tile" onclick="go('books')"><span class="ic">📚</span><b>Libros</b><span class="mut">Clásicos y cuentos</span></button>
-    ${S.langs.includes('ja') ? `<button class="tile" onclick="go('jwrite')"><span class="ic">✍️</span><b>Escribir japonés</b><span class="mut">Kana y kanji a mano</span></button><button class="tile" onclick="go('kanji')"><span class="ic">漢</span><b>Kanji</b><span class="mut">${KANJI.length} esenciales</span></button>` : ''}
+    ${S.langs.includes('ja') ? `<button class="tile" onclick="go('jwrite')"><span class="ic">✍️</span><b>Escribir japonés</b><span class="mut">Hiragana, katakana y kanji</span></button><button class="tile" onclick="go('kanji')"><span class="ic">漢</span><b>Kanji</b><span class="mut">${JP_TOTAL_KANJI()} kanji N5–N1</span></button>` : ''}
     <button class="tile" onclick="go('mistakes')"><span class="ic">📒</span><b>Mis errores</b><span class="mut">${S.mistakes.length} por repasar</span></button>
     <button class="tile" onclick="App.toKids()"><span class="ic">🧸</span><b>Modo niños</b><span class="mut">Niveles 1 y 2</span></button>
     <button class="tile" onclick="go('stats')"><span class="ic">📊</span><b>Estadísticas</b><span class="mut">Tu progreso</span></button>
@@ -981,7 +981,8 @@ V.settings = function () {
   <div class="card"><h3>🎯 Plan</h3><label class="mut">Meta diaria (XP)</label><select onchange="App.sGoal(this.value)">${[90, 150, 250, 400].map(g => `<option ${S.goal == g ? 'selected' : ''}>${g}</option>`).join('')}</select>
     <p class="mut">Inicio del plan: ${S.started}</p><label class="mut">Idiomas activos</label><div class="row wrap">${LANGS.map(l => `<button class="lang-chip ${S.langs.includes(l) ? 'on' : ''}" onclick="App.sLang('${l}')">${S.langs.includes(l) ? '✅' : '➕'} ${COURSE[l].flag} ${COURSE[l].name}</button>`).join('')}</div></div>
   <div class="card"><h3>💾 Datos</h3><div class="row wrap"><button class="btn sm sec" onclick="App.sExp()">Exportar progreso</button><button class="btn sm sec" onclick="App.sImp()">Importar</button><button class="btn sm bad" onclick="App.sReset()">Borrar todo</button></div><textarea id="io" style="margin-top:10px;display:none"></textarea></div>
-  <p class="mut center">TriLingo 2.0 · hecho para aprender 3× más rápido</p>`;
+  <div class="card"><h3>📜 Créditos y licencias</h3><p class="mut">Trazos: AnimCJK / Make Me a Hanzi (LGPL v3 y Arphic PL). Kanji y vocabulario: KANJIDIC2 / JMdict © EDRDG (CC BY-SA 4.0). Canciones y libros: dominio público.</p><div class="row wrap">${['CREDITS.txt', 'LGPL.txt', 'ARPHICPL.TXT', 'COPYING.txt', 'kanji-data-MIT.txt'].map(f => `<a class="btn sm sec" href="licenses/${f}">${f}</a>`).join('')}</div></div>
+  <p class="mut center">TriLingo 2.2 · hecho para aprender 3× más rápido</p>`;
   A.sKey = () => { const k = document.getElementById('k').value.trim(); if (k) setKey(k); setModel(document.getElementById('mdl').value); toast('Guardado ✓'); render(); };
   A.sTest = async () => { setModel(document.getElementById('mdl').value); const e = document.getElementById('tst'); e.textContent = 'Probando…'; try { const t = await ai({ messages: [{ role: 'user', text: 'Responde solo: "¡Conexión OK! 👋" y un saludo en inglés, portugués y japonés en una línea.' }] }); e.textContent = '✅ ' + t; } catch (x) { e.textContent = '❌ ' + x.message; } };
   A.sRate = (v) => { S.rate = +v; document.getElementById('rv').textContent = v; save(); };

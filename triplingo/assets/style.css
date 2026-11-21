@@ -172,3 +172,16 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .kword{font-size:40px;font-weight:900;margin:6px 0}
 .grid3 .tile b{font-size:14px;overflow-wrap:anywhere;hyphens:auto}
 .grid3 .tile{padding:12px 10px}
+/* ---------- escritura japonesa 2.2 ---------- */
+.ksvg{width:110px;height:110px;background:var(--bg2);border-radius:14px}
+.ksvg.big{width:130px;height:130px}
+.ksvg.pad{position:absolute;inset:0;width:100%;height:100%;background:none;border-radius:0}
+.ksvg .ghost{fill:none;stroke:#94a3b833;stroke-width:64;stroke-linecap:round;stroke-linejoin:round}
+.ksvg.pad .ghost{stroke:#94a3b826}
+.ksvg .anim{fill:none;stroke:#f472b6;stroke-width:44;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;animation:draw .6s ease forwards}
+.ksvg .num{fill:#fde68a;font-size:90px;font-weight:900;opacity:0;animation:fadein .2s forwards}
+@keyframes fadein{to{opacity:1}}
+.jbig{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;font-size:44px;font-weight:700}
+.jbig span{cursor:pointer}
+.jprev{font-size:20px;letter-spacing:2px;margin:2px 0;overflow-wrap:anywhere}
+.kgrid.kana button{font-size:22px}

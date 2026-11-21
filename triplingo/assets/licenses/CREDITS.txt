@@ -1,0 +1,14 @@
+TriLingo — créditos de datos
+
+Trazos de kana y kanji: hanzi-writer-data-jp (https://github.com/k1LoW/hanzi-writer-data-jp),
+derivado de AnimCJK (© 2016-2019 François Mizessyn, https://github.com/parsimonhi/animCJK) y
+Make Me a Hanzi (https://github.com/skishore/makemeahanzi). Licencias: GNU LGPL v3 (LGPL.txt) y
+Arphic Public License (ARPHICPL.TXT). TriLingo une algunos trazos de kana para ajustarlos al número
+oficial de trazos (ver tools/build_jp_assets.py).
+
+Lecturas, significados, nivel JLPT y vocabulario de kanji: KANJIDIC2 y JMdict, © Electronic
+Dictionary Research and Development Group (EDRDG), licencia CC BY-SA 4.0
+(https://www.edrdg.org/edrdg/licence.html), distribuidos vía el paquete kanji-data (MIT,
+kanji-data-MIT.txt). Traducciones al español generadas con Gemini; se comparten bajo CC BY-SA 4.0.
+
+Canciones y textos literarios: obras de dominio público (ver cada ficha).
