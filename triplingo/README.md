@@ -18,6 +18,16 @@ App Android para aprender **inglés, portugués (Brasil) y japonés** en un plan
 - **Canciones** tradicionales de dominio público con subtítulos, karaoke, completar letra, cantar con evaluación; pegar la letra de tus canciones o crear canciones con IA.
 - **Libros**: fragmentos de clásicos de dominio público (Carroll, Austen, Machado de Assis, Sōseki, Akutagawa, Miyazawa) y cuentos graduados, con lector interactivo.
 - **Modo niños** (niveles 1 y 2): 12 unidades con imágenes, juegos de "¿Dónde está?", parejas y repetir en voz alta, y estrellas.
+### Novedades 2.4 — Métodos de los mejores canales de YouTube
+Investigados en las charlas y vídeos más vistos (Chris Lonsdale · TEDx, Lýdia Machová · TED, Sid Efromovich · TEDx, Trenton, Joseph Everett) y aplicados como rutinas:
+- **Inmersión**: canales verificados por idioma y nivel, registro de minutos y horas de input con hitos.
+- **Minado de frases** desde libros, canciones y chats directo al repaso espaciado.
+- **Entrena el oído** con pares mínimos; **shadowing 3×** (lento/normal/rápido).
+- **Habla contigo**: monólogo de 1 minuto con transcripción y feedback de la IA.
+- **Núcleo de 50 palabras + caja de herramientas** por idioma.
+- **Modo padre lingüístico** en el chat: la IA reformula en vez de corregir.
+- **Escuchar a ciegas** en libros (tolerar la ambigüedad).
+
 ### Novedades 2.2 — Escritura japonesa completa
 - **Hiragana y katakana completos** (15 lecciones cada uno): básicos, dakuten/handakuten, combinados (yōon), っ/ッ pequeña, vocales largas y katakana extendido.
 - **2.211 kanji del JLPT (N5→N1)** en lecciones de 10, ordenados por frecuencia, con lecturas on/kun, significado en español y 3 palabras de ejemplo.

@@ -329,9 +329,14 @@ V.home = function () {
       <button class="tile" onclick="tabGo('review')"><span class="ic">🧠</span><b>Repaso espaciado</b><span class="mut">${due} tarjetas pendientes</span></button>
       <button class="tile" onclick="tabGo('talk')"><span class="ic">💬</span><b>Conversación IA</b><span class="mut">5‑10 min hablando</span></button>
     </div>
+    ${window.METH ? (() => { const t = METH.today(); return `<button class="unit" style="margin-top:10px" onclick="go('methods')"><div class="n" style="font-size:20px">🧭</div><div class="grow"><b>Método de los expertos</b>
+      <div class="mut">🎧 Input ${t.input}/${t.goal} min · ⛏️ ${t.mined}/5 frases · 🗣️ ${t.talk ? 'hablaste ✓' : 'reto de hablar'}</div><div class="bar" style="margin-top:6px"><i style="width:${Math.round((Math.min(1, t.input / t.goal) + Math.min(1, t.mined / 5) + (t.talk ? 1 : 0)) / 3 * 100)}%"></i></div></div><span>›</span></button>`; })() : ''}
   </div>
   <div class="month">Explorar</div>
   <div class="grid3">
+    <button class="tile" onclick="go('immersion')"><span class="ic">🎧</span><b>Inmersión</b></button>
+    <button class="tile" onclick="go('selftalk')"><span class="ic">🗣️</span><b>Habla contigo</b></button>
+    <button class="tile" onclick="go('ear')"><span class="ic">👂</span><b>Entrena el oído</b></button>
     <button class="tile" onclick="go('songs')"><span class="ic">🎵</span><b>Canciones</b></button>
     <button class="tile" onclick="go('books')"><span class="ic">📚</span><b>Libros</b></button>
     <button class="tile" onclick="go('pron')"><span class="ic">🎙️</span><b>Pronunciación</b></button>
@@ -396,7 +401,7 @@ A.tryUnit = (l, i) => {
 };
 
 V.method = function () {
-  $app.innerHTML = top('Método 3×') + `<div class="card theory">${METHOD}</div><h3>Técnicas para aprender más rápido</h3>` +
+  $app.innerHTML = top('Método 3×') + `<div class="card theory">${METHOD}</div><button class="btn full" style="margin-bottom:12px" onclick="go('methods')">🧭 Abrir el método de los expertos (con fuentes)</button><h3>Técnicas para aprender más rápido</h3>` +
     SKILLS.map(s => `<div class="card"><h3>${s.ic} ${s.t}</h3><div class="theory">${s.d}</div></div>`).join('');
 };
 
@@ -753,14 +758,15 @@ V.chat = function ({ l, sc }) {
   const hist = [];
   let showTr = true, busy = false, sugg = [];
   S.stats.convs++; save();
-  const sys = `Eres un compañero de conversación y tutor de ${LNAME[l]} para un hispanohablante. Nivel del alumno: ${levelOf(l)}.
+  const sysF = () => `Eres un compañero de conversación y tutor de ${LNAME[l]} para un hispanohablante. Nivel del alumno: ${levelOf(l)}.
 Escenario de role‑play: ${sc.t} — ${sc.d}. Interpreta tu personaje de forma natural y haz preguntas para mantener la conversación.
 Reglas: frases cortas (1‑3 oraciones) adaptadas al nivel; ${l === 'ja' ? 'usa japonés sencillo con kana y pocos kanji; da la lectura en romaji en "reading";' : ''} si el alumno escribe en español, ayúdale a decirlo en ${LNAME[l]}.
+${S.parentMode ? 'MODO PADRE LINGÜÍSTICO (Chris Lonsdale): esfuérzate por entender lo que el alumno quiere decir aunque esté muy mal dicho; NO lo corrijas explícitamente: en tu respuesta reformula de forma natural lo que dijo, bien dicho (recast), para que lo oiga correcto; usa solo palabras que probablemente conoce; deja "correction" vacío salvo que el error impida entenderle.' : ''}
 Responde SIEMPRE con JSON: {"reply":"tu respuesta en ${LNAME[l]}","reading":"${l === 'ja' ? 'romaji de reply' : ''}","translation":"traducción al español","correction":"si el último mensaje del alumno tenía errores: versión corregida + explicación breve en español; si no, cadena vacía","suggestions":["2 o 3 respuestas cortas posibles para el alumno en ${LNAME[l]}"]}`;
   function draw() {
-    $app.innerHTML = top(`${sc.ic} ${esc(sc.t)}`) + `<div class="row" style="margin-bottom:10px"><span class="badge">${C.flag} ${C.name}</span><span class="grow"></span><button class="btn sm sec" onclick="App.cTr()">${showTr ? 'Ocultar' : 'Ver'} traducción</button><button class="btn sm sec" onclick="App.cEnd()">Evaluar</button></div>
+    $app.innerHTML = top(`${sc.ic} ${esc(sc.t)}`) + `<div class="row" style="margin-bottom:10px"><span class="badge">${C.flag} ${C.name}</span><span class="grow"></span><button class="btn sm sec" onclick="App.cPar()">${S.parentMode ? '🤗 Padre' : '✏️ Profe'}</button><button class="btn sm sec" onclick="App.cTr()">${showTr ? 'Ocultar' : 'Ver'} trad.</button><button class="btn sm sec" onclick="App.cEnd()">Evaluar</button></div>
     <div class="chat" id="chat">${hist.map((m, k) => m.role === 'user' ? `<div class="msg me">${esc(m.text)}</div>` :
-      `<div class="msg ai"><div class="row" style="align-items:flex-start"><div class="grow">${esc(m.d.reply)}${m.d.reading ? `<div class="mut">${esc(m.d.reading)}</div>` : ''}</div>${sayBtn(m.d.reply, l)}</div>${showTr && m.d.translation ? `<div class="tr">${esc(m.d.translation)}</div>` : ''}${m.d.correction ? `<div class="cor">✏️ ${esc(m.d.correction)}</div>` : ''}</div>`).join('')}
+      `<div class="msg ai"><div class="row" style="align-items:flex-start"><div class="grow">${esc(m.d.reply)}${m.d.reading ? `<div class="mut">${esc(m.d.reading)}</div>` : ''}</div>${sayBtn(m.d.reply, l)}<button class="say" title="Minar frase" onclick="App.cMine(${k})">⛏️</button></div>${showTr && m.d.translation ? `<div class="tr">${esc(m.d.translation)}</div>` : ''}${m.d.correction && !S.parentMode ? `<div class="cor">✏️ ${esc(m.d.correction)}</div>` : ''}</div>`).join('')}
       ${busy ? '<div class="msg ai"><div class="spin" style="margin:4px"></div></div>' : ''}</div>`;
     const comp = document.querySelector('.composer') || document.createElement('div');
     comp.className = 'composer';
@@ -773,7 +779,7 @@ Responde SIEMPRE con JSON: {"reply":"tu respuesta en ${LNAME[l]}","reading":"${l
     if (busy || !text.trim()) return;
     hist.push({ role: 'user', text: text.trim() }); busy = true; sugg = []; draw();
     try {
-      const t = await ai({ system: sys, json: true, temp: 0.8, messages: [{ role: 'user', text: 'Empieza la conversación con un saludo acorde al escenario.' }].concat(hist.map(m => m.role === 'user' ? m : { role: 'model', text: JSON.stringify(m.d) })) });
+      const t = await ai({ system: sysF(), json: true, temp: 0.8, messages: [{ role: 'user', text: 'Empieza la conversación con un saludo acorde al escenario.' }].concat(hist.map(m => m.role === 'user' ? m : { role: 'model', text: JSON.stringify(m.d) })) });
       const d = parseJSON(t); d.reply = d.reply || '…';
       hist.push({ role: 'model', d }); sugg = (d.suggestions || []).slice(0, 3); addXP(8);
       busy = false; draw(); speak(d.reply, l);
@@ -782,11 +788,13 @@ Responde SIEMPRE con JSON: {"reply":"tu respuesta en ${LNAME[l]}","reading":"${l
   async function start() {
     busy = true; draw();
     try {
-      const t = await ai({ system: sys, json: true, temp: 0.8, messages: [{ role: 'user', text: 'Empieza la conversación con un saludo acorde al escenario.' }] });
+      const t = await ai({ system: sysF(), json: true, temp: 0.8, messages: [{ role: 'user', text: 'Empieza la conversación con un saludo acorde al escenario.' }] });
       const d = parseJSON(t); hist.push({ role: 'model', d }); sugg = (d.suggestions || []).slice(0, 3); busy = false; draw(); speak(d.reply, l);
     } catch (e) { busy = false; $app.innerHTML = top(`${sc.ic} ${esc(sc.t)}`) + aiErr(e); document.querySelectorAll('.composer').forEach(x => x.remove()); }
   }
   A.cTr = () => { showTr = !showTr; draw(); };
+  A.cMine = (k) => { const d = hist[k] && hist[k].d; if (d && window.METH) METH.mine(l, d.reply, d.reading, d.translation); };
+  A.cPar = () => { S.parentMode = !S.parentMode; save(); toast(S.parentMode ? '🤗 Modo padre lingüístico: te entiendo y te devuelvo la frase bien dicha, sin corregirte' : '✏️ Modo profesor: corrección explícita de errores', 3500); draw(); };
   A.cSug = (k) => { const s = sugg[k]; speak(s, l); document.getElementById('cin').value = s; };
   A.cSend = () => { const i = document.getElementById('cin'); const v = i.value; i.value = ''; send(v); };
   A.cMic = async () => {
@@ -935,6 +943,7 @@ V.more = function () {
     <button class="tile" onclick="go('reading')"><span class="ic">📖</span><b>Lectura IA</b><span class="mut">Textos a tu nivel</span></button>
     <button class="tile" onclick="go('pron')"><span class="ic">🎙️</span><b>Pronunciación</b><span class="mut">Shadowing con puntuación</span></button>
     ${S.langs.includes('ja') ? `<button class="tile" onclick="go('kana')"><span class="ic">あ</span><b>Kana</b><span class="mut">Hiragana y katakana</span></button>` : ''}
+    <button class="tile" onclick="go('methods')"><span class="ic">🧭</span><b>Método experto</b><span class="mut">Inmersión, oído, hablar</span></button>
     <button class="tile" onclick="go('method')"><span class="ic">🚀</span><b>Método y técnicas</b><span class="mut">Aprende a aprender</span></button>
     <button class="tile" onclick="go('focus')"><span class="ic">⏱️</span><b>Modo enfoque</b><span class="mut">Pomodoro 25/5</span></button>
     <button class="tile" onclick="go('songs')"><span class="ic">🎵</span><b>Canciones</b><span class="mut">Con subtítulos</span></button>
@@ -995,7 +1004,7 @@ V.settings = function () {
     <p class="mut">Inicio del plan: ${S.started}</p><label class="mut">Idiomas activos</label><div class="row wrap">${LANGS.map(l => `<button class="lang-chip ${S.langs.includes(l) ? 'on' : ''}" onclick="App.sLang('${l}')">${S.langs.includes(l) ? '✅' : '➕'} ${COURSE[l].flag} ${COURSE[l].name}</button>`).join('')}</div></div>
   <div class="card"><h3>💾 Datos</h3><div class="row wrap"><button class="btn sm sec" onclick="App.sExp()">Exportar progreso</button><button class="btn sm sec" onclick="App.sImp()">Importar</button><button class="btn sm bad" onclick="App.sReset()">Borrar todo</button></div><textarea id="io" style="margin-top:10px;display:none"></textarea></div>
   <div class="card"><h3>📜 Créditos y licencias</h3><p class="mut">Trazos: AnimCJK / Make Me a Hanzi (LGPL v3 y Arphic PL). Kanji y vocabulario: KANJIDIC2 / JMdict © EDRDG (CC BY-SA 4.0). Canciones y libros: dominio público.</p><div class="row wrap">${['CREDITS.txt', 'LGPL.txt', 'ARPHICPL.TXT', 'COPYING.txt', 'kanji-data-MIT.txt'].map(f => `<a class="btn sm sec" href="licenses/${f}">${f}</a>`).join('')}</div></div>
-  <p class="mut center">TriLingo 2.3 · hecho para aprender 3× más rápido</p>`;
+  <p class="mut center">TriLingo 2.4 · hecho para aprender 3× más rápido</p>`;
   A.sKey = () => { const k = document.getElementById('k').value.trim(); if (k) setKey(k); setModel(document.getElementById('mdl').value); toast('Guardado ✓'); render(); };
   A.sTest = async () => { setModel(document.getElementById('mdl').value); const e = document.getElementById('tst'); e.textContent = 'Probando…'; try { const t = await ai({ messages: [{ role: 'user', text: 'Responde solo: "¡Conexión OK! 👋" y un saludo en inglés, portugués y japonés en una línea.' }] }); e.textContent = '✅ ' + t; } catch (x) { e.textContent = '❌ ' + x.message; } };
   A.sRate = (v) => { S.rate = +v; document.getElementById('rv').textContent = v; save(); };

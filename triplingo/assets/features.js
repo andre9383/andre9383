@@ -52,7 +52,7 @@ V.song = function (s) {
   function draw() {
     $app.innerHTML = top('🎵 ' + esc(s.t)) + `<div class="mut" style="margin:-6px 0 10px">${esc(s.by || '')} ${s.lv ? '· nivel ' + esc(s.lv) : ''}</div>
     <div class="row wrap" style="gap:6px;margin-bottom:10px"><button class="btn sm" onclick="App.sgPlay()">${playing ? '⏹ Parar' : '▶️ Escuchar todo'}</button>
-      <button class="btn sm sec" onclick="App.sgTr()">${showTr ? 'Ocultar' : 'Ver'} traducción</button>${l === 'ja' ? `<button class="btn sm sec" onclick="App.sgPr()">${showPr ? 'Ocultar' : 'Ver'} romaji</button>` : ''}</div>
+      <button class="btn sm sec" onclick="App.sgMine()">⛏️ Minar línea</button><button class="btn sm sec" onclick="App.sgTr()">${showTr ? 'Ocultar' : 'Ver'} traducción</button>${l === 'ja' ? `<button class="btn sm sec" onclick="App.sgPr()">${showPr ? 'Ocultar' : 'Ver'} romaji</button>` : ''}</div>
     <div class="lyrics">${s.l.map((x, k) => `<button class="lyr ${k === cur ? 'on' : ''}" id="ly${k}" onclick="App.sgLine(${k})"><div class="lt">${esc(disp(l, x[0]))}</div>${showPr && x[1] ? `<div class="mut">${esc(x[1])}</div>` : ''}${showTr ? `<div class="tr">${esc(x[2])}</div>` : ''}</button>`).join('')}</div>
     <div class="month">Practicar</div>
     <div class="grid2"><button class="tile" onclick="App.sgCloze()"><span class="ic">🧩</span><b>Completa la letra</b></button><button class="tile" onclick="App.sgSing()"><span class="ic">🎤</span><b>Canta y te evalúo</b></button>
@@ -69,6 +69,7 @@ V.song = function (s) {
     step();
   };
   A.sgTr = () => { showTr = !showTr; draw(); };
+  A.sgMine = () => { if (cur < 0) return toast('Toca primero una línea de la canción'); const x = s.l[cur]; METH.mine(l, x[0], x[1], x[2]); };
   A.sgPr = () => { showPr = !showPr; draw(); };
   A.sgYT = () => T.openUrl('https://www.youtube.com/results?search_query=' + encodeURIComponent(s.t.replace(/\(.*?\)/g, '') + ' ' + (l === 'en' ? 'lyrics' : l === 'pt' ? 'letra' : '歌詞')));
   A.sgDel = () => { S().mySongs = (S().mySongs || []).filter(x => songKey(x) !== songKey(s)); T.save(); window.goBack(); };
@@ -115,14 +116,16 @@ V.books = function () {
   };
 };
 V.book = function (b) {
-  const l = b.lang; const open = new Set();
+  const l = b.lang; const open = new Set(); let blind = false;
   function draw() {
     $app.innerHTML = top('📖 Lectura') + `<div class="card"><h2>${esc(b.t)}</h2><div class="mut">${esc(b.by)} · nivel ${esc(b.lv)}</div>
-    <div class="row wrap" style="gap:6px;margin-top:8px"><button class="btn sm" onclick="App.bkAll()">▶️ Leer todo</button><button class="btn sm sec" onclick="App.bkTrAll()">Traducción</button></div></div>
-    <div class="card book">${b.l.map((x, k) => `<p class="sent" onclick="App.bkS(${k})"><span>${esc(disp(l, x[0]))}</span>${open.has(k) ? `${x[1] ? `<span class="mut d">${esc(x[1])}</span>` : ''}<span class="tr d">${esc(x[2])}</span>` : ''}</p>`).join('')}</div>
+    <div class="row wrap" style="gap:6px;margin-top:8px"><button class="btn sm" onclick="App.bkAll()">▶️ Leer todo</button><button class="btn sm sec" onclick="App.bkTrAll()">Traducción</button><button class="btn sm sec" onclick="App.bkBlind()">${blind ? '👀 Ver texto' : '🙈 Escuchar a ciegas'}</button></div></div>
+    <div class="card book">${b.l.map((x, k) => `<p class="sent" onclick="App.bkS(${k})"><span>${blind && !open.has(k) ? '▒▒▒ ▒▒ ▒▒▒▒ 🔊' : esc(disp(l, x[0]))}</span>${open.has(k) ? `${x[1] ? `<span class="mut d">${esc(x[1])}</span>` : ''}<span class="tr d">${esc(x[2])}</span><span class="d"><a onclick="event.stopPropagation();METH.mine('${l}', App._bk.l[${k}][0], App._bk.l[${k}][1], App._bk.l[${k}][2])">⛏️ Minar frase</a></span>` : ''}</p>`).join('')}</div>
     <div class="grid2"><button class="tile" onclick="App.bkRead()"><span class="ic">🎙️</span><b>Léelo en voz alta</b></button><button class="tile" onclick="App.bkBuild()"><span class="ic">🔀</span><b>Ordena frases</b></button>
     <button class="tile" onclick="App.bkQ()"><span class="ic">❓</span><b>Preguntas IA</b></button><button class="tile" onclick="App.bkWords()"><span class="ic">🗂️</span><b>Vocabulario IA</b></button></div><div id="bkx"></div>`;
   }
+  App._bk = b;
+  A.bkBlind = () => { blind = !blind; open.clear(); draw(); if (blind) toast('Escucha primero sin texto: tolera la ambigüedad. Toca una frase para verla.', 3500); };
   A.bkS = (k) => { open.has(k) ? open.delete(k) : open.add(k); speak(b.l[k][0], l); draw(); };
   A.bkTrAll = () => { if (open.size === b.l.length) open.clear(); else b.l.forEach((_, k) => open.add(k)); draw(); };
   A.bkAll = () => { let k = 0; const step = () => { if (k >= b.l.length || !document.querySelector('.book')) return; speak(b.l[k][0], l); const t = b.l[k][0]; k++; setTimeout(step, Math.max(1500, t.length * (l === 'ja' ? 230 : 85) / (S().rate || .9)) + 400); }; step(); };

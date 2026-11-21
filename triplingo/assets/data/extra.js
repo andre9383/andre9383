@@ -26,8 +26,9 @@ window.SKILLS = [
   {ic:"🔗", t:"Transferencia", d:"Aprovecha el español: el portugués comparte ~85% del vocabulario. En inglés busca cognados (<i>information, possible</i>). En japonés usa mnemotecnias visuales para kana y kanji."}
 ];
 
-window.METHOD = `<p><b>Método TriLingo 3×</b> — cada día, por cada idioma activo:</p>
-<p>1️⃣ <b>Aprende</b> (10‑15 min): teoría corta + vocabulario de la unidad de la semana.</p>
-<p>2️⃣ <b>Practica</b> (10 min): ejercicios activos con voz y escritura, y repaso espaciado.</p>
-<p>3️⃣ <b>Usa</b> (5‑10 min): conversación real con la IA o shadowing.</p>
-<p>El plan avanza <b>1 unidad por semana</b> en cada idioma: 24 semanas ≈ 6 meses, de A1 a C1 (en japonés, hasta un nivel intermedio-alto equivalente). Si vas más rápido, adelántate; si te atrasas, el repaso prioriza lo importante.</p>`;
+window.METHOD = `<p><b>Método TriLingo 3×</b> — basado en lo que enseñan los canales más vistos (Lonsdale, Machová, Efromovich, Krashen y la comunidad de inmersión). Cada día, por idioma:</p>
+<p>1️⃣ <b>Aprende</b> (10‑15 min): la unidad de la semana (teoría corta, vocabulario de alta frecuencia y frases‑herramienta). En japonés, también una lección de escritura.</p>
+<p>2️⃣ <b>Practica</b> (10 min): ejercicios activos, repaso espaciado (10‑20 tarjetas nuevas al día como máximo), shadowing 3× y pares mínimos para entrenar el oído.</p>
+<p>3️⃣ <b>Usa y absorbe</b> (20‑30 min): <b>input comprensible</b> en YouTube/podcasts (la app suma tus horas), <b>mina 5 frases</b> del contenido real, y <b>habla</b>: con la IA en modo "padre lingüístico" o contigo mismo 1 minuto.</p>
+<p>🔑 Claves: contenido que te guste y te sirva, tolerar no entenderlo todo, equivocarte sin miedo, y un sistema fijo (por ejemplo 15 min al despertar + audio en el transporte).</p>
+<p>El plan avanza ~1 unidad por semana: 26 semanas ≈ 6 meses de Básico a C1, y C2 como extensión.</p>`;
